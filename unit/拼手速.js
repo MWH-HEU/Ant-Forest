@@ -28,6 +28,9 @@ let SimpleFloatyButton = require('../lib/FloatyButtonSimple.js')
 let CanvasDrawer = require('../lib/CanvasDrawer')
 let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 runningQueueDispatcher.addRunningTask()
+
+let executeByTimeTask = args.executeByTimeTask
+
 if (!FloatyInstance.init()) {
   toastLog('初始化悬浮窗失败')
   exit()
@@ -57,6 +60,59 @@ ui.post(() => {
 // 是否点击中
 let clickRunning = false
 let isRunning = true
+
+// 自动模式：先打开页面，等进入拼手速后再开始点击
+if (executeByTimeTask) {
+  threads.start(function () {
+    LogFloaty.pushLog('自动模式：正在打开蚂蚁森林')
+    commonFunction.backHomeIfInVideoPackage()
+    app.startActivity({
+      action: 'VIEW',
+      data: 'alipays://platformapi/startapp?appId=60000002',
+      packageName: config.package_name
+    })
+    let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
+    if (confirm) {
+      automator.clickCenter(confirm)
+    }
+    // 等待进入蚂蚁森林
+    LogFloaty.pushLog('等待蚂蚁森林页面加载')
+    sleep(2000)
+    widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', 6000)
+    sleep(1500)
+    // 找「赚能量」入口
+    LogFloaty.pushLog('查找赚能量入口')
+    let earnEntry = widgetUtils.widgetGetOne('.*赚能量.*', 3000)
+    if (earnEntry) {
+      LogFloaty.pushLog('点击赚能量')
+      automator.clickCenter(earnEntry)
+      sleep(2000)
+      // 找「拼手速」
+      LogFloaty.pushLog('查找拼手速任务')
+      let speedRace = widgetUtils.widgetGetOne('.*拼手速.*', 2000)
+      if (speedRace) {
+        LogFloaty.pushLog('点击拼手速任务')
+        automator.clickCenter(speedRace)
+        sleep(1000)
+      } else {
+        warnInfo('未找到拼手速任务，请手动进入')
+      }
+    } else {
+      warnInfo('未找到赚能量入口，请手动进入拼手速页面')
+    }
+    // 进入拼手速页面后，开始点击
+    LogFloaty.pushLog('自动模式：开始点击')
+    writeLock.lock()
+    try {
+      startTimestamp = new Date().getTime()
+      clickRunning = true
+      waitStart.signal()
+    } finally {
+      writeLock.unlock()
+    }
+    changeButtonInfo()
+  })
+}
 let displayInfoZone = [config.device_width * 0.05, config.device_height * 0.65, config.device_width * 0.9, 150 * config.scaleRate]
 let writeLock = threads.lock()
 let waitStart = writeLock.newCondition()
@@ -103,6 +159,15 @@ let clickThread = threads.start(function () {
         LogFloaty.pushLog('暴力点击完毕')
         clickRunning = false
         changeButtonInfo()
+        if (executeByTimeTask) {
+          // 自动模式：点击完毕，退出脚本并返回原应用
+          sleep(500)
+          runningQueueDispatcher.removeRunningTask()
+          isRunning = false
+          commonFunction.minimize()
+          sleep(500)
+          exit()
+        }
         sleep(1000)
       }
     }
@@ -127,6 +192,13 @@ let clickButtons = new SimpleFloatyButton('clickBalls', [
         clickRunning = false
       }
       changeButtonInfo()
+    }
+  },
+  {
+    id: 'openSpeedRace',
+    text: '打开赚能量',
+    onClick: function () {
+      openSpeedRacePage()
     }
   },
   {
@@ -266,6 +338,52 @@ commonFunction.registerOnEngineRemoved(function () {
   isRunning = false
   clickThread.interrupt()
 })
+
+let _openingSpeedRace = false
+
+function openSpeedRacePage () {
+  if (_openingSpeedRace) {
+    return
+  }
+  _openingSpeedRace = true
+  LogFloaty.pushLog('正在打开赚能量界面')
+  commonFunction.backHomeIfInVideoPackage()
+  clickButtons.changeButtonText('openSpeedRace', '正在打开...')
+  clickButtons.changeButtonStyle('openSpeedRace', null, '#f36838')
+  app.startActivity({
+    action: 'VIEW',
+    data: 'alipays://platformapi/startapp?appId=60000002',
+    packageName: config.package_name
+  })
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
+  if (confirm) {
+    automator.clickCenter(confirm)
+  }
+  sleep(2000)
+  widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', 6000)
+  sleep(1500)
+  LogFloaty.pushLog('查找赚能量入口')
+  let earnEntry = widgetUtils.widgetGetOne('.*赚能量.*', 3000)
+  if (earnEntry) {
+    LogFloaty.pushLog('点击赚能量')
+    automator.clickCenter(earnEntry)
+    sleep(2000)
+    LogFloaty.pushLog('查找拼手速任务')
+    let speedRace = widgetUtils.widgetGetOne('.*拼手速.*', 2000)
+    if (speedRace) {
+      LogFloaty.pushLog('点击拼手速任务')
+      automator.clickCenter(speedRace)
+      sleep(1000)
+    } else {
+      warnInfo('未找到拼手速任务')
+    }
+  } else {
+    warnInfo('未找到赚能量入口')
+  }
+  clickButtons.changeButtonText('openSpeedRace', '打开赚能量')
+  clickButtons.changeButtonStyle('openSpeedRace', null, '#3FBE7B')
+  _openingSpeedRace = false
+}
 
 // ---------------------
 function changeButtonInfo () {

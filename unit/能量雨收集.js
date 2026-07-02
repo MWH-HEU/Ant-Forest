@@ -401,7 +401,7 @@ setInterval(function () {
   if (targetEndTime < new Date().getTime()) {
     exitAndClean()
   } else if (targetEndTime - new Date().getTime() < 10000 && !config._has_vibrated) {
-    device.vibrate(1000)
+    // device.vibrate(1000)  // 已取消震动
     config._has_vibrated = true
   }
 }, 1000)
@@ -523,7 +523,7 @@ function checkHasValidation () {
   if (validationWidget || config._mock_verify) {
     LogFloaty.pushWarningLog('有验证，请手动执行')
     NotificationHelper.createNotification('能量雨执行异常', '存在人机验证，请手动执行')
-    device.vibrate(1000)
+    // device.vibrate(1000)  // 已取消震动
     if (config.alert_by_tts_while_verify) {
       TTSUtil.initTTS()
       let currentVolume = device.getMusicVolume()

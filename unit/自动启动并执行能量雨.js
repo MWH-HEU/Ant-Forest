@@ -15,3 +15,5 @@ configStorage.put("auto_start_rain", true)
 toastLog("配置完毕done")
 let mainScriptPath = FileUtils.getRealMainScriptPath(true)
 engines.execScriptFile(mainScriptPath + "/unit/能量雨收集.js", { path: mainScriptPath + "/unit/", arguments: { executeByTimeTask: true, needRelock: unlocker.needRelock() } })
+// 父脚本立即退出，不驻留后台
+setTimeout(function () { exit() }, 1000)

@@ -35,8 +35,7 @@ if (!commonFunction.ensureAccessibilityEnabled()) {
   exit()
 }
 
-let unlocker = require('../lib/Unlock.js')
-unlocker.exec()
+// 音量由父脚本控制
 
 
 
@@ -586,7 +585,7 @@ function main () {
   commonFunction.minimize()
   sleep(500)
   runningQueueDispatcher.removeRunningTask()
-  exit()
+    exit()
 }
 
 main()

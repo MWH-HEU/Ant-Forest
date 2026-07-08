@@ -195,4 +195,4 @@ if (config.develop_mode) {
 flushAllLogs()
 runningQueueDispatcher.removeRunningTask(true)
 // 30秒后关闭，防止立即停止
-setTimeout(() => { exit() }, 1000 * 30)
+setTimeout(() => { exit() }, 1000 * 5)

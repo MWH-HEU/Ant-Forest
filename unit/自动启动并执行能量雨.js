@@ -14,6 +14,14 @@ unlocker.exec()
 configStorage.put("auto_start_rain", true)
 toastLog("配置完毕done")
 let mainScriptPath = FileUtils.getRealMainScriptPath(true)
-engines.execScriptFile(mainScriptPath + "/unit/能量雨收集.js", { path: mainScriptPath + "/unit/", arguments: { executeByTimeTask: true, needRelock: unlocker.needRelock() } })
-// 父脚本立即退出，不驻留后台
-setTimeout(function () { exit() }, 1000)
+let childScriptPath = mainScriptPath + "/unit/能量雨收集.js"
+engines.execScriptFile(childScriptPath, { path: mainScriptPath + "/unit/", arguments: { executeByTimeTask: true, needRelock: unlocker.needRelock() } })
+sleep(1000)
+let all = engines.all()
+for (let i = 0; i < all.length; i++) {
+  if ((all[i].getSource() + '') === childScriptPath) {
+    while (!all[i].isDestroyed()) sleep(3000)
+    break
+  }
+}
+exit()

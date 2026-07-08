@@ -86,14 +86,14 @@ if (executeByTimeTask) {
     if (earnEntry) {
       LogFloaty.pushLog('点击赚能量')
       automator.clickCenter(earnEntry)
-      sleep(2000)
+      sleep(500)
       // 找「拼手速」
       LogFloaty.pushLog('查找拼手速任务')
       let speedRace = widgetUtils.widgetGetOne('.*拼手速.*', 2000)
       if (speedRace) {
         LogFloaty.pushLog('点击拼手速任务')
         automator.clickCenter(speedRace)
-        sleep(1000)
+        sleep(500)
       } else {
         warnInfo('未找到拼手速任务，请手动进入')
       }

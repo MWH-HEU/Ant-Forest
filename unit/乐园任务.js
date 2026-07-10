@@ -308,7 +308,7 @@ function tryClaimEnergy () {
       if (results && results.length > 0) {
         // 找出所有"领取"或"去领取"的位置
         let claimButtons = results.filter(function (r) {
-          return (r.label.indexOf('领取') >= 0 || r.label.indexOf('去领取') >= 0) && r.label.indexOf('已领取') < 0
+          return (r.label.indexOf('领取') >= 0 || r.label.indexOf('去领取') >= 0) && r.label.indexOf('已领取') < 0 && r.label.indexOf('每日领取上限') < 0
         })
         // 找出所有"玩一玩"的位置（用于确认是玩一玩行的领取）
         let playLabels = results.filter(function (r) { return r.label.indexOf('玩一玩') >= 0 })
@@ -365,6 +365,10 @@ function tryClaimEnergy () {
     if (btnText.indexOf('已领取') >= 0) continue
     if (parentContainsText(btn, '游戏充值', 5)) {
       leyuanLog('跳过游戏充值优惠券的领取')
+      continue
+    }
+    if (parentContainsText(btn, '每日领取上限', 5)) {
+      leyuanLog('跳过已达每日领取上限的按钮')
       continue
     }
     leyuanLog('点击领取能量: ' + btnText)

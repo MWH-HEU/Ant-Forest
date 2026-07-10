@@ -512,6 +512,18 @@ function exitPlayGame () {
 // ============ 主流程 ============
 
 function main () {
+  // 音量上键退出脚本（在独立线程中轮询检测）
+  infoLog('运行中可按音量上键关闭', true)
+  threads.start(function () {
+    events.observeKey()
+    events.on("key_down", function (keyCode, event) {
+      if (keyCode === 24) {
+        toastLog('用户按音量上键，退出脚本')
+        exit()
+      }
+    })
+  })
+
   // 1. 打开蚂蚁森林
   openAntForest()
 

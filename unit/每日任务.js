@@ -190,51 +190,71 @@ function clickClaimRewardByWidget () {
  * 每轮最多执行2次
  */
 function tryClickClaim () {
-  if (!localOcrUtil.enabled) return false
-  
-  taskLog('通过OCR识别"立即领取"按钮')
-  commonFunction.requestScreenCaptureOrRestart()
-  sleep(500)
-  let screen = commonFunction.captureScreen()
-  if (!screen) return false
-
-  // 全屏搜索"立即领取"
-  let region = [0, 0, config.device_width, config.device_height]
-  taskLog('OCR区域: 全屏, 搜索: 立即领取')
-  // writeLog('OCR区域: 全屏, 搜索: 立即领取')
-  let results = localOcrUtil.recognizeWithBounds(screen, region, '立即领取')
-  screen.recycle()
-  
-  if (results && results.length > 0) {
-    for (let r = 0; r < results.length; r++) {
-      let match = results[r]
-      let label = match.label
-      if (label.indexOf('立即领取') >= 0) {
-        let bounds = match.bounds
-        taskLog('OCR找到"立即领取": 点击: (' + bounds.centerX() + ', ' + bounds.centerY() + ')')
-        automator.click(bounds.centerX(), bounds.centerY())
-        sleep(2000)
-        
-        // 检查是否有"立即抽奖"弹窗
-        if (clickImmediateLottery()) {
-          // 抽奖型：点"立即抽奖"后点"收下奖励"
-          sleep(2000)
-          clickCollectReward()
-        } else {
-          // 纯领取：无弹窗，已领取完成
-          taskLog('立即领取完成（纯领取，无弹窗）')
-        }
-        return true
+  // 优先控件查找"立即领取"
+  taskLog('通过控件查找"立即领取"按钮')
+  try {
+    let allNodes = className('android.widget.Button').find()
+    if (allNodes) {
+      for (let i = 0; i < allNodes.size(); i++) {
+        try {
+          let node = allNodes.get(i)
+          let t = node.text()
+          if (t && t.toString().indexOf('立即领取') >= 0) {
+            let bounds = node.bounds()
+            taskLog('控件找到"立即领取": 点击: (' + bounds.centerX() + ', ' + bounds.centerY() + ')')
+            automator.click(bounds.centerX(), bounds.centerY())
+            sleep(2000)
+            
+            // 检查是否有"立即抽奖"弹窗
+            if (clickImmediateLottery()) {
+              sleep(2000)
+              clickCollectReward()
+            } else {
+              taskLog('立即领取完成（纯领取，无弹窗）')
+            }
+            return true
+          }
+        } catch (e) {}
       }
     }
-    
-    let allTexts = ''
-    for (let r = 0; r < results.length; r++) {
-      allTexts += results[r].label + '|'
-    }
-    taskLog('OCR识别到但未匹配: ' + allTexts)
-    // writeLog('OCR识别到但未匹配: ' + allTexts)
+  } catch (e) {
+    taskLog('控件查找"立即领取"异常: ' + e)
   }
+  
+  // 控件没找到，尝试OCR兜底
+  if (localOcrUtil.enabled) {
+    taskLog('控件未找到，尝试OCR识别"立即领取"')
+    commonFunction.requestScreenCaptureOrRestart()
+    sleep(500)
+    let screen = commonFunction.captureScreen()
+    if (screen) {
+      let region = [0, 0, config.device_width, config.device_height]
+      let results = localOcrUtil.recognizeWithBounds(screen, region, '立即领取')
+      screen.recycle()
+      
+      if (results && results.length > 0) {
+        for (let r = 0; r < results.length; r++) {
+          let match = results[r]
+          let label = match.label
+          if (label.indexOf('立即领取') >= 0) {
+            let bounds = match.bounds
+            taskLog('OCR找到"立即领取": 点击: (' + bounds.centerX() + ', ' + bounds.centerY() + ')')
+            automator.click(bounds.centerX(), bounds.centerY())
+            sleep(2000)
+            
+            if (clickImmediateLottery()) {
+              sleep(2000)
+              clickCollectReward()
+            } else {
+              taskLog('立即领取完成（纯领取，无弹窗）')
+            }
+            return true
+          }
+        }
+      }
+    }
+  }
+  
   return false
 }
 
@@ -245,58 +265,87 @@ function tryClickClaim () {
  * 每轮最多执行2次
  */
 function tryClickGoLottery () {
-  if (!localOcrUtil.enabled) return false
-  
-  taskLog('通过OCR识别"去抽奖"按钮')
-  commonFunction.requestScreenCaptureOrRestart()
-  sleep(500)
-  let screen = commonFunction.captureScreen()
-  if (!screen) return false
-
-  // 全屏搜索
-  let region = [0, 0, config.device_width, config.device_height]
-  taskLog('OCR区域: 全屏, 搜索: 去抽奖')
-  // writeLog('OCR区域: 全屏, 搜索: 去抽奖')
-  let results = localOcrUtil.recognizeWithBounds(screen, region, '去抽奖')
-  screen.recycle()
-  
-  if (results && results.length > 0) {
-    for (let r = 0; r < results.length; r++) {
-      let match = results[r]
-      let label = match.label
-      if (label.indexOf('去抽奖') >= 0) {
-        let bounds = match.bounds
-        // 跳过屏幕上半部分的"去抽奖"（森林寻宝区域），只处理下半部分任务列表的
-        if (bounds.centerY() < config.device_height * 0.35) {
-          taskLog('跳过上方森林寻宝区域的"去抽奖": y=' + bounds.centerY())
-          continue
-        }
-        taskLog('OCR找到"去抽奖": 点击: (' + bounds.centerX() + ', ' + bounds.centerY() + ')')
-        automator.click(bounds.centerX(), bounds.centerY())
-        sleep(3000)
-        
-        // 进入抽奖页面后点击"立即抽奖"，最多重试3次
-        taskLog('等待抽奖页面加载，点击"立即抽奖"')
-        for (let retry = 0; retry < 3; retry++) {
-          if (clickImmediateLottery()) {
-            sleep(2000)
-            clickCollectReward()
-            break
+  // 优先控件查找"去抽奖"
+  taskLog('通过控件查找"去抽奖"按钮')
+  try {
+    let allNodes = className('android.widget.Button').find()
+    if (allNodes) {
+      for (let i = 0; i < allNodes.size(); i++) {
+        try {
+          let node = allNodes.get(i)
+          let t = node.text()
+          if (t && t.toString().indexOf('去抽奖') >= 0) {
+            let bounds = node.bounds()
+            // 跳过屏幕上半部分的"去抽奖"（森林寻宝区域），只处理下半部分任务列表的
+            if (bounds.centerY() < config.device_height * 0.35) {
+              taskLog('跳过上方森林寻宝区域的"去抽奖": y=' + bounds.centerY())
+              continue
+            }
+            taskLog('控件找到"去抽奖": 点击: (' + bounds.centerX() + ', ' + bounds.centerY() + ')')
+            automator.click(bounds.centerX(), bounds.centerY())
+            sleep(3000)
+            
+            taskLog('等待抽奖页面加载，点击"立即抽奖"')
+            for (let retry = 0; retry < 3; retry++) {
+              if (clickImmediateLottery()) {
+                sleep(2000)
+                clickCollectReward()
+                break
+              }
+              taskLog('第' + (retry + 1) + '次点击"立即抽奖"失败，重试...')
+              sleep(2000)
+            }
+            return true
           }
-          taskLog('第' + (retry + 1) + '次点击"立即抽奖"失败，重试...')
-          sleep(2000)
-        }
-        return true
+        } catch (e) {}
       }
     }
-    
-    let allTexts = ''
-    for (let r = 0; r < results.length; r++) {
-      allTexts += results[r].label + '|'
-    }
-    taskLog('OCR识别到但未匹配去抽奖: ' + allTexts)
-    // writeLog('OCR识别到但未匹配去抽奖: ' + allTexts)
+  } catch (e) {
+    taskLog('控件查找"去抽奖"异常: ' + e)
   }
+  
+  // 控件没找到，尝试OCR兜底
+  if (localOcrUtil.enabled) {
+    taskLog('控件未找到，尝试OCR识别"去抽奖"')
+    commonFunction.requestScreenCaptureOrRestart()
+    sleep(500)
+    let screen = commonFunction.captureScreen()
+    if (screen) {
+      let region = [0, 0, config.device_width, config.device_height]
+      let results = localOcrUtil.recognizeWithBounds(screen, region, '去抽奖')
+      screen.recycle()
+      
+      if (results && results.length > 0) {
+        for (let r = 0; r < results.length; r++) {
+          let match = results[r]
+          let label = match.label
+          if (label.indexOf('去抽奖') >= 0) {
+            let bounds = match.bounds
+            if (bounds.centerY() < config.device_height * 0.35) {
+              taskLog('跳过上方森林寻宝区域的"去抽奖": y=' + bounds.centerY())
+              continue
+            }
+            taskLog('OCR找到"去抽奖": 点击: (' + bounds.centerX() + ', ' + bounds.centerY() + ')')
+            automator.click(bounds.centerX(), bounds.centerY())
+            sleep(3000)
+            
+            taskLog('等待抽奖页面加载，点击"立即抽奖"')
+            for (let retry = 0; retry < 3; retry++) {
+              if (clickImmediateLottery()) {
+                sleep(2000)
+                clickCollectReward()
+                break
+              }
+              taskLog('第' + (retry + 1) + '次点击"立即抽奖"失败，重试...')
+              sleep(2000)
+            }
+            return true
+          }
+        }
+      }
+    }
+  }
+  
   return false
 }
 

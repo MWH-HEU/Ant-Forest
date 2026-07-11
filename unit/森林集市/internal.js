@@ -277,30 +277,31 @@ function ClickExecutor () {
   }
 }
 
-function RewardExecutor () {
-
-  this.check = function () {
-    return !!widgetUtils.widgetGetOne('可领取', 2000)
-  }
-
-  this.execute = function () {
-    let collectReword = widgetUtils.widgetGetOne('可领取', 1000)
-    if (collectReword) {
-      collectReword.click()
-      logFloaty.pushLog('点击了领取奖励，等待界面加载, 2s')
-      let limit = 2
-      while (limit-- > 0) {
-        sleep(1000)
-        logFloaty.replaceLastLog('点击了领取奖励，等待界面加载, ' + limit + 's')
-      }
-    } else {
-      logFloaty.pushWarningLog('未能找到领取奖励按钮，可能界面有阻断')
-    }
-  }
-}
+// 注释掉：RewardExecutor 已废弃，领取奖励由 checkAndClickIfTaskEnd 处理
+// function RewardExecutor () {
+// 
+//   this.check = function () {
+//     return !!widgetUtils.widgetGetOne('可领取', 2000)
+//   }
+// 
+//   this.execute = function () {
+//     let collectReword = widgetUtils.widgetGetOne('可领取', 1000)
+//     if (collectReword) {
+//       collectReword.click()
+//       logFloaty.pushLog('点击了领取奖励，等待界面加载, 2s')
+//       let limit = 2
+//       while (limit-- > 0) {
+//         sleep(1000)
+//         logFloaty.replaceLastLog('点击了领取奖励，等待界面加载, ' + limit + 's')
+//       }
+//     } else {
+//       logFloaty.pushWarningLog('未能找到领取奖励按钮，可能界面有阻断')
+//     }
+//   }
+// }
 
 function TaskRunner () {
-  this.executors = [new ClickExecutor(), new BrowserExecutor(), new RewardExecutor()]
+  this.executors = [new ClickExecutor(), new BrowserExecutor()]
   this.run = function () {
     // 注释掉：弹窗只在进入页面和退出时处理，任务执行中不会有弹窗
     // checkDialogAndClose()

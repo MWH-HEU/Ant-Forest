@@ -9,10 +9,14 @@ if (!commonFunctions.ensureAccessibilityEnabled()) {
   errorInfo('获取无障碍权限失败')
   exit()
 }
+// 设置自动静音
+config.mute_exec = true
 let unlocker = require('../lib/Unlock.js')
 unlocker.exec()
 configStorage.put("auto_start_rain", true)
 toastLog("配置完毕done")
+// 显示5秒倒计时弹窗
+commonFunctions.showCommonDialogAndWait('拼手速')
 let mainScriptPath = FileUtils.getRealMainScriptPath(true)
 let childScriptPath = mainScriptPath + "/unit/拼手速.js"
 engines.execScriptFile(childScriptPath, { path: mainScriptPath + "/unit/", arguments: { executeByTimeTask: true, needRelock: unlocker.needRelock() } })

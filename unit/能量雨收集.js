@@ -1,18 +1,19 @@
 importClass(android.view.View)
 
-let currentEngine = engines.myEngine()
-let runningEngines = engines.all()
-let runningSize = runningEngines.length
-let currentSource = currentEngine.getSource() + ''
-if (runningSize > 1) {
-  runningEngines.forEach(compareEngine => {
-    let compareSource = compareEngine.getSource() + ''
-    if (currentEngine.id !== compareEngine.id && compareSource === currentSource) {
-      // 强制关闭同名的脚本
-      compareEngine.forceStop()
-    }
-  })
-}
+// 防重复运行由 runningQueueDispatcher 统一管理
+// let currentEngine = engines.myEngine()
+// let runningEngines = engines.all()
+// let runningSize = runningEngines.length
+// let currentSource = currentEngine.getSource() + ''
+// if (runningSize > 1) {
+//   runningEngines.forEach(compareEngine => {
+//     let compareSource = compareEngine.getSource() + ''
+//     if (currentEngine.id !== compareEngine.id && compareSource === currentSource) {
+//       // 强制关闭同名的脚本
+//       compareEngine.forceStop()
+//     }
+//   })
+// }
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
 
@@ -406,6 +407,8 @@ setInterval(function () {
   }
 }, 1000)
 
+
+
 function exitAndClean () {
   if (!isRunning) {
     return
@@ -413,10 +416,6 @@ function exitAndClean () {
 
   if (executeByTimeTask) {
     commonFunction.minimize()
-    if (config.auto_lock && (args.needRelock == true)) {
-      debugInfo('重新锁定屏幕')
-      automator.lockScreen()
-    }
   } else if (executeByStroll || executeByAccountChanger) {
     // 发送消息，能量雨执行完毕
     debugInfo('发送消息，能量雨执行完毕', true)

@@ -1,17 +1,18 @@
 importClass(android.view.View)
-let currentEngine = engines.myEngine()
-let runningEngines = engines.all()
-let runningSize = runningEngines.length
-let currentSource = currentEngine.getSource() + ''
-if (runningSize > 1) {
-  runningEngines.forEach(compareEngine => {
-    let compareSource = compareEngine.getSource() + ''
-    if (currentEngine.id !== compareEngine.id && compareSource === currentSource) {
-      // 强制关闭同名的脚本
-      compareEngine.forceStop()
-    }
-  })
-}
+// 防重复运行由 runningQueueDispatcher 统一管理
+// let currentEngine = engines.myEngine()
+// let runningEngines = engines.all()
+// let runningSize = runningEngines.length
+// let currentSource = currentEngine.getSource() + ''
+// if (runningSize > 1) {
+//   runningEngines.forEach(compareEngine => {
+//     let compareSource = compareEngine.getSource() + ''
+//     if (currentEngine.id !== compareEngine.id && compareSource === currentSource) {
+//       // 强制关闭同名的脚本
+//       compareEngine.forceStop()
+//     }
+//   })
+// }
 
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()

@@ -353,13 +353,32 @@ function checkIfInVerify () {
  * 关闭首购红包弹窗（方案A：点击"点击领取"）
  */
 function closeFirstPurchaseRedPack () {
-  let claimBtn = widgetUtils.widgetGetOne('点击领取', 2000)
-  if (claimBtn) {
-    logFloaty.pushLog('发现首购红包弹窗，点击领取')
-    automator.clickCenter(claimBtn)
-    sleep(2000)
-  } else {
+  // 先确认弹窗是否存在（查找"首购红包"或"点击领取"文本）
+  if (!widgetUtils.widgetGetOne('首购红包|点击领取', 2000)) {
     debugInfo(['未发现首购红包弹窗'])
+    return
+  }
+  logFloaty.pushLog('发现首购红包弹窗，尝试关闭')
+  // 查找弹窗下方的关闭按钮（X）
+  let closeBtn = selector().filter(node => {
+    if (!node || !node.bounds()) {
+      return false
+    }
+    let bd = node.bounds()
+    let rate = bd.width() / bd.height()
+    let centerX = bd.centerX()
+    let centerY = bd.centerY()
+    return rate >= 0.8 && rate <= 1.2 && centerX > config.device_width * 0.4 && centerX < config.device_width * 0.7 && centerY > config.device_height * 0.5 && centerY < config.device_height * 0.8
+  }).findOne(2000)
+  if (closeBtn) {
+    logFloaty.pushLog('找到关闭按钮，点击关闭')
+    automator.clickCenter(closeBtn)
+    sleep(1500)
+  } else {
+    // 如果找不到X按钮，尝试点击弹窗外部区域关闭
+    logFloaty.pushWarningLog('未找到关闭按钮，尝试点击弹窗外部')
+    automator.click(config.device_width / 2, config.device_height * 0.85)
+    sleep(1500)
   }
 }
 

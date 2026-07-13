@@ -577,10 +577,13 @@ function findAndClickExploreTask () {
 }
 
 /**
- * 处理弹窗：检测"支付宝想要打开xxx"并点击"打开"
+ * 处理弹窗：检测"支付宝想要打开xxx"等并点击"打开"
  */
 function handlePopupDialog () {
   taskLog('检查是否有弹窗')
+  
+  // 等待弹窗动画完成
+  sleep(500)
   
   // 查找"打开"按钮（系统弹窗）
   let openBtn = widgetUtils.widgetGetOne(/^打开$/, 2000)

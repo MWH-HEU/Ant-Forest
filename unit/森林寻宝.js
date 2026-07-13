@@ -595,6 +595,9 @@ function clickClaimRewardByWidget () {
 function handlePopupDialog () {
   LogFloaty.pushLog('检查是否有弹窗')
   
+  // 等待弹窗动画完成
+  sleep(500)
+  
   // 查找"打开"按钮（系统弹窗）
   let openBtn = widgetUtils.widgetGetOne(/^打开$/, 2000)
   if (openBtn) {
@@ -832,11 +835,11 @@ function doAutoCollect () {
                 if (allTextViews) {
                   for (let t = 0; t < allTextViews.size(); t++) {
                     let tvText = getNodeText(allTextViews.get(t))
-                    // 真正的倒计时是纯数字+s格式（如"30s"），排除任务描述中的固定文字（如"浏览30s，可得1次机会"）
+                    // 匹配包含数字+s的文字（如"30s"、"浏览30s，可得1次机会"）
                     if (/\d+s/.test(tvText)) {
                       let tvBounds = allTextViews.get(t).bounds()
-                      // 同一行（Y坐标差距<100）且按钮在文字右侧（X坐标差距合理范围）
-                      if (Math.abs(tvBounds.centerY() - playBounds.centerY()) < 100 && playBounds.centerX() > tvBounds.centerX() && playBounds.centerX() - tvBounds.centerX() < 600) {
+                      // 同一行（Y坐标差距<100）
+                      if (Math.abs(tvBounds.centerY() - playBounds.centerY()) < 100) {
                         LogFloaty.pushLog('检测到倒计时: ' + tvText)
                         hasTimed = true
                         break

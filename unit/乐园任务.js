@@ -509,7 +509,12 @@ function exitPlayGame () {
   if (clickLimitedBenefit()) {
     sleep(1500)
   } else {
-    leyuanLog('限时福利未自动打开，在乐园页面继续')
+    // 限时福利进不去（可能任务已完成或已在限时福利页面），直接结束脚本
+    leyuanLog('限时福利无法进入，结束乐园任务')
+    commonFunction.minimize()
+    sleep(500)
+    runningQueueDispatcher.removeRunningTask()
+    exit()
   }
 }
 

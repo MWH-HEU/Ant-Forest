@@ -51,7 +51,7 @@ const RainConfig = {
   },
   mounted () {
     $nativeApi.request('queryTargetTimedTaskInfo', { path: '/unit/循环切换小号并执行能量雨收集.js' }).then(r => this.timedUnit1 = r)
-    $nativeApi.request('queryTargetTimedTaskInfo', { path: '/unit/自动启动并执行能量雨.js' }).then(r => this.timedUnit2 = r)
+    $nativeApi.request('queryTargetTimedTaskInfo', { path: '/unit/能量雨自动启动.js' }).then(r => this.timedUnit2 = r)
   },
   template: `
   <div>
@@ -61,7 +61,7 @@ const RainConfig = {
     <van-cell-group>
       <tip-block>不建议在逛一逛中触发能量雨，请设置以下任一脚本的定时任务进行触发，避免影响偷能量:</tip-block>
       <tip-block>unit/循环切换小号并执行能量雨收集.js{{timedUnit1|displayTime}}</tip-block>
-      <tip-block>unit/自动启动并执行能量雨.js{{timedUnit2|displayTime}}</tip-block>
+      <tip-block>unit/能量雨自动启动.js{{timedUnit2|displayTime}}</tip-block>
       <switch-cell title="逛一逛结束是否执行能量雨" v-model="configs.collect_rain_when_stroll" />
       <van-field v-model="configs.rain_entry_content" v-if="configs.collect_rain_when_stroll" label="能量雨入口文本" label-width="10em" type="text" placeholder="请输入能量雨入口文本" input-align="right" />
       <van-field v-model="configs.rain_start_content" label="启动按钮文本" label-width="10em" type="text" placeholder="请输入启动按钮文本" input-align="right" />

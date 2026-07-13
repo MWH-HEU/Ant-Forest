@@ -16,9 +16,9 @@ unlocker.exec()
 configStorage.put("auto_start_rain", true)
 toastLog("配置完毕done")
 // 显示5秒倒计时弹窗
-commonFunctions.showCommonDialogAndWait('拼手速')
+commonFunctions.showCommonDialogAndWait('能量雨')
 let mainScriptPath = FileUtils.getRealMainScriptPath(true)
-let childScriptPath = mainScriptPath + "/unit/拼手速.js"
+let childScriptPath = mainScriptPath + "/unit/能量雨.js"
 engines.execScriptFile(childScriptPath, { path: mainScriptPath + "/unit/", arguments: { executeByTimeTask: true, needRelock: unlocker.needRelock() } })
 sleep(1000)
 let all = engines.all()

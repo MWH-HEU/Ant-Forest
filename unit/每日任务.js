@@ -5,7 +5,7 @@
  * 3. 全屏OCR识别任务按钮：
  *    - OCR识别"立即领取"，点击后检查是否有"立即抽奖"弹窗，有则走抽奖流程
  *    - OCR识别"去抽奖"（跳过上方森林寻宝区域）→ 进入抽奖页面点"立即抽奖" → 点"收下奖励"
- *    - 没有"立即领取"或"去抽奖"时，找"逛一逛"、"去看看"、"去参与"、"去领取"、"去守护"、"去完成"（排除"玩一场能量雨"、"看病保障"、"去淘宝看科普视频"）
+ *    - 没有"立即领取"或"去抽奖"时，找"逛一逛"、"去看看"、"去参与"、"去领取"、"去守护"、"去完成"（排除"玩一场能量雨"、"添加1份看病保障"、"去淘宝看科普视频"、"去蚂蚁阿福健康问答"）
  *    - 点击后处理弹窗（"支付宝想要打开xxx"等）
  *    - 等待35秒后kill支付宝进程重新打开领奖励页面，重复步骤3
  *    - 没有匹配到内容时退出
@@ -421,7 +421,7 @@ function clickCollectReward () {
 /**
  * 查找并点击探索任务按钮
  * 关键词：逛一逛、去看看、去参与、去领取、去守护、去完成
- * 排除：玩一场能量雨、看病保障、去淘宝看科普视频（检查按钮附近是否有排除文字）
+ * 排除：玩一场能量雨、添加1份看病保障、去淘宝看科普视频、去蚂蚁阿福健康问答（检查按钮附近是否有排除文字）
  * 优先控件查找，OCR作为兜底
  * 返回是否找到了并点击了
  */
@@ -463,7 +463,7 @@ function findAndClickExploreTask () {
                 text.indexOf('去守护') >= 0 || text.indexOf('去完成') >= 0) {
               // 检查该按钮所在行附近是否有需要跳过的任务
               let shouldSkip = false
-              let skipReasons = ['玩一场能量雨', '看病保障', '去淘宝看科普视频']
+              let skipReasons = ['玩一场能量雨', '添加1份看病保障', '去淘宝看科普视频', '去蚂蚁阿福健康问答']
               try {
                 let myBounds = node.bounds()
                 let allNodes2 = className('android.widget.Button').find()
@@ -546,7 +546,7 @@ function findAndClickExploreTask () {
                     let nt = allNodes2.get(n).text()
                     if (nt) {
                       let nText = nt.toString()
-                      if (nText.indexOf('看病保障') >= 0 || nText.indexOf('玩一场能量雨') >= 0 || nText.indexOf('去淘宝看科普视频') >= 0) {
+                      if (nText.indexOf('添加1份看病保障') >= 0 || nText.indexOf('玩一场能量雨') >= 0 || nText.indexOf('去淘宝看科普视频') >= 0 || nText.indexOf('去蚂蚁阿福健康问答') >= 0) {
                         let nb = allNodes2.get(n).bounds()
                         if (Math.abs(nb.centerY() - bounds.centerY()) < 200) {
                           taskLog('OCR跳过"' + nText + '"行的"去完成"')

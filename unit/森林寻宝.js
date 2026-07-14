@@ -481,7 +481,7 @@ function openForestHuntPage () {
   }
 }
 
-// 等待35秒后返回森林寻宝页面（kill支付宝进程重新打开）
+// 等待后返回森林寻宝页面（kill支付宝进程重新打开）
 function reopenForestHuntPage () {
   LogFloaty.pushLog('返回桌面并重新打开森林寻宝')
   
@@ -811,8 +811,8 @@ function doAutoCollect () {
         automator.clickCenter(goTarget)
         sleep(2000)
         handlePopupDialog()
-        LogFloaty.pushLog('等待35秒后返回森林寻宝')
-        sleep(35000)
+        LogFloaty.pushLog('等待5秒后返回森林寻宝')
+        sleep(5000)
         reopenForestHuntPage()
         tryClaim()
       }

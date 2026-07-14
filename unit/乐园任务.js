@@ -460,12 +460,12 @@ function tryStartPlayGame () {
 }
 
 function waitForGameComplete () {
-  leyuanLog('进入玩一玩页面，等待任务完成（最多检查12次）')
+  leyuanLog('进入玩一玩页面，等待任务完成（最多检查72次，每5秒一次）')
   sleep(2000)
 
-  let maxChecks = 12
+  let maxChecks = 72
   for (let check = 1; check <= maxChecks; check++) {
-    sleep(30000)
+    sleep(5000)
     leyuanLog('第' + check + '/' + maxChecks + '次检查玩一玩状态...')
     let completed = widgetUtils.widgetGetOne('.*已完成.*', 1000)
     if (completed) {
@@ -539,7 +539,10 @@ function main () {
   // 2. 进入乐园
   leyuanLog('查找乐园入口')
   if (!clickParkByOcr()) {
-    errorInfo('无法定位乐园入口')
+    errorInfo('无法定位乐园入口，结束乐园任务')
+    commonFunction.minimize()
+    sleep(500)
+    runningQueueDispatcher.removeRunningTask()
     exit()
   }
 
@@ -570,7 +573,10 @@ function main () {
   if (!hasDirectTasks) {
     leyuanLog('乐园页面无直接任务，进入限时福利')
     if (!clickLimitedBenefit()) {
-      errorInfo('未找到限时福利入口')
+      errorInfo('未找到限时福利入口，结束乐园任务')
+      commonFunction.minimize()
+      sleep(500)
+      runningQueueDispatcher.removeRunningTask()
       exit()
     }
     sleep(1500)

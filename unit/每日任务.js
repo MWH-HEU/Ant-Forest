@@ -497,6 +497,30 @@ function findAndClickExploreTask () {
               automator.click(bounds.centerX(), bounds.centerY())
               sleep(2000)
               handlePopupDialog()
+              // 检查附近是否有"玩一玩"，有则等待20秒，否则5秒
+              let waitTime = 5000
+              try {
+                let allNodes2 = className('android.widget.Button').find()
+                if (allNodes2) {
+                  for (let n = 0; n < allNodes2.size(); n++) {
+                    try {
+                      let nt = allNodes2.get(n).text()
+                      if (nt && nt.toString().indexOf('玩一玩') >= 0) {
+                        let nb = allNodes2.get(n).bounds()
+                        if (Math.abs(nb.centerY() - bounds.centerY()) < 200) {
+                          waitTime = 20000
+                          taskLog('附近有"玩一玩"任务，等待20秒')
+                          break
+                        }
+                      }
+                    } catch (e) {}
+                  }
+                }
+              } catch (e) {}
+              if (waitTime === 5000) {
+                taskLog('附近无"玩一玩"任务，等待5秒')
+              }
+              sleep(waitTime)
               return true
             }
           }
@@ -750,9 +774,8 @@ function main () {
     
     try {
       if (findAndClickExploreTask()) {
-        taskLog('点击了探索任务，等待20秒后重新打开领奖励页面')
-        // writeLog('第' + (round + 1) + '轮: 点击探索任务成功，等待35秒')
-        sleep(20000)
+        taskLog('点击了探索任务，等待后重新打开领奖励页面')
+        // writeLog('第' + (round + 1) + '轮: 点击探索任务成功')
         
         // 重新打开领奖励页面
         // writeLog('第' + (round + 1) + '轮: 重新打开领奖励页面')

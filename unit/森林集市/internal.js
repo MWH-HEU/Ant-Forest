@@ -68,62 +68,27 @@ function Market () {
 
   this.doHangOut = function (retry) {
     let errorMsg = ''
-    let tryLimit = 3
-    // 音量上键退出脚本
-    threads.start(function () {
-      events.observeKey()
-      events.on("key_down", function (keyCode, event) {
-        if (keyCode === 24) {
-          logFloaty.pushLog('用户按音量上键，退出森林集市')
-          exit()
-        }
-      })
-    })
+    let i = 1
     let taskRunner = new TaskRunner()
-    while (tryLimit > 0) {
-      // 注释掉：任务完成由 taskRunner.run() 匹配不到执行器来判断
-      // if (this.isDone()) {
-      //   logFloaty.pushLog('今日任务已经完成了 退出执行')
-      //   sleep(1000)
-      //   return true
-      // }
-      if (!taskRunner.run()) {
-        debugInfo(['未能匹配到任何执行器'])
-        // 确认还在界面中，等待3s后重试一次
-        if (widgetUtils.widgetCheck('绿色商品', 2000)) {
-          sleep(3000)
-          if (!taskRunner.run()) {
-            logFloaty.pushLog('仍在森林集市界面且无任务可执行，任务已完成')
-            return true
-          }
-        } else {
-          logFloaty.pushErrorLog('当前不在森林集市界面，重新打开')
-          commonFunctions.minimize()
-          if (!startApp()) {
-            logFloaty.pushErrorLog('重新打开森林集市失败')
-            return false
-          }
+    do {
+      // 判断是否在森林集市页面，不在则重新进入
+      if (!widgetUtils.widgetCheck('绿色商品', 2000)) {
+        logFloaty.pushErrorLog('当前不在森林集市界面，重新打开')
+        commonFunctions.minimize()
+        if (!startApp()) {
+          logFloaty.pushErrorLog('重新打开森林集市失败')
+          return false
         }
+        // 重新进入后重试本轮，不计入次数
+        continue
       }
-      // 注释掉：放弃按钮 遮挡界面
-      // let drop = widgetUtils.widgetGetOne('放弃', 3000)
-      // if (drop) {
-      //   automator.clickCenter(drop)
-      //   sleep(1000)
-      // }
-      // 注释掉：TaskRunner.run() 中已有 checkDialogAndClose()
-      // logFloaty.pushLog('检查是否有关闭弹窗按钮')
-      // let centerCloseBtn = selector().clickable().filter(node => {
-      //   let bd = node.bounds()
-      //   let rate = bd.width() / bd.height()
-      //   return rate >= 0.98 && rate <= 1.02 && bd.centerX() == config.device_width / 2 && bd.centerY() > config.device_height / 2
-      // }).findOne(2000)
-      // if (centerCloseBtn) {
-      //   logFloaty.pushLog('找到关闭弹窗按钮')
-      //   centerCloseBtn.click()
-      // }
-    }
-    // tryLimit 耗尽，走失败流程
+      if (!taskRunner.run()) {
+        // 未匹配到任何执行器，确认在森林集市页面，说明任务已完成
+        logFloaty.pushLog('在森林集市界面且无任务可执行，任务已完成')
+        return true
+      }
+      i++
+    } while (i <= 7)
     this._hangOutErrorMsg = '执行次数超过指定次数，可能存在页面阻断'
     return false
   }
@@ -277,34 +242,35 @@ function ClickExecutor () {
   }
 }
 
-// 注释掉：RewardExecutor 已废弃，领取奖励由 checkAndClickIfTaskEnd 处理
-// function RewardExecutor () {
-// 
-//   this.check = function () {
-//     return !!widgetUtils.widgetGetOne('可领取', 2000)
-//   }
-// 
-//   this.execute = function () {
-//     let collectReword = widgetUtils.widgetGetOne('可领取', 1000)
-//     if (collectReword) {
-//       collectReword.click()
-//       logFloaty.pushLog('点击了领取奖励，等待界面加载, 2s')
-//       let limit = 2
-//       while (limit-- > 0) {
-//         sleep(1000)
-//         logFloaty.replaceLastLog('点击了领取奖励，等待界面加载, ' + limit + 's')
-//       }
-//     } else {
-//       logFloaty.pushWarningLog('未能找到领取奖励按钮，可能界面有阻断')
-//     }
-//   }
-// }
+function RewardExecutor () {
+
+  this.check = function () {
+    return !!widgetUtils.widgetGetOne('可领取', 2000)
+  }
+
+  this.execute = function () {
+    // 先滑动到最上部，确保"可领取"在可视区域
+    let h = config.device_height
+    automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
+    sleep(500)
+    let collectReword = widgetUtils.widgetGetOne('可领取', 1000)
+    if (collectReword) {
+      collectReword.click()
+      logFloaty.pushLog('点击了领取奖励，等待界面加载, 5s')
+      let limit = 5
+      while (limit-- > 0) {
+        sleep(1000)
+        logFloaty.replaceLastLog('点击了领取奖励，等待界面加载, ' + limit + 's')
+      }
+    } else {
+      logFloaty.pushWarningLog('未能找到领取奖励按钮，可能界面有阻断')
+    }
+  }
+}
 
 function TaskRunner () {
-  this.executors = [new ClickExecutor(), new BrowserExecutor()]
+  this.executors = [new BrowserExecutor(), new ClickExecutor(), new RewardExecutor()]
   this.run = function () {
-    // 注释掉：弹窗只在进入页面和退出时处理，任务执行中不会有弹窗
-    // checkDialogAndClose()
     for (let executor of this.executors) {
       if (executor.check()) {
         executor.execute()

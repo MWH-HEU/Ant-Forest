@@ -33,6 +33,7 @@ let NotificationHelper = sRequire('Notification')
 let LogFloaty = sRequire('LogFloaty')
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let SimpleFloatyButton = require('../lib/FloatyButtonSimple.js')
+let killProcessUtil = require('../lib/KillProcessUtil.js')
 
 let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 runningQueueDispatcher.addRunningTask()
@@ -188,6 +189,7 @@ if (executeByTimeTask) {
   LogFloaty.pushLog('任务完成，返回蚂蚁森林收集页面')
   commonFunction.minimize()
   sleep(500)
+  killApps()
   exit()
 } else {
   commonFunction.registerOnEngineRemoved(function () {
@@ -481,6 +483,25 @@ function openForestHuntPage () {
   }
 }
 
+// kill后台进程
+function killApps () {
+  try {
+    killProcessUtil.killMultiple([
+      { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' },
+      { pkg: 'com.taobao.taobao', name: '淘宝' },
+      { pkg: 'com.sankuai.meituan', name: '美团' },
+      { pkg: 'com.taobao.idlefish', name: '闲鱼' },
+      { pkg: 'com.taobao.etao', name: '一淘' },
+      { pkg: 'com.taobao.trip', name: '飞猪' },
+      { pkg: 'com.autonavi.minimap', name: '高德地图' }
+    ], function(name, success) {
+      LogFloaty.pushLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+    })
+  } catch (e) {
+    LogFloaty.pushLog('kill进程失败: ' + e)
+  }
+}
+
 // 等待后返回森林寻宝页面（kill支付宝进程重新打开）
 function reopenForestHuntPage () {
   LogFloaty.pushLog('返回桌面并重新打开森林寻宝')
@@ -489,15 +510,8 @@ function reopenForestHuntPage () {
   commonFunction.minimize()
   sleep(1000)
   
-  // kill支付宝进程
-  try {
-    let packageName = config.package_name || 'com.eg.android.AlipayGphone'
-    LogFloaty.pushLog('kill支付宝进程: ' + packageName)
-    shell('am force-stop ' + packageName, true)
-    sleep(2000)
-  } catch (e) {
-    LogFloaty.pushLog('kill支付宝进程失败: ' + e)
-  }
+  // kill后台进程
+  killApps()
   
   // 重新打开森林寻宝
   openForestHuntPage()

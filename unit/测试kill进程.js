@@ -34,7 +34,6 @@ packages.forEach(p => {
 // 杀进程
 LogFloaty.pushLog('')
 LogFloaty.pushLog('===== 开始 kill 进程 =====')
-let results = killProcessUtil.killMultiple(packages)
-results.forEach(r => {
-  LogFloaty.pushLog(r.name + ' → ' + (r.success ? '✓ 已杀掉' : '✗ 失败'))
+killProcessUtil.killMultiple(packages, function(name, success) {
+  LogFloaty.pushLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
 })

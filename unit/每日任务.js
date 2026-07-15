@@ -671,17 +671,9 @@ function handlePopupDialog () {
 }
 
 /**
- * 返回桌面并重新打开领奖励页面
- * 先 kill 支付宝、淘宝、美团、闲鱼、一淘、飞猪、高德进程再重启，确保清除所有打开的页面
+ * 杀掉后台进程（支付宝、淘宝、美团、闲鱼、一淘、飞猪、高德）
  */
-function reopenRewardPage () {
-  taskLog('返回桌面并重新打开领奖励页面')
-  
-  // 返回桌面
-  commonFunction.minimize()
-  sleep(1000)
-  
-  // kill 支付宝进程
+function killApps () {
   try {
     killProcessUtil.killMultiple([
       { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' },
@@ -694,10 +686,25 @@ function reopenRewardPage () {
     ], function(name, success) {
       taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
     })
-    sleep(2000)
   } catch (e) {
-    taskLog('kill支付宝进程失败: ' + e)
+    taskLog('kill进程失败: ' + e)
   }
+}
+
+/**
+ * 返回桌面并重新打开领奖励页面
+ * 先 kill 支付宝、淘宝、美团、闲鱼、一淘、飞猪、高德进程再重启，确保清除所有打开的页面
+ */
+function reopenRewardPage () {
+  taskLog('返回桌面并重新打开领奖励页面')
+  
+  // 返回桌面
+  commonFunction.minimize()
+  sleep(1000)
+  
+  // kill 后台进程
+  killApps()
+  sleep(2000)
   
   // 重新打开蚂蚁森林
   openAntForest()
@@ -753,21 +760,7 @@ function main () {
     errorInfo('无法定位领奖励入口')
     commonFunction.minimize()
     sleep(500)
-    try {
-      killProcessUtil.killMultiple([
-        { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' },
-        { pkg: 'com.taobao.taobao', name: '淘宝' },
-        { pkg: 'com.sankuai.meituan', name: '美团' },
-        { pkg: 'com.taobao.idlefish', name: '闲鱼' },
-        { pkg: 'com.taobao.etao', name: '一淘' },
-        { pkg: 'com.taobao.trip', name: '飞猪' },
-        { pkg: 'com.autonavi.minimap', name: '高德地图' }
-      ], function(name, success) {
-        taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
-      })
-    } catch (e) {
-      taskLog('kill进程失败: ' + e)
-    }
+    killApps()
     runningQueueDispatcher.removeRunningTask()
     exit()
   }
@@ -844,21 +837,7 @@ function main () {
   sleep(500)
   // kill进程
   taskLog('清理后台进程')
-  try {
-    killProcessUtil.killMultiple([
-      { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' },
-      { pkg: 'com.taobao.taobao', name: '淘宝' },
-      { pkg: 'com.sankuai.meituan', name: '美团' },
-      { pkg: 'com.taobao.idlefish', name: '闲鱼' },
-      { pkg: 'com.taobao.etao', name: '一淘' },
-      { pkg: 'com.taobao.trip', name: '飞猪' },
-      { pkg: 'com.autonavi.minimap', name: '高德地图' }
-    ], function(name, success) {
-      taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
-    })
-  } catch (e) {
-    taskLog('kill进程失败: ' + e)
-  }
+  killApps()
   runningQueueDispatcher.removeRunningTask()
   exit()
 }

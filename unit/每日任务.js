@@ -22,6 +22,7 @@ let LogFloaty = sRequire('LogFloaty')
 let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let FileUtils = require('../lib/prototype/FileUtils.js')
+let killProcessUtil = require('../lib/KillProcessUtil.js')
 runningQueueDispatcher.addRunningTask()
 
 // 调试日志（仅悬浮窗显示，不写入文件）
@@ -31,6 +32,9 @@ function taskLog (msg) {
 
 if (!commonFunction.ensureAccessibilityEnabled()) {
   errorInfo('获取无障碍权限失败')
+  commonFunction.minimize()
+  sleep(500)
+  runningQueueDispatcher.removeRunningTask()
   exit()
 }
 
@@ -679,19 +683,17 @@ function reopenRewardPage () {
   
   // kill 支付宝进程
   try {
-    let packages = [
-      config.package_name || 'com.eg.android.AlipayGphone',
-      'com.taobao.taobao',
-      'com.sankuai.meituan',
-      'com.taobao.idlefish',
-      'com.taobao.etao',
-      'com.taobao.trip',
-      'com.autonavi.minima'
-    ]
-    for (let p = 0; p < packages.length; p++) {
-      taskLog('kill进程: ' + packages[p])
-      shell('am force-stop ' + packages[p], true)
-    }
+    killProcessUtil.killMultiple([
+      { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' },
+      { pkg: 'com.taobao.taobao', name: '淘宝' },
+      { pkg: 'com.sankuai.meituan', name: '美团' },
+      { pkg: 'com.taobao.idlefish', name: '闲鱼' },
+      { pkg: 'com.taobao.etao', name: '一淘' },
+      { pkg: 'com.taobao.trip', name: '飞猪' },
+      { pkg: 'com.autonavi.minimap', name: '高德地图' }
+    ], function(name, success) {
+      taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+    })
     sleep(2000)
   } catch (e) {
     taskLog('kill支付宝进程失败: ' + e)
@@ -737,7 +739,6 @@ function main () {
     events.on("key_down", function (keyCode, event) {
       if (keyCode === 24) {
         toastLog('用户按音量上键，退出脚本')
-        // writeLog('用户按音量上键，退出脚本')
         exit()
       }
     })
@@ -750,6 +751,24 @@ function main () {
   taskLog('查找领奖励入口')
   if (!clickClaimRewardByOcr()) {
     errorInfo('无法定位领奖励入口')
+    commonFunction.minimize()
+    sleep(500)
+    try {
+      killProcessUtil.killMultiple([
+        { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' },
+        { pkg: 'com.taobao.taobao', name: '淘宝' },
+        { pkg: 'com.sankuai.meituan', name: '美团' },
+        { pkg: 'com.taobao.idlefish', name: '闲鱼' },
+        { pkg: 'com.taobao.etao', name: '一淘' },
+        { pkg: 'com.taobao.trip', name: '飞猪' },
+        { pkg: 'com.autonavi.minimap', name: '高德地图' }
+      ], function(name, success) {
+        taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+      })
+    } catch (e) {
+      taskLog('kill进程失败: ' + e)
+    }
+    runningQueueDispatcher.removeRunningTask()
     exit()
   }
   sleep(3000)
@@ -823,6 +842,23 @@ function main () {
   taskLog('每日任务完成，返回原页面')
   commonFunction.minimize()
   sleep(500)
+  // kill进程
+  taskLog('清理后台进程')
+  try {
+    killProcessUtil.killMultiple([
+      { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' },
+      { pkg: 'com.taobao.taobao', name: '淘宝' },
+      { pkg: 'com.sankuai.meituan', name: '美团' },
+      { pkg: 'com.taobao.idlefish', name: '闲鱼' },
+      { pkg: 'com.taobao.etao', name: '一淘' },
+      { pkg: 'com.taobao.trip', name: '飞猪' },
+      { pkg: 'com.autonavi.minimap', name: '高德地图' }
+    ], function(name, success) {
+      taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+    })
+  } catch (e) {
+    taskLog('kill进程失败: ' + e)
+  }
   runningQueueDispatcher.removeRunningTask()
   exit()
 }

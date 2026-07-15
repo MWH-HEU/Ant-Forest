@@ -2,13 +2,13 @@
  * 自动执行每日任务
  * 1. 打开蚂蚁森林 → 点击"领奖励"
  * 2. 进入领奖励页面
- * 3. 全屏OCR识别任务按钮：
- *    - OCR识别"立即领取"，点击后检查是否有"立即抽奖"弹窗，有则走抽奖流程
- *    - OCR识别"去抽奖"（跳过上方森林寻宝区域）→ 进入抽奖页面点"立即抽奖" → 点"收下奖励"
- *    - 没有"立即领取"或"去抽奖"时，找"逛一逛"、"去看看"、"去参与"、"去领取"、"去守护"、"去完成"（排除"玩一场能量雨"、"添加1份看病保障"、"去淘宝看科普视频"、"去蚂蚁阿福健康问答"、"去百度看蚂蚁森林"）
- *    - 点击后处理弹窗（"支付宝想要打开xxx"等）
- *    - 等待20秒后kill支付宝进程重新打开领奖励页面，重复步骤3
- *    - 没有匹配到内容时退出
+ * 3. 控件优先/OCR兜底识别"立即领取"和"去抽奖"按钮，处理领取/抽奖流程
+ * 4. 控件查找"逛一逛"、"去看看"、"去参与"、"去领取"、"去守护"、"去完成"探索任务
+ *    （排除"玩一场能量雨"、"添加1份看病保障"、"去淘宝看科普视频"、"去蚂蚁阿福健康问答"、"去百度看蚂蚁森林"）
+ * 5. 点击前检查附近是否有"玩一玩"、"获取更多森林资讯"或"看15s直播得能量"，有则等待15秒，否则2秒
+ * 6. 点击后处理弹窗（"支付宝想要打开xxx"等）
+ * 7. kill支付宝、淘宝、美团、闲鱼、一淘、飞猪、高德进程重新打开领奖励页面
+ * 8. 没有匹配到内容时退出
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
@@ -183,8 +183,8 @@ function clickClaimRewardByWidget () {
 
 
 /**
- * OCR识别并点击"立即领取"
- * 全屏搜索"立即领取"，点击后：
+ * 控件优先/OCR兜底识别并点击"立即领取"
+ * 点击后：
  * - 有"立即抽奖"弹窗 → 走抽奖流程
  * - 无弹窗 → 纯领取已完成
  * 每轮最多执行2次
@@ -259,8 +259,8 @@ function tryClickClaim () {
 }
 
 /**
- * OCR识别并点击"去抽奖"
- * 全屏搜索"去抽奖"，跳过上方森林寻宝区域（y<0.35*高度）
+ * 控件优先/OCR兜底识别并点击"去抽奖"
+ * 跳过上方森林寻宝区域（y<0.35*高度）
  * 点击后进入抽奖页面，最多3次点击"立即抽奖"，再点"收下奖励"
  * 每轮最多执行2次
  */
@@ -419,10 +419,11 @@ function clickCollectReward () {
 }
 
 /**
- * 查找并点击探索任务按钮
+ * 控件查找并点击探索任务按钮
  * 关键词：逛一逛、去看看、去参与、去领取、去守护、去完成
  * 排除：玩一场能量雨、添加1份看病保障、去淘宝看科普视频、去蚂蚁阿福健康问答、去百度看蚂蚁森林（检查按钮附近是否有排除文字）
- * 优先控件查找，OCR作为兜底
+ * 点击前检查附近是否有"玩一玩"、"获取更多森林资讯"或"看15s直播得能量"，有则等待15秒，否则2秒
+ * 点击后处理弹窗
  * 返回是否找到了并点击了
  */
 function findAndClickExploreTask () {
@@ -493,9 +494,9 @@ function findAndClickExploreTask () {
               } catch (e) {}
               if (shouldSkip) continue
               let bounds = node.bounds()
-              // 在点击前检查附近是否有"玩一玩"或"获取更多森林资讯"，有则等待15秒，否则2秒
+              // 在点击前检查附近是否有"玩一玩"、"获取更多森林资讯"或"看15s直播得能量"，有则等待15秒，否则2秒
               let waitTime = 2000
-              let longWaitKeywords = ['玩一玩', '获取更多森林资讯']
+              let longWaitKeywords = ['玩一玩', '获取更多森林资讯', '看15s直播得能量']
               try {
                 let allNodes2 = className('android.widget.Button').find()
                 if (allNodes2) {
@@ -667,7 +668,7 @@ function handlePopupDialog () {
 
 /**
  * 返回桌面并重新打开领奖励页面
- * 先 kill 支付宝进程再重启，确保清除所有打开的页面
+ * 先 kill 支付宝、淘宝、美团、闲鱼、一淘、飞猪、高德进程再重启，确保清除所有打开的页面
  */
 function reopenRewardPage () {
   taskLog('返回桌面并重新打开领奖励页面')
@@ -678,9 +679,19 @@ function reopenRewardPage () {
   
   // kill 支付宝进程
   try {
-    let packageName = config.package_name || 'com.eg.android.AlipayGphone'
-    taskLog('kill支付宝进程: ' + packageName)
-    shell('am force-stop ' + packageName, true)
+    let packages = [
+      config.package_name || 'com.eg.android.AlipayGphone',
+      'com.taobao.taobao',
+      'com.sankuai.meituan',
+      'com.taobao.idlefish',
+      'com.taobao.etao',
+      'com.taobao.trip',
+      'com.autonavi.minima'
+    ]
+    for (let p = 0; p < packages.length; p++) {
+      taskLog('kill进程: ' + packages[p])
+      shell('am force-stop ' + packages[p], true)
+    }
     sleep(2000)
   } catch (e) {
     taskLog('kill支付宝进程失败: ' + e)

@@ -23,6 +23,7 @@ let LogFloaty = sRequire('LogFloaty')
 let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let FileUtils = require('../lib/prototype/FileUtils.js')
+let killProcessUtil = require('../lib/KillProcessUtil.js')
 runningQueueDispatcher.addRunningTask()
 
 // 调试日志（仅悬浮窗显示，不写入文件）
@@ -119,6 +120,19 @@ function getText (node) {
     return t ? t.toString() : ''
   } catch (e) {
     return ''
+  }
+}
+
+/**
+ * 退出脚本：逐级返回 → 杀掉支付宝进程 → 清理队列 → 退出
+ */
+function killAlipay () {
+  // kill 支付宝进程
+  try {
+    let killSuccess = killProcessUtil.kill(config.package_name || 'com.eg.android.AlipayGphone')
+    leyuanLog('支付宝 → ' + (killSuccess ? '✓ 已杀掉' : '✗ 失败'))
+  } catch (e) {
+    leyuanLog('支付宝 → ✗ 失败: ' + e)
   }
 }
 
@@ -481,7 +495,7 @@ function waitForGameComplete () {
 
 /**
  * 退出玩一玩页面并返回乐园/限时福利
- * 先尝试进限时福利，失败则在乐园页面继续
+ * 先尝试进限时福利，失败则结束脚本
  */
 function exitPlayGame () {
   leyuanLog('返回桌面并重新进入')
@@ -513,6 +527,8 @@ function exitPlayGame () {
     leyuanLog('限时福利无法进入，结束乐园任务')
     commonFunction.minimize()
     sleep(500)
+    killAlipay()
+    sleep(1000)
     runningQueueDispatcher.removeRunningTask()
     exit()
   }
@@ -542,6 +558,8 @@ function main () {
     errorInfo('无法定位乐园入口，结束乐园任务')
     commonFunction.minimize()
     sleep(500)
+    killAlipay()
+    sleep(1000)
     runningQueueDispatcher.removeRunningTask()
     exit()
   }
@@ -576,6 +594,8 @@ function main () {
       errorInfo('未找到限时福利入口，结束乐园任务')
       commonFunction.minimize()
       sleep(500)
+      killAlipay()
+      sleep(1000)
       runningQueueDispatcher.removeRunningTask()
       exit()
     }
@@ -611,6 +631,8 @@ function main () {
   leyuanLog('任务完成，返回原页面')
   commonFunction.minimize()
   sleep(500)
+  killAlipay()
+  sleep(1000)
   runningQueueDispatcher.removeRunningTask()
     exit()
 }

@@ -249,10 +249,17 @@ function RewardExecutor () {
   }
 
   this.execute = function () {
-    // 先滑动到最上部，确保"可领取"在可视区域
-    let h = config.device_height
-    automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
-    sleep(500)
+    // // 先滑动到最上部，确保"可领取"在可视区域
+    // let h = config.device_height
+    // automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
+    // sleep(500)
+    // // 等待5s让界面稳定
+    // logFloaty.pushLog('滑动到顶部，等待界面稳定, 5s')
+    // let limit = 5
+    // while (limit-- > 0) {
+    //   sleep(1000)
+    //   logFloaty.replaceLastLog('滑动到顶部，等待界面稳定, ' + limit + 's')
+    // }
     let collectReword = widgetUtils.widgetGetOne('可领取', 1000)
     if (collectReword) {
       collectReword.click()

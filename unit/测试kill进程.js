@@ -6,8 +6,9 @@
 
 let sRequire = require('../lib/SingletonRequirer.js')(runtime, global)
 let LogFloaty = sRequire('LogFloaty')
+let killProcessUtil = require('../lib/KillProcessUtil.js')
 
-if (!$shizuku.isRunning()) {
+if (!killProcessUtil.isShizukuRunning()) {
   LogFloaty.pushLog('错误: Shizuku 未运行，请在抽屉界面开启 Shizuku 服务')
   exit()
 }
@@ -24,27 +25,16 @@ let packages = [
 
 LogFloaty.show()
 
+// 检查进程状态
 LogFloaty.pushLog('===== 检查进程运行状态 =====')
 packages.forEach(p => {
-  let r = $shizuku('ps -A | grep ' + p.pkg)
-  LogFloaty.pushLog(p.name + ': ' + (r.result ? '运行中' : '已停止'))
+  LogFloaty.pushLog(p.name + ': ' + (killProcessUtil.isRunning(p.pkg) ? '运行中' : '已停止'))
 })
 
+// 杀进程
 LogFloaty.pushLog('')
 LogFloaty.pushLog('===== 开始 kill 进程 =====')
-packages.forEach(p => {
-  let r = $shizuku('am force-stop ' + p.pkg)
-  LogFloaty.pushLog(p.name + ' → ' + (r.code === 0 ? '✓ 已杀掉' : '✗ 失败'))
+let results = killProcessUtil.killMultiple(packages)
+results.forEach(r => {
+  LogFloaty.pushLog(r.name + ' → ' + (r.success ? '✓ 已杀掉' : '✗ 失败'))
 })
-
-sleep(2000)
-
-LogFloaty.pushLog('')
-LogFloaty.pushLog('===== 再次检查进程运行状态 =====')
-packages.forEach(p => {
-  let r = $shizuku('ps -A | grep ' + p.pkg)
-  LogFloaty.pushLog(p.name + ': ' + (r.result ? '仍在运行' : '✓ 已停止'))
-})
-
-LogFloaty.pushLog('')
-LogFloaty.pushLog('测试完成')

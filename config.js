@@ -210,7 +210,7 @@ let default_config = {
   watering_cooperation_threshold: '',
   // 能量雨设置
   rain_collect_debug_mode: false,
-  rain_collect_duration: 18,
+  rain_collect_duration: 21,
   auto_start_rain: false,
   // 邀请好友获取巡护机会
   invite_friends_gaint_chance: false,

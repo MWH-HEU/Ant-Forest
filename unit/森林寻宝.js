@@ -892,19 +892,20 @@ function doAutoCollect () {
       
       LogFloaty.pushLog('找到"去兑换"')
       exchangeTarget.click()
-      sleep(1000)
+      sleep(2000)
       // 处理兑换确认弹窗
       let confirm = widgetUtils.widgetGetOne('确认兑换', 2000)
       if (confirm) {
         LogFloaty.pushLog('点击"确认兑换"')
         confirm.click()
-        sleep(1500)
+        sleep(2000)
       }
       // 点击后弹窗可能还在，再点一次关闭
-      confirm = widgetUtils.widgetGetOne('确认兑换', 1000)
+      confirm = widgetUtils.widgetGetOne('确认兑换', 2000)
       if (confirm) {
+        LogFloaty.pushLog('再次点击"确认兑换"')
         confirm.click()
-        sleep(1000)
+        sleep(2000)
       }
       tryClaim()
     }

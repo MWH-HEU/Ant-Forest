@@ -474,10 +474,14 @@ function tryStartPlayGame () {
 }
 
 function waitForGameComplete () {
-  leyuanLog('进入玩一玩页面，等待任务完成（最多检查72次，每5秒一次）')
+  leyuanLog('进入玩一玩页面，先等待4分20秒，然后每5秒检查一次（最多8次）')
   sleep(2000)
 
-  let maxChecks = 72
+  // 先等待4分20秒（260秒），让任务有足够时间完成
+  leyuanLog('等待260秒让任务自动完成...')
+  sleep(260000)
+
+  let maxChecks = 8
   for (let check = 1; check <= maxChecks; check++) {
     sleep(5000)
     leyuanLog('第' + check + '/' + maxChecks + '次检查玩一玩状态...')

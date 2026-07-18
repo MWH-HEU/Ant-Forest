@@ -481,7 +481,7 @@ function waitForGameComplete () {
   leyuanLog('等待260秒让任务自动完成...')
   sleep(260000)
 
-  let maxChecks = 8
+  let maxChecks = 12
   for (let check = 1; check <= maxChecks; check++) {
     sleep(5000)
     leyuanLog('第' + check + '/' + maxChecks + '次检查玩一玩状态...')

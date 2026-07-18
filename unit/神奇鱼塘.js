@@ -22,6 +22,7 @@ let widgetUtils = sRequire('WidgetUtils')
 let FloatyInstance = sRequire('FloatyUtil')
 let LogFloaty = sRequire('LogFloaty')
 let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
+let killProcessUtil = require('../lib/KillProcessUtil.js')
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let FileUtils = require('../lib/prototype/FileUtils.js')
 
@@ -447,6 +448,18 @@ function findAndExecuteTasks () {
   return tasksFound
 }
 
+function killApps () {
+  try {
+    killProcessUtil.killMultiple([
+      { pkg: 'com.taobao.idlefish', name: '闲鱼' }
+    ], function(name, success) {
+      taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+    })
+  } catch (e) {
+    taskLog('kill进程失败: ' + e)
+  }
+}
+
 function reopenFishPool () {
   taskLog('返回桌面并重新打开神奇鱼塘')
   commonFunction.minimize()
@@ -484,6 +497,8 @@ function main () {
     errorInfo('打开神奇鱼塘失败')
     commonFunction.minimize()
     sleep(500)
+    killApps()
+    sleep(500)
     runningQueueDispatcher.removeRunningTask()
     exit()
   }
@@ -493,6 +508,8 @@ function main () {
     errorInfo('无法找到"得能量"入口')
     commonFunction.minimize()
     sleep(500)
+    killApps()
+    sleep(500)
     runningQueueDispatcher.removeRunningTask()
     exit()
   }
@@ -501,6 +518,8 @@ function main () {
   if (!waitForTaskPage()) {
     errorInfo('任务页面加载失败')
     commonFunction.minimize()
+    sleep(500)
+    killApps()
     sleep(500)
     runningQueueDispatcher.removeRunningTask()
     exit()
@@ -516,6 +535,8 @@ function main () {
 
   taskLog('所有任务执行完毕')
   commonFunction.minimize()
+  sleep(500)
+  killApps()
   sleep(500)
   runningQueueDispatcher.removeRunningTask()
   exit()

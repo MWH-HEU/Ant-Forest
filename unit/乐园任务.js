@@ -317,15 +317,15 @@ function tryClaimEnergy () {
     let screen = commonFunction.captureScreen()
     if (screen) {
       let region = [0, parseInt(config.device_height * 0.2), config.device_width, parseInt(config.device_height * 0.6)]
-      let results = localOcrUtil.recognizeWithBounds(screen, region, '领取|去领取|玩一玩|游戏充值')
+      let results = localOcrUtil.recognizeWithBounds(screen, region, '领取|去领取|玩一玩|游戏充值|每日签到')
       screen.recycle()
       if (results && results.length > 0) {
         // 找出所有"领取"或"去领取"的位置
         let claimButtons = results.filter(function (r) {
           return (r.label.indexOf('领取') >= 0 || r.label.indexOf('去领取') >= 0) && r.label.indexOf('已领取') < 0 && r.label.indexOf('每日领取上限') < 0
         })
-        // 找出所有"玩一玩"的位置（用于确认是玩一玩行的领取）
-        let playLabels = results.filter(function (r) { return r.label.indexOf('玩一玩') >= 0 })
+        // 找出所有"玩一玩"和"每日签到"的位置（用于确认是该行的领取）
+        let playLabels = results.filter(function (r) { return r.label.indexOf('玩一玩') >= 0 || r.label.indexOf('每日签到') >= 0 })
         // 找出"游戏充值"的位置（用于排除）
         let rechargeLabels = results.filter(function (r) { return r.label.indexOf('游戏充值') >= 0 })
         
@@ -333,7 +333,7 @@ function tryClaimEnergy () {
           let match = claimButtons[r]
           let bounds = match.bounds
           
-          // 检查这个"领取"是否与某个"玩一玩"在同一行
+          // 检查这个"领取"是否与某个"玩一玩"或"每日签到"在同一行
           let hasPlayTag = false
           for (let c = 0; c < playLabels.length; c++) {
             if (Math.abs(playLabels[c].bounds.centerY() - bounds.centerY()) < 100) {
@@ -342,7 +342,7 @@ function tryClaimEnergy () {
             }
           }
           if (!hasPlayTag) {
-            leyuanLog('跳过非玩一玩行的领取')
+            leyuanLog('跳过非玩一玩/每日签到行的领取')
             continue
           }
           
@@ -368,7 +368,7 @@ function tryClaimEnergy () {
   }
   
   // 降级：通过控件查找
-  let allButtons = widgetUtils.widgetGetAll('领取|去领取', 2000)
+  let allButtons = widgetUtils.widgetGetAll('领取|去领取|每日签到', 2000)
   if (!allButtons) return false
 
   let len = allButtons.length
@@ -384,6 +384,13 @@ function tryClaimEnergy () {
     if (parentContainsText(btn, '每日领取上限', 5)) {
       leyuanLog('跳过已达每日领取上限的按钮')
       continue
+    }
+    // 检查是否包含"每日签到"
+    if (parentContainsText(btn, '每日签到', 5)) {
+      leyuanLog('点击每日签到领取')
+      automator.clickCenter(btn)
+      sleep(1500)
+      return true
     }
     leyuanLog('点击领取能量: ' + btnText)
     automator.clickCenter(btn)
@@ -409,7 +416,7 @@ function tryStartPlayGame () {
         // 找出所有"去完成"的位置
         let goButtons = results.filter(function (r) { return r.label.indexOf('去完成') >= 0 })
         // 找出所有"玩一玩"的位置
-        let playLabels = results.filter(function (r) { return r.label.indexOf('玩一玩') >= 0 })
+        let playLabels = results.filter(function (r) { return r.label.indexOf('玩一玩') >= 0 || r.label.indexOf('每日签到') >= 0 })
         
         for (let r = 0; r < goButtons.length; r++) {
           let match = goButtons[r]

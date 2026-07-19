@@ -309,55 +309,23 @@ function clickLimitedBenefit () {
 }
 
 function tryClaimEnergy () {
-  // 通过OCR识别"领取"或"去领取"按钮（只匹配有"玩一玩"提示的行）
+  // 全屏OCR识别"领取"，完全匹配后点击
   if (localOcrUtil.enabled) {
     leyuanLog('通过OCR识别领取按钮')
     commonFunction.requestScreenCaptureOrRestart()
     sleep(500)
     let screen = commonFunction.captureScreen()
     if (screen) {
-      let region = [0, parseInt(config.device_height * 0.2), config.device_width, parseInt(config.device_height * 0.6)]
-      let results = localOcrUtil.recognizeWithBounds(screen, region, '领取|去领取|玩一玩|游戏充值|每日签到')
+      // 全屏识别
+      let region = [0, 0, config.device_width, config.device_height]
+      let results = localOcrUtil.recognizeWithBounds(screen, region, '领取')
       screen.recycle()
       if (results && results.length > 0) {
-        // 找出所有"领取"或"去领取"的位置
-        let claimButtons = results.filter(function (r) {
-          return (r.label.indexOf('领取') >= 0 || r.label.indexOf('去领取') >= 0) && r.label.indexOf('已领取') < 0 && r.label.indexOf('每日领取上限') < 0
-        })
-        // 找出所有"玩一玩"和"每日签到"的位置（用于确认是该行的领取）
-        let playLabels = results.filter(function (r) { return r.label.indexOf('玩一玩') >= 0 || r.label.indexOf('每日签到') >= 0 })
-        // 找出"游戏充值"的位置（用于排除）
-        let rechargeLabels = results.filter(function (r) { return r.label.indexOf('游戏充值') >= 0 })
-        
-        for (let r = 0; r < claimButtons.length; r++) {
-          let match = claimButtons[r]
+        for (let r = 0; r < results.length; r++) {
+          let match = results[r]
+          // 只完全匹配"领取"
+          if (match.label !== '领取') continue
           let bounds = match.bounds
-          
-          // 检查这个"领取"是否与某个"玩一玩"或"每日签到"在同一行
-          let hasPlayTag = false
-          for (let c = 0; c < playLabels.length; c++) {
-            if (Math.abs(playLabels[c].bounds.centerY() - bounds.centerY()) < 100) {
-              hasPlayTag = true
-              break
-            }
-          }
-          if (!hasPlayTag) {
-            leyuanLog('跳过非玩一玩/每日签到行的领取')
-            continue
-          }
-          
-          // 排除"游戏充值优惠券"那一行的"去领取"
-          let isRecharge = false
-          for (let c = 0; c < rechargeLabels.length; c++) {
-            if (Math.abs(rechargeLabels[c].bounds.centerY() - bounds.centerY()) < 100) {
-              isRecharge = true
-              break
-            }
-          }
-          if (isRecharge) {
-            leyuanLog('跳过游戏充值优惠券的领取')
-            continue
-          }
           leyuanLog('OCR找到领取: "' + match.label + '" 点击: (' + bounds.centerX() + ', ' + bounds.centerY() + ')')
           automator.click(bounds.centerX(), bounds.centerY())
           sleep(1500)
@@ -368,7 +336,7 @@ function tryClaimEnergy () {
   }
   
   // 降级：通过控件查找
-  let allButtons = widgetUtils.widgetGetAll('领取|去领取|每日签到', 2000)
+  let allButtons = widgetUtils.widgetGetAll('领取', 2000)
   if (!allButtons) return false
 
   let len = allButtons.length
@@ -376,22 +344,8 @@ function tryClaimEnergy () {
     let btn = allButtons.get(i)
     if (!btn) continue
     let btnText = getText(btn)
-    if (btnText.indexOf('已领取') >= 0) continue
-    if (parentContainsText(btn, '游戏充值', 5)) {
-      leyuanLog('跳过游戏充值优惠券的领取')
-      continue
-    }
-    if (parentContainsText(btn, '每日领取上限', 5)) {
-      leyuanLog('跳过已达每日领取上限的按钮')
-      continue
-    }
-    // 检查是否包含"每日签到"
-    if (parentContainsText(btn, '每日签到', 5)) {
-      leyuanLog('点击每日签到领取')
-      automator.clickCenter(btn)
-      sleep(1500)
-      return true
-    }
+    // 只完全匹配"领取"
+    if (btnText !== '领取') continue
     leyuanLog('点击领取能量: ' + btnText)
     automator.clickCenter(btn)
     sleep(1500)

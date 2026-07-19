@@ -498,8 +498,12 @@ function findAndClickExploreTask () {
               } catch (e) {}
               if (shouldSkip) continue
               let bounds = node.bounds()
-              // 检查该行是否是"逛一逛点淘得红包"（特殊处理）
-              let isDianTao = false
+              // 检查该行是否有特殊处理任务（逛一逛点淘得红包、逛一逛飞猪等）
+              let specialTask = null
+              let specialTasks = [
+                { keyword: '逛一逛点淘得红包', waitTime: 15000, clickTarget: '点击领元宝' },
+                { keyword: '逛一逛飞猪', waitTime: 15000, clickTarget: null }
+              ]
               try {
                 let allNodes2 = className('android.widget.Button').find()
                 if (allNodes2) {
@@ -508,14 +512,17 @@ function findAndClickExploreTask () {
                       let nt = allNodes2.get(n).text()
                       if (nt) {
                         let nText = nt.toString()
-                        if (nText.indexOf('逛一逛点淘得红包') >= 0) {
-                          let nb = allNodes2.get(n).bounds()
-                          if (Math.abs(nb.centerY() - bounds.centerY()) < 200) {
-                            isDianTao = true
-                            taskLog('检测到"逛一逛点淘得红包"行，走特殊处理')
-                            break
+                        for (let s = 0; s < specialTasks.length; s++) {
+                          if (nText.indexOf(specialTasks[s].keyword) >= 0) {
+                            let nb = allNodes2.get(n).bounds()
+                            if (Math.abs(nb.centerY() - bounds.centerY()) < 200) {
+                              specialTask = specialTasks[s]
+                              taskLog('检测到"' + specialTask.keyword + '"行，走特殊处理')
+                              break
+                            }
                           }
                         }
+                        if (specialTask) break
                       }
                     } catch (e) {}
                   }
@@ -555,30 +562,57 @@ function findAndClickExploreTask () {
               automator.click(bounds.centerX(), bounds.centerY())
               sleep(2000)
               handlePopupDialog()
-              // 特殊处理：逛一逛点淘得红包 → 点击"点击领元宝"
-              if (isDianTao) {
-                taskLog('点淘页面，查找"点击领元宝"')
+              // 特殊处理：根据特殊任务类型执行额外操作
+              if (specialTask) {
+                taskLog('执行特殊任务: ' + specialTask.keyword + '，等待' + specialTask.waitTime + '毫秒')
                 sleep(2000)
-                try {
-                  let allNodes3 = className('android.widget.Button').find()
-                  if (allNodes3) {
-                    for (let n = 0; n < allNodes3.size(); n++) {
+                if (specialTask.clickTarget) {
+                  try {
+                    // 同时查找 Button 和 TextView
+                    let found = false
+                    let allButtons = className('android.widget.Button').find()
+                    let allTextViews = className('android.widget.TextView').find()
+                    let allNodes3 = []
+                    if (allButtons) {
+                      for (let bi = 0; bi < allButtons.size(); bi++) allNodes3.push(allButtons.get(bi))
+                    }
+                    if (allTextViews) {
+                      for (let ti = 0; ti < allTextViews.size(); ti++) allNodes3.push(allTextViews.get(ti))
+                    }
+                    for (let n = 0; n < allNodes3.length; n++) {
                       try {
-                        let nt = allNodes3.get(n).text()
-                        if (nt && nt.toString().indexOf('点击领元宝') >= 0) {
-                          let nb = allNodes3.get(n).bounds()
-                          taskLog('找到"点击领元宝": 点击: (' + nb.centerX() + ', ' + nb.centerY() + ')')
+                        let nt = allNodes3[n].text()
+                        if (nt && nt.toString().indexOf(specialTask.clickTarget) >= 0) {
+                          let nb = allNodes3[n].bounds()
+                          taskLog('找到"' + specialTask.clickTarget + '": 点击: (' + nb.centerX() + ', ' + nb.centerY() + ')')
                           automator.click(nb.centerX(), nb.centerY())
+                          found = true
                           break
                         }
                       } catch (e) {}
                     }
+                    if (!found) {
+                      taskLog('控件未找到"' + specialTask.clickTarget + '"，尝试OCR')
+                      if (localOcrUtil.enabled) {
+                        commonFunction.requestScreenCaptureOrRestart()
+                        sleep(500)
+                        let screen = commonFunction.captureScreen()
+                        if (screen) {
+                          let results = localOcrUtil.recognizeWithBounds(screen, [0, 0, config.device_width, config.device_height], specialTask.clickTarget)
+                          screen.recycle()
+                          if (results && results.length > 0) {
+                            let match = results[0]
+                            taskLog('OCR找到"' + specialTask.clickTarget + '": 点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
+                            automator.click(match.bounds.centerX(), match.bounds.centerY())
+                          }
+                        }
+                      }
+                    }
+                  } catch (e) {
+                    taskLog('查找' + specialTask.clickTarget + '异常: ' + e)
                   }
-                } catch (e) {
-                  taskLog('查找点击领元宝异常: ' + e)
                 }
-                // 点淘走2秒等待分支
-                waitTime = 2000
+                waitTime = specialTask.waitTime
               }
               sleep(waitTime)
               return true

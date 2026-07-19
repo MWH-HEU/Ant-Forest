@@ -182,7 +182,7 @@ function waitForTaskPage () {
 // ============ 任务分支 ============
 
 /**
- * 执行浏览商品任务：点击"去浏览"→下滑查找"抵后价"（OCR优先，控件兜底）→点击后返回
+ * 执行浏览商品任务：点击"去浏览"→下滑查找"抵后价"（OCR优先，控件兜底）→返回
  */
 function doBrowseTask (bounds) {
   taskLog('执行"去浏览"任务 - 点击1个商品进入详情页')
@@ -416,23 +416,17 @@ function findAndExecuteTasks () {
       if (y > config.device_height * 0.85) continue
 
       if (text.indexOf('去浏览') >= 0) {
-        if (hasTextInSameRow({centerY: () => y}, '点击1个商品进入详情页', cachedTexts) ||
-            hasTextInSameRow({centerY: () => y}, '商品进入详情页', cachedTexts) ||
-            hasTextInSameRow({centerY: () => y}, '点击1个商品', cachedTexts)) {
+        if (hasTextInSameRow({centerY: () => y}, '点击1个商品进入详情页', cachedTexts)) {
           taskLog('找到"去浏览"任务（点击1个商品）')
           tasksFound++
           doBrowseTask(item.bounds)
         }
       } else if (text.indexOf('去完成') >= 0) {
-        if (hasTextInSameRow({centerY: () => y}, '参与绿色科普答题', cachedTexts) ||
-            hasTextInSameRow({centerY: () => y}, '绿色科普答题', cachedTexts) ||
-            hasTextInSameRow({centerY: () => y}, '绿色答题', cachedTexts)) {
+        if (hasTextInSameRow({centerY: () => y}, '参与绿色科普答题', cachedTexts)) {
           taskLog('找到"去完成"任务（参与绿色科普答题）')
           tasksFound++
           doQuizTask(item.bounds)
-        } else if (hasTextInSameRow({centerY: () => y}, '去蚂蚁森林收更多能量', cachedTexts) ||
-                   hasTextInSameRow({centerY: () => y}, '蚂蚁森林收更多能量', cachedTexts) ||
-                   hasTextInSameRow({centerY: () => y}, '去蚂蚁森林', cachedTexts)) {
+        } else if (hasTextInSameRow({centerY: () => y}, '去蚂蚁森林收更多能量', cachedTexts)) {
           taskLog('找到"去完成"任务（去蚂蚁森林收更多能量）')
           tasksFound++
           doAntForestTask(item.bounds)
@@ -526,7 +520,7 @@ function main () {
   }
 
   taskLog('=== 步骤4: 执行任务 ===')
-  for (let round = 0; round < 3; round++) {
+  for (let round = 0; round < 2; round++) {
     taskLog('第 ' + (round + 1) + ' 轮执行')
     let tasksDone = findAndExecuteTasks()
     taskLog('本轮完成 ' + tasksDone + ' 个任务')
@@ -534,6 +528,9 @@ function main () {
   }
 
   taskLog('所有任务执行完毕')
+  // 重新进入鱼塘等待2s，再返回桌面杀掉进程
+  openFishPool()
+  sleep(2000)
   commonFunction.minimize()
   sleep(500)
   killApps()

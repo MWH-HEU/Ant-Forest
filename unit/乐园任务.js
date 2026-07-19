@@ -355,7 +355,7 @@ function tryClaimEnergy () {
 }
 
 function tryStartPlayGame () {
-  // 方式1: 通过OCR识别"去完成"按钮（只匹配有"玩一玩"提示的行）
+  // 方式1: 通过OCR识别"去完成"按钮，完全匹配
   if (localOcrUtil.enabled) {
     leyuanLog('通过OCR识别去完成按钮')
     commonFunction.requestScreenCaptureOrRestart()
@@ -368,7 +368,7 @@ function tryStartPlayGame () {
       screen.recycle()
       if (results && results.length > 0) {
         // 找出所有"去完成"的位置
-        let goButtons = results.filter(function (r) { return r.label.indexOf('去完成') >= 0 })
+        let goButtons = results.filter(function (r) { return r.label === '去完成' })
         // 找出所有"玩一玩"的位置
         let playLabels = results.filter(function (r) { return r.label.indexOf('玩一玩') >= 0 || r.label.indexOf('每日签到') >= 0 })
         
@@ -416,7 +416,7 @@ function tryStartPlayGame () {
         for (let c = 0; c < children.size(); c++) {
           let child = children.get(c)
           let childText = getText(child)
-          if (/去完成/.test(childText) && childText.indexOf('已领取') < 0) {
+          if (childText === '去完成') {
             leyuanLog('找到去完成按钮（第' + depth + '层父容器）: ' + childText)
             automator.clickCenter(child)
             sleep(2000)

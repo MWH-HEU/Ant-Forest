@@ -216,12 +216,12 @@ if (executeByTimeTask) {
   killApps()
   runningQueueDispatcher.removeRunningTask()
   exit()
-} else {
-  commonFunction.registerOnEngineRemoved(function () {
-    killApps()
-    runningQueueDispatcher.removeRunningTask()
-  })
 }
+
+commonFunction.registerOnEngineRemoved(function () {
+  killApps()
+  runningQueueDispatcher.removeRunningTask()
+})
 
 
 function sleepIfNeeded (time) {

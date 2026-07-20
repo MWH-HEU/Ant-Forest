@@ -554,6 +554,7 @@ function main () {
 
 // 退出：返回桌面
 function cleanUpAndExit () {
+  // 杀掉后台进程
   killApps()
   taskLog('任务完成，返回桌面')
   commonFunction.minimize()

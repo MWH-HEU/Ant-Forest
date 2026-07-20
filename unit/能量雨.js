@@ -427,6 +427,7 @@ function exitAndClean () {
   if (!isRunning) {
     return
   }
+  // 杀掉后台进程
   killApps()
 
   if (executeByTimeTask) {

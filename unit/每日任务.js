@@ -917,8 +917,7 @@ function main () {
   taskLog('每日任务完成，返回原页面')
   commonFunction.minimize()
   sleep(500)
-  // kill进程
-  taskLog('清理后台进程')
+  // 杀掉后台进程
   killApps()
   runningQueueDispatcher.removeRunningTask()
   exit()

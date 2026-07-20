@@ -517,6 +517,7 @@ function main () {
     errorInfo('打开神奇鱼塘失败')
     commonFunction.minimize()
     sleep(500)
+    // 杀掉后台进程
     killApps()
     sleep(500)
     runningQueueDispatcher.removeRunningTask()
@@ -528,6 +529,7 @@ function main () {
     errorInfo('无法找到"得能量"入口')
     commonFunction.minimize()
     sleep(500)
+    // 杀掉后台进程
     killApps()
     sleep(500)
     runningQueueDispatcher.removeRunningTask()
@@ -539,6 +541,7 @@ function main () {
     errorInfo('任务页面加载失败')
     commonFunction.minimize()
     sleep(500)
+    // 杀掉后台进程
     killApps()
     sleep(500)
     runningQueueDispatcher.removeRunningTask()
@@ -561,6 +564,7 @@ function main () {
   sleep(1000)
   commonFunction.minimize()
   sleep(500)
+  // 杀掉后台进程
   killApps()
   sleep(500)
   runningQueueDispatcher.removeRunningTask()

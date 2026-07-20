@@ -524,7 +524,7 @@ function reopenForestHuntPage () {
   commonFunction.minimize()
   sleep(1000)
   
-  // kill后台进程
+  // 杀掉后台进程
   killApps()
   
   // 重新打开森林寻宝

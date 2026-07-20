@@ -411,6 +411,7 @@ function main() {
   if (!checkTimeRange()) {
     commonFunction.minimize()
     sleep(500)
+    // 杀掉后台进程
     killApps()
     sleep(500)
     runningQueueDispatcher.removeRunningTask()
@@ -541,6 +542,7 @@ function main() {
   taskLog('====== 复活能量流程结束 ======')
   commonFunction.minimize()
   sleep(500)
+  // 杀掉后台进程
   killApps()
   sleep(500)
   runningQueueDispatcher.removeRunningTask()

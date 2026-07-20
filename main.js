@@ -128,6 +128,7 @@ try {
   if (!config.forceStop) {
     errorInfo('解锁发生异常, 三分钟后重新开始' + e)
     commonFunctions.printExceptionStack(e)
+    // 杀掉后台进程
     killApps()
     commonFunctions.setUpAutoStart(3)
     runningQueueDispatcher.removeRunningTask()
@@ -179,6 +180,7 @@ if (!executeByTimeTask || executeArguments.executeByDispatcher) {
 }
 // 初始化悬浮窗
 if (!FloatyInstance.init()) {
+  // 杀掉后台进程
   killApps()
   runningQueueDispatcher.removeRunningTask()
   // 悬浮窗初始化失败，6秒后重试

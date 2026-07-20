@@ -126,8 +126,8 @@ function getText (node) {
 /**
  * 退出脚本：逐级返回 → 杀掉支付宝进程 → 清理队列 → 退出
  */
-function killAlipay () {
-  // kill 支付宝进程
+function killApps () {
+  // kill 支付宝进程（后续可扩展kill其他应用）
   try {
     let killSuccess = killProcessUtil.kill(config.package_name || 'com.eg.android.AlipayGphone')
     leyuanLog('支付宝 → ' + (killSuccess ? '✓ 已杀掉' : '✗ 失败'))
@@ -492,7 +492,7 @@ function exitPlayGame () {
     leyuanLog('限时福利无法进入，结束乐园任务')
     commonFunction.minimize()
     sleep(500)
-    killAlipay()
+    killApps()
     sleep(1000)
     runningQueueDispatcher.removeRunningTask()
     exit()
@@ -523,7 +523,7 @@ function main () {
     errorInfo('无法定位乐园入口，结束乐园任务')
     commonFunction.minimize()
     sleep(500)
-    killAlipay()
+    killApps()
     sleep(1000)
     runningQueueDispatcher.removeRunningTask()
     exit()
@@ -559,7 +559,7 @@ function main () {
       errorInfo('未找到限时福利入口，结束乐园任务')
       commonFunction.minimize()
       sleep(500)
-      killAlipay()
+      killApps()
       sleep(1000)
       runningQueueDispatcher.removeRunningTask()
       exit()
@@ -596,7 +596,7 @@ function main () {
   leyuanLog('任务完成，返回原页面')
   commonFunction.minimize()
   sleep(500)
-  killAlipay()
+  killApps()
   sleep(1000)
   runningQueueDispatcher.removeRunningTask()
     exit()

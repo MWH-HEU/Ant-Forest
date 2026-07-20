@@ -131,6 +131,7 @@ threads.start(function () {
     if (keyCode === 24) {
       toastLog('用户按音量上键，退出脚本')
       killApps()
+      runningQueueDispatcher.removeRunningTask()
       exit()
     }
   })
@@ -213,6 +214,7 @@ if (executeByTimeTask) {
   commonFunction.minimize()
   sleep(500)
   killApps()
+  runningQueueDispatcher.removeRunningTask()
   exit()
 } else {
   commonFunction.registerOnEngineRemoved(function () {

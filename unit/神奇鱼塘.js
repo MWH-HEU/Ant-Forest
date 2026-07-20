@@ -465,23 +465,6 @@ function killApps () {
   }
 }
 
-function reopenFishPool () {
-  taskLog('返回桌面并重新打开神奇鱼塘')
-  commonFunction.minimize()
-  sleep(1000)
-
-  try {
-    shell('am force-stop com.taobao.idlefish', true)
-    sleep(1000)
-  } catch (e) {}
-
-  openFishPool()
-  sleep(2000)
-  clickGetEnergy()
-  sleep(2000)
-  waitForTaskPage()
-}
-
 /**
  * 执行鱼塘主页面任务：OCR识别"森林回访"、"线上逛街"并点击（只识别屏幕上半部）
  */

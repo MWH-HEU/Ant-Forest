@@ -458,6 +458,7 @@ function exitAndClean () {
 }
 
 commonFunction.registerOnEngineRemoved(function () {
+  killApps()
   runningQueueDispatcher.removeRunningTask()
   isRunning = false
   clickThread.interrupt()

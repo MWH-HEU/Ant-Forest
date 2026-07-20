@@ -4,10 +4,10 @@
  * 2. 进入领奖励页面
  * 3. 控件优先/OCR兜底识别"立即领取"和"去抽奖"按钮，处理领取/抽奖流程
  * 4. 控件查找"逛一逛"、"去看看"、"去参与"、"去领取"、"去守护"、"去完成"探索任务
- *    （排除"玩一场能量雨"、"添加1份看病保障"、"去淘宝看科普视频"、"去蚂蚁阿福健康问答"、"去百度看蚂蚁森林"、"添加小荷包能量插件"、"每日浇水领真绿植"、"逛惊喜市集领红包"）
- * 5. 点击前检查附近是否有"玩一玩"、"获取更多森林资讯"或"看15s直播得能量"，有则等待15秒，否则2秒
+ *    （排除"玩一场能量雨"、"添加1份看病保障"、"去淘宝看科普视频"、"去蚂蚁阿福健康问答"、"添加小荷包能量插件"、"每日浇水领真绿植"、"逛惊喜市集领红包"）
+ * 5. 点击前检查附近是否有"玩一玩"、"获取更多森林资讯"、"看15s直播得能量"或"逛一逛飞猪"，有则等待15秒，否则2秒
  * 6. 点击后处理弹窗（"支付宝想要打开xxx"等）
- * 7. kill支付宝、淘宝、美团、闲鱼、一淘、飞猪、高德、点淘进程重新打开领奖励页面
+ * 7. kill支付宝、淘宝、美团、闲鱼、一淘、飞猪、高德、点淘、百度极速版进程重新打开领奖励页面
  * 8. 没有匹配到内容时退出（最多40轮）
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
@@ -425,8 +425,8 @@ function clickCollectReward () {
 /**
  * 控件查找并点击探索任务按钮
  * 关键词：逛一逛、去看看、去参与、去领取、去守护、去完成
- * 排除：玩一场能量雨、添加1份看病保障、去淘宝看科普视频、去蚂蚁阿福健康问答、去百度看蚂蚁森林、添加小荷包能量插件、每日浇水领真绿植、逛惊喜市集领红包（检查按钮附近是否有排除文字）
- * 点击前检查附近是否有"玩一玩"、"获取更多森林资讯"或"看15s直播得能量"，有则等待15秒，否则2秒
+ * 排除：玩一场能量雨、添加1份看病保障、去淘宝看科普视频、去蚂蚁阿福健康问答、添加小荷包能量插件、每日浇水领真绿植、逛惊喜市集领红包（检查按钮附近是否有排除文字）
+ * 点击前检查附近是否有"玩一玩"、"获取更多森林资讯"、"看15s直播得能量"或"逛一逛飞猪"，有则等待15秒，否则2秒
  * 点击后处理弹窗
  * 返回是否找到了并点击了
  */
@@ -468,7 +468,7 @@ function findAndClickExploreTask () {
                 text.indexOf('去守护') >= 0 || text.indexOf('去完成') >= 0) {
               // 检查该按钮所在行附近是否有需要跳过的任务
               let shouldSkip = false
-              let skipReasons = ['玩一场能量雨', '添加1份看病保障', '去淘宝看科普视频', '去蚂蚁阿福健康问答', '去百度看蚂蚁森林', '添加小荷包能量插件', '每日浇水领真绿植', '逛惊喜市集领红包']
+              let skipReasons = ['玩一场能量雨', '添加1份看病保障', '去淘宝看科普视频', '去蚂蚁阿福健康问答', '添加小荷包能量插件', '每日浇水领真绿植', '逛惊喜市集领红包']
               try {
                 let myBounds = node.bounds()
                 let allNodes2 = className('android.widget.Button').find()
@@ -498,11 +498,10 @@ function findAndClickExploreTask () {
               } catch (e) {}
               if (shouldSkip) continue
               let bounds = node.bounds()
-              // 检查该行是否有特殊处理任务（逛一逛点淘得红包、逛一逛飞猪等）
+              // 检查该行是否有特殊处理任务（逛一逛点淘得红包等）
               let specialTask = null
               let specialTasks = [
-                { keyword: '逛一逛点淘得红包', waitTime: 15000, clickTarget: '点击领元宝' },
-                { keyword: '逛一逛飞猪', waitTime: 15000, clickTarget: null }
+                { keyword: '逛一逛点淘得红包', waitTime: 15000, clickTarget: '点击领元宝' }
               ]
               try {
                 let allNodes2 = className('android.widget.Button').find()
@@ -528,9 +527,9 @@ function findAndClickExploreTask () {
                   }
                 }
               } catch (e) {}
-              // 在点击前检查附近是否有"玩一玩"、"获取更多森林资讯"或"看15s直播得能量"，有则等待15秒，否则2秒
+              // 在点击前检查附近是否有"玩一玩"、"获取更多森林资讯"、"看15s直播得能量"或"逛一逛飞猪"，有则等待15秒，否则2秒
               let waitTime = 2000
-              let longWaitKeywords = ['玩一玩', '获取更多森林资讯', '看15s直播得能量']
+              let longWaitKeywords = ['玩一玩', '获取更多森林资讯', '看15s直播得能量', '逛一逛飞猪']
               try {
                 let allNodes2 = className('android.widget.Button').find()
                 if (allNodes2) {
@@ -664,7 +663,7 @@ function findAndClickExploreTask () {
                     let nt = allNodes2.get(n).text()
                     if (nt) {
                       let nText = nt.toString()
-                      if (nText.indexOf('添加1份看病保障') >= 0 || nText.indexOf('玩一场能量雨') >= 0 || nText.indexOf('去淘宝看科普视频') >= 0 || nText.indexOf('去蚂蚁阿福健康问答') >= 0 || nText.indexOf('去百度看蚂蚁森林') >= 0 || nText.indexOf('添加小荷包能量插件') >= 0 || nText.indexOf('每日浇水领真绿植') >= 0 || nText.indexOf('逛惊喜市集领红包') >= 0) {
+                      if (nText.indexOf('添加1份看病保障') >= 0 || nText.indexOf('玩一场能量雨') >= 0 || nText.indexOf('去淘宝看科普视频') >= 0 || nText.indexOf('去蚂蚁阿福健康问答') >= 0 || nText.indexOf('添加小荷包能量插件') >= 0 || nText.indexOf('每日浇水领真绿植') >= 0 || nText.indexOf('逛惊喜市集领红包') >= 0) {
                         let nb = allNodes2.get(n).bounds()
                         if (Math.abs(nb.centerY() - bounds.centerY()) < 200) {
                           taskLog('OCR跳过"' + nText + '"行的"去完成"')
@@ -753,7 +752,7 @@ function handlePopupDialog () {
 }
 
 /**
- * 杀掉后台进程（支付宝、淘宝、美团、闲鱼、一淘、飞猪、高德）
+ * 杀掉后台进程（支付宝、淘宝、美团、闲鱼、一淘、飞猪、高德、点淘、百度极速版）
  */
 function killApps () {
   try {
@@ -765,7 +764,8 @@ function killApps () {
       { pkg: 'com.taobao.etao', name: '一淘' },
       { pkg: 'com.taobao.trip', name: '飞猪' },
       { pkg: 'com.autonavi.minimap', name: '高德地图' },
-      { pkg: 'com.taobao.live', name: '点淘' }
+      { pkg: 'com.taobao.live', name: '点淘' },
+      { pkg: 'com.baidu.searchbox.lite', name: '百度极速版' }
     ], function(name, success) {
       taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
     })
@@ -776,7 +776,7 @@ function killApps () {
 
 /**
  * 返回桌面并重新打开领奖励页面
- * 先 kill 支付宝、淘宝、美团、闲鱼、一淘、飞猪、高德、点淘进程再重启，确保清除所有打开的页面
+ * 先 kill 支付宝、淘宝、美团、闲鱼、一淘、飞猪、高德、点淘、百度极速版进程再重启，确保清除所有打开的页面
  */
 function reopenRewardPage () {
   taskLog('返回桌面并重新打开领奖励页面')

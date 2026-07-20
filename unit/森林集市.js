@@ -9,12 +9,23 @@ let runningQueueDispatcher = singletonRequire('RunningQueueDispatcher')
 let { Market } = require('./森林集市/internal.js')
 
 let { logInfo, errorInfo, warnInfo, debugInfo, infoLog, debugForDev, clearLogFile, flushAllLogs } = singletonRequire('LogUtils')
+let killProcessUtil = require('../lib/KillProcessUtil.js')
 config.not_lingering_float_window = true
 logInfo('======加入任务队列，并关闭重复运行的脚本=======')
 runningQueueDispatcher.addRunningTask()
 
+function killApps () {
+  try {
+    let success = killProcessUtil.kill(config.package_name || 'com.eg.android.AlipayGphone')
+    debugInfo('支付宝 → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+  } catch (e) {
+    debugInfo('kill进程失败: ' + e)
+  }
+}
+
 // 注册自动移除运行中任务
 commonFunctions.registerOnEngineRemoved(function () {
+  killApps()
   if (config.auto_lock === true && unlocker.needRelock() === true) {
     debugInfo('重新锁定屏幕')
     automator.lockScreen()

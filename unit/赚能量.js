@@ -16,6 +16,17 @@ importClass(android.view.View)
 
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
+let killProcessUtil = require('../lib/KillProcessUtil.js')
+
+function killApps () {
+  try {
+    let success = killProcessUtil.kill(config.package_name || 'com.eg.android.AlipayGphone')
+    debugInfo('支付宝 → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+  } catch (e) {
+    debugInfo('kill进程失败: ' + e)
+  }
+}
+
 let sRequire = require('../lib/SingletonRequirer.js')(runtime, global)
 let automator = sRequire('Automator')
 let { debugInfo, warnInfo, errorInfo, infoLog, logInfo, debugForDev } = sRequire('LogUtils')
@@ -335,6 +346,7 @@ threads.start(function () {
 setInterval(function () { }, 1000)
 
 commonFunction.registerOnEngineRemoved(function () {
+  killApps()
   runningQueueDispatcher.removeRunningTask()
   isRunning = false
   clickThread.interrupt()

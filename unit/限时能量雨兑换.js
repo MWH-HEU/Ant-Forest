@@ -12,6 +12,15 @@ let LogFloaty = sRequire('LogFloaty')
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
 
+function killApps () {
+  try {
+    let success = killProcessUtil.kill(config.package_name || 'com.eg.android.AlipayGphone')
+    debugInfo('支付宝 → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+  } catch (e) {
+    debugInfo('kill进程失败: ' + e)
+  }
+}
+
 let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 runningQueueDispatcher.addRunningTask()
 
@@ -48,6 +57,7 @@ threads.start(function () {
   events.on('key_down', function (keyCode, event) {
     if (keyCode === 24) {
       toastLog('用户按音量上键，退出脚本')
+      killApps()
       exit()
     }
   })
@@ -540,6 +550,7 @@ function main () {
 
 // 退出：返回桌面
 function cleanUpAndExit () {
+  killApps()
   LogFloaty.pushLog('任务完成，返回桌面')
   commonFunction.minimize()
   sleep(500)

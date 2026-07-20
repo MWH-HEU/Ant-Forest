@@ -13,6 +13,17 @@ require('./modules/init_if_needed.js')(runtime, global)
 let runningQueueDispatcher = singletonRequire('RunningQueueDispatcher')
 let { logInfo, errorInfo, warnInfo, debugInfo, infoLog, debugForDev, clearLogFile, flushAllLogs } = singletonRequire('LogUtils')
 let commonFunctions = singletonRequire('CommonFunction')
+let killProcessUtil = require('./lib/KillProcessUtil.js')
+
+function killApps () {
+  try {
+    let success = killProcessUtil.kill(config.package_name || 'com.eg.android.AlipayGphone')
+    debugInfo('支付宝 → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+  } catch (e) {
+    debugInfo('kill进程失败: ' + e)
+  }
+}
+
 let YoloDetection = singletonRequire('YoloDetectionUtil')
 
 // 避免定时任务打断前台运行中的任务
@@ -117,6 +128,7 @@ try {
   if (!config.forceStop) {
     errorInfo('解锁发生异常, 三分钟后重新开始' + e)
     commonFunctions.printExceptionStack(e)
+    killApps()
     commonFunctions.setUpAutoStart(3)
     runningQueueDispatcher.removeRunningTask()
     exit()
@@ -167,6 +179,7 @@ if (!executeByTimeTask || executeArguments.executeByDispatcher) {
 }
 // 初始化悬浮窗
 if (!FloatyInstance.init()) {
+  killApps()
   runningQueueDispatcher.removeRunningTask()
   // 悬浮窗初始化失败，6秒后重试
   sleep(6000)

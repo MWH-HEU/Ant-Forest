@@ -24,6 +24,16 @@ let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let FileUtils = require('../lib/prototype/FileUtils.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
+
+function killApps () {
+  try {
+    let killSuccess = killProcessUtil.kill(config.package_name || 'com.eg.android.AlipayGphone')
+    leyuanLog('支付宝 → ' + (killSuccess ? '✓ 已杀掉' : '✗ 失败'))
+  } catch (e) {
+    leyuanLog('支付宝 → ✗ 失败: ' + e)
+  }
+}
+
 runningQueueDispatcher.addRunningTask()
 
 // 调试日志（仅悬浮窗显示，不写入文件）
@@ -120,19 +130,6 @@ function getText (node) {
     return t ? t.toString() : ''
   } catch (e) {
     return ''
-  }
-}
-
-/**
- * 退出脚本：逐级返回 → 杀掉支付宝进程 → 清理队列 → 退出
- */
-function killApps () {
-  // kill 支付宝进程（后续可扩展kill其他应用）
-  try {
-    let killSuccess = killProcessUtil.kill(config.package_name || 'com.eg.android.AlipayGphone')
-    leyuanLog('支付宝 → ' + (killSuccess ? '✓ 已杀掉' : '✗ 失败'))
-  } catch (e) {
-    leyuanLog('支付宝 → ✗ 失败: ' + e)
   }
 }
 
@@ -509,6 +506,7 @@ function main () {
     events.on("key_down", function (keyCode, event) {
       if (keyCode === 24) {
         toastLog('用户按音量上键，退出脚本')
+        killApps()
         exit()
       }
     })

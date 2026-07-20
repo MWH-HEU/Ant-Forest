@@ -23,6 +23,27 @@ let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let FileUtils = require('../lib/prototype/FileUtils.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
+
+function killApps () {
+  try {
+    killProcessUtil.killMultiple([
+      { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' },
+      { pkg: 'com.taobao.taobao', name: '淘宝' },
+      { pkg: 'com.sankuai.meituan', name: '美团' },
+      { pkg: 'com.taobao.idlefish', name: '闲鱼' },
+      { pkg: 'com.taobao.etao', name: '一淘' },
+      { pkg: 'com.taobao.trip', name: '飞猪' },
+      { pkg: 'com.autonavi.minimap', name: '高德地图' },
+      { pkg: 'com.taobao.live', name: '点淘' },
+      { pkg: 'com.baidu.searchbox.lite', name: '百度极速版' }
+    ], function(name, success) {
+      taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+    })
+  } catch (e) {
+    taskLog('kill进程失败: ' + e)
+  }
+}
+
 runningQueueDispatcher.addRunningTask()
 
 // 调试日志（仅悬浮窗显示，不写入文件）
@@ -752,29 +773,6 @@ function handlePopupDialog () {
 }
 
 /**
- * 杀掉后台进程（支付宝、淘宝、美团、闲鱼、一淘、飞猪、高德、点淘、百度极速版）
- */
-function killApps () {
-  try {
-    killProcessUtil.killMultiple([
-      { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' },
-      { pkg: 'com.taobao.taobao', name: '淘宝' },
-      { pkg: 'com.sankuai.meituan', name: '美团' },
-      { pkg: 'com.taobao.idlefish', name: '闲鱼' },
-      { pkg: 'com.taobao.etao', name: '一淘' },
-      { pkg: 'com.taobao.trip', name: '飞猪' },
-      { pkg: 'com.autonavi.minimap', name: '高德地图' },
-      { pkg: 'com.taobao.live', name: '点淘' },
-      { pkg: 'com.baidu.searchbox.lite', name: '百度极速版' }
-    ], function(name, success) {
-      taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
-    })
-  } catch (e) {
-    taskLog('kill进程失败: ' + e)
-  }
-}
-
-/**
  * 返回桌面并重新打开领奖励页面
  * 先 kill 支付宝、淘宝、美团、闲鱼、一淘、飞猪、高德、点淘、百度极速版进程再重启，确保清除所有打开的页面
  */
@@ -829,6 +827,7 @@ function main () {
     events.on("key_down", function (keyCode, event) {
       if (keyCode === 24) {
         toastLog('用户按音量上键，退出脚本')
+        killApps()
         exit()
       }
     })

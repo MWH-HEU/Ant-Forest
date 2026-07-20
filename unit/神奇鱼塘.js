@@ -23,6 +23,20 @@ let FloatyInstance = sRequire('FloatyUtil')
 let LogFloaty = sRequire('LogFloaty')
 let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
+
+function killApps () {
+  try {
+    killProcessUtil.killMultiple([
+      { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' },
+      { pkg: 'com.taobao.idlefish', name: '闲鱼' }
+    ], function(name, success) {
+      taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+    })
+  } catch (e) {
+    taskLog('kill进程失败: ' + e)
+  }
+}
+
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let FileUtils = require('../lib/prototype/FileUtils.js')
 
@@ -451,18 +465,6 @@ function findAndExecuteTasks () {
 
   taskLog('共识别到 ' + tasksFound + ' 个任务')
   return tasksFound
-}
-
-function killApps () {
-  try {
-    killProcessUtil.killMultiple([
-      { pkg: 'com.taobao.idlefish', name: '闲鱼' }
-    ], function(name, success) {
-      taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
-    })
-  } catch (e) {
-    taskLog('kill进程失败: ' + e)
-  }
 }
 
 /**

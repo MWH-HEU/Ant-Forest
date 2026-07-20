@@ -23,6 +23,7 @@ let executeByAccountChanger = args.executeByAccountChanger
 let autoStartCollect = executeByStroll || executeByTimeTask || executeByAccountChanger
 
 let targetSendName = args.targetSendName || config.send_chance_to_friend
+let killProcessUtil = require('../lib/KillProcessUtil.js')
 let sRequire = require('../lib/SingletonRequirer.js')(runtime, global)
 let automator = sRequire('Automator')
 let { debugInfo, warnInfo, errorInfo, infoLog, logInfo, debugForDev } = sRequire('LogUtils')
@@ -34,6 +35,15 @@ let NotificationHelper = sRequire('Notification')
 let LogFloaty = sRequire('LogFloaty')
 let processShare = sRequire('ProcessShare')
 let storage = storages.create(_storage_name)
+
+function killApps () {
+  try {
+    let success = killProcessUtil.kill(config.package_name || 'com.eg.android.AlipayGphone')
+    debugInfo('支付宝 → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+  } catch (e) {
+    debugInfo('kill进程失败: ' + e)
+  }
+}
 
 let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 runningQueueDispatcher.addRunningTask()
@@ -413,6 +423,7 @@ function exitAndClean () {
   if (!isRunning) {
     return
   }
+  killApps()
 
   if (executeByTimeTask) {
     commonFunction.minimize()

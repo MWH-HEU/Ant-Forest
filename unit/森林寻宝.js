@@ -35,6 +35,24 @@ let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let SimpleFloatyButton = require('../lib/FloatyButtonSimple.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
 
+function killApps () {
+  try {
+    killProcessUtil.killMultiple([
+      { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' },
+      { pkg: 'com.taobao.taobao', name: '淘宝' },
+      { pkg: 'com.sankuai.meituan', name: '美团' },
+      { pkg: 'com.taobao.idlefish', name: '闲鱼' },
+      { pkg: 'com.taobao.etao', name: '一淘' },
+      { pkg: 'com.taobao.trip', name: '飞猪' },
+      { pkg: 'com.autonavi.minimap', name: '高德地图' }
+    ], function(name, success) {
+      LogFloaty.pushLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+    })
+  } catch (e) {
+    LogFloaty.pushLog('kill进程失败: ' + e)
+  }
+}
+
 let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 runningQueueDispatcher.addRunningTask()
 
@@ -108,6 +126,7 @@ threads.start(function () {
   events.on('key_down', function (keyCode, event) {
     if (keyCode === 24) {
       toastLog('用户按音量上键，退出脚本')
+      killApps()
       exit()
     }
   })
@@ -490,25 +509,6 @@ function openForestHuntPage () {
     LogFloaty.pushLog('滚动到任务列表区域')
     automator.scrollDown()
     sleep(500)
-  }
-}
-
-// kill后台进程
-function killApps () {
-  try {
-    killProcessUtil.killMultiple([
-      { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' },
-      { pkg: 'com.taobao.taobao', name: '淘宝' },
-      { pkg: 'com.sankuai.meituan', name: '美团' },
-      { pkg: 'com.taobao.idlefish', name: '闲鱼' },
-      { pkg: 'com.taobao.etao', name: '一淘' },
-      { pkg: 'com.taobao.trip', name: '飞猪' },
-      { pkg: 'com.autonavi.minimap', name: '高德地图' }
-    ], function(name, success) {
-      LogFloaty.pushLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
-    })
-  } catch (e) {
-    LogFloaty.pushLog('kill进程失败: ' + e)
   }
 }
 

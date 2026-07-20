@@ -82,6 +82,17 @@ function getNodeText (node) {
 /**
  * 检查该行是否有指定文字（同行判断，参照每日任务逻辑）
  */
+function getCachedY (keyword, cachedTexts) {
+  try {
+    for (let i = 0; i < cachedTexts.length; i++) {
+      if (cachedTexts[i].text.indexOf(keyword) >= 0) {
+        return cachedTexts[i].y
+      }
+    }
+  } catch (e) {}
+  return -1
+}
+
 function hasTextInSameRow (bounds, keyword, cachedTexts) {
   try {
     // 使用缓存的文字列表，避免重复查找控件树
@@ -415,13 +426,13 @@ function findAndExecuteTasks () {
       if (y < config.device_height * 0.15) continue
       if (y > config.device_height * 0.85) continue
 
-      if (text.indexOf('去浏览') >= 0) {
+      if (text === '去浏览') {
         if (hasTextInSameRow({centerY: () => y}, '点击1个商品进入详情页', cachedTexts)) {
-          taskLog('找到"去浏览"任务（点击1个商品）')
+          taskLog('找到"去浏览"任务（点击1个商品），当前控件y=' + y + '，缓存中"点击1个商品进入详情页" y=' + getCachedY('点击1个商品进入详情页', cachedTexts))
           tasksFound++
           doBrowseTask(item.bounds)
         }
-      } else if (text.indexOf('去完成') >= 0) {
+      } else if (text === '去完成') {
         if (hasTextInSameRow({centerY: () => y}, '参与绿色科普答题', cachedTexts)) {
           taskLog('找到"去完成"任务（参与绿色科普答题）')
           tasksFound++
@@ -469,6 +480,36 @@ function reopenFishPool () {
   clickGetEnergy()
   sleep(2000)
   waitForTaskPage()
+}
+
+/**
+ * 执行鱼塘主页面任务：OCR识别"森林回访"、"线上逛街"并点击（只识别屏幕上半部）
+ */
+function doMainPageTasks () {
+  taskLog('执行鱼塘主页面任务')
+  if (!localOcrUtil.enabled) return
+
+  let targets = ['森林回访', '线上逛街']
+  let region = [0, 0, config.device_width, parseInt(config.device_height * 0.5)]
+
+  commonFunction.requestScreenCaptureOrRestart()
+  sleep(500)
+  let screen = commonFunction.captureScreen()
+  if (!screen) return
+
+  for (let t = 0; t < targets.length; t++) {
+    let results = localOcrUtil.recognizeWithBounds(screen, region, targets[t])
+    if (results && results.length > 0) {
+      let match = results[0]
+      taskLog('OCR找到"' + targets[t] + '": 点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
+      automator.click(match.bounds.centerX(), match.bounds.centerY())
+      sleep(2000)
+    } else {
+      taskLog('未找到"' + targets[t] + '"')
+    }
+  }
+
+  screen.recycle()
 }
 
 // ============ 主流程 ============
@@ -531,6 +572,8 @@ function main () {
   // 重新进入鱼塘等待2s，再返回桌面杀掉进程
   openFishPool()
   sleep(2000)
+  doMainPageTasks()
+  sleep(1000)
   commonFunction.minimize()
   sleep(500)
   killApps()

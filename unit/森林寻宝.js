@@ -218,6 +218,7 @@ if (executeByTimeTask) {
   exit()
 } else {
   commonFunction.registerOnEngineRemoved(function () {
+    killApps()
     runningQueueDispatcher.removeRunningTask()
   })
 }

@@ -379,7 +379,7 @@ function step5_findAndUseEnergyRainCard () {
   // 策略：先控件查找，找不到则OCR识别，再找不到则滑动后重试
   
   let found = false
-  let maxScrollAttempts = 8
+  let maxScrollAttempts = 3
   let scrollAttempt = 0
   
   while (!found && scrollAttempt < maxScrollAttempts) {
@@ -554,11 +554,11 @@ function main () {
 
 // 退出：返回桌面
 function cleanUpAndExit () {
-  // 杀掉后台进程
-  killApps()
   taskLog('任务完成，返回桌面')
   commonFunction.minimize()
   sleep(500)
+  // 杀掉后台进程
+  killApps()
   exit()
 }
 

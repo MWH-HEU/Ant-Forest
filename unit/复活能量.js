@@ -10,7 +10,7 @@
  *   2. 点击总能量榜tab → 下滑找"查看更多好友" → 进入完整排行榜
  *   3. 小循环（最多7次）：
  *      a. 控件查找+5g，连续2次没有就下滑30%，最多10次
- *      b. 点击进入好友森林 → 点击"帮TA复活能量" → 点击"确认发送"
+ *      b. 遍历当前屏幕所有+5g，逐个进入好友森林复活
  *      c. 复活6次后跳过剩余小循环
  *      d. 返回总榜继续
  *   4. 重新进入自己森林 → 收取自己能量
@@ -479,48 +479,53 @@ function main() {
         break
       }
 
-      // 取第一个可复活的标志
-      let marker = markers[0]
+      // 遍历当前屏幕所有+5g标志，逐个复活
+      let reviveSuccess = false
+      for (let mi = 0; mi < markers.length && revivedCount < 6; mi++) {
+        let marker = markers[mi]
 
-      // 步骤4: 点击进入好友森林
-      taskLog('步骤4: 点击进入好友森林')
-      if (!clickAndEnterFriendForest(marker)) {
-        warnInfo('进入好友森林失败，重新进入蚂蚁森林完整榜')
-        enterAntForest()
-        sleep(500)
-        enterEnergyRankFirstTime()
-        continue
-      }
+        // 步骤4: 点击进入好友森林
+        taskLog('步骤4: 点击进入好友森林，第' + (mi + 1) + '/' + markers.length + '个')
+        if (!clickAndEnterFriendForest(marker)) {
+          warnInfo('进入好友森林失败，尝试下一个')
+          continue
+        }
 
-      sleep(1000)
+        sleep(1000)
 
-      // 步骤5: 查找并点击"帮TA复活能量"
-      taskLog('步骤5: 查找"帮TA复活能量"')
-      if (!clickReviveEnergy()) {
-        warnInfo('未找到"帮TA复活能量"，返回继续')
+        // 步骤5: 查找并点击"帮TA复活能量"
+        taskLog('步骤5: 查找"帮TA复活能量"')
+        if (!clickReviveEnergy()) {
+          warnInfo('未找到"帮TA复活能量"，返回继续')
+          goBack()
+          sleep(1000)
+          continue
+        }
+
+        // 步骤6: 点击"确认发送"
+        taskLog('步骤6: 点击"确认发送"')
+        if (clickConfirmSend()) {
+          revivedCount++
+          reviveSuccess = true
+          taskLog('成功复活能量，累计复活 ' + revivedCount + ' 次')
+          // 复活6次后直接跳到步骤7
+          if (revivedCount >= 6) {
+            taskLog('已复活6次，跳过剩余小循环')
+            break
+          }
+        } else {
+          warnInfo('确认发送失败')
+        }
+
+        // 返回总榜（从好友森林返回一次直接回到完整总榜）
+        taskLog('返回总榜')
         goBack()
         sleep(1000)
-        continue
       }
 
-      // 步骤6: 点击"确认发送"
-      taskLog('步骤6: 点击"确认发送"')
-      if (clickConfirmSend()) {
-        revivedCount++
-        taskLog('成功复活能量，累计复活 ' + revivedCount + ' 次')
-        // 复活6次后直接跳到步骤7
-        if (revivedCount >= 6) {
-          taskLog('已复活6次，跳过剩余小循环')
-          break
-        }
-      } else {
-        warnInfo('确认发送失败')
+      if (revivedCount >= 6) {
+        break
       }
-
-      // 返回总榜（从好友森林返回一次直接回到完整总榜）
-      taskLog('返回总榜')
-      goBack()
-      sleep(1000)
     }
 
     taskLog('第' + bigLoop + '次大循环完成，共复活 ' + revivedCount + ' 次')

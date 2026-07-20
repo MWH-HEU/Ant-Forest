@@ -467,14 +467,24 @@ function openForestHuntPage () {
     LogFloaty.pushLog('未找到森林寻宝"去抽奖"入口')
   } else {
     LogFloaty.pushLog('已进入森林寻宝页面')
-    // 检测双Tab
-    let eventTabs = checkHasEvent()
-    if (eventTabs && eventTabs.length > 1) {
-      LogFloaty.pushLog('检测到双Tab，共 ' + eventTabs.length + ' 个')
-      // 先切换到Tab 0
-      eventTabs[0].click()
-      LogFloaty.pushLog('切换到Tab 0（默认界面）')
-      sleep(1000)
+    // 等待页面加载完成
+    sleep(2000)
+    // 检测双Tab（最多重试3次）
+    let eventTabs = null
+    for (let retry = 0; retry < 3; retry++) {
+      eventTabs = checkHasEvent()
+      if (eventTabs && eventTabs.length > 1) {
+        LogFloaty.pushLog('检测到双Tab，共 ' + eventTabs.length + ' 个')
+        // 先切换到Tab 0
+        eventTabs[0].click()
+        LogFloaty.pushLog('切换到Tab 0（默认界面）')
+        sleep(1000)
+        break
+      }
+      if (retry < 2) {
+        LogFloaty.pushLog('未检测到双Tab，等待1秒后重试')
+        sleep(1000)
+      }
     }
     // 进入页面后向下滚动一次，让任务列表区域显示出来
     LogFloaty.pushLog('滚动到任务列表区域')

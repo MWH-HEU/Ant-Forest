@@ -9,6 +9,10 @@ let { logInfo, errorInfo, warnInfo, debugInfo, infoLog, debugForDev, clearLogFil
 let widgetUtils = singletonRequire('WidgetUtils')
 let alipayUnlocker = singletonRequire('AlipayUnlocker')
 
+function taskLog(msg) {
+  logFloaty.pushLog(msg)
+}
+
 module.exports = {
   Market: Market,
 }
@@ -109,7 +113,7 @@ function Market () {
     let success = false
     let errorMsg = ''
     let errorType = 0
-    let timeoutMs = 5 * 60 * 1000  // 全局超时5分钟
+    let timeoutMs = 4 * 60 * 1000  // 全局超时4分钟
     let startTime = new Date().getTime()
     logFloaty.pushLog('准备打开森林集市')
     while ((opened = startApp()) == false && retry++ < 3) {
@@ -141,6 +145,13 @@ function Market () {
       logFloaty.pushErrorLog('打开森林集市界面失败')
       errorMsg = '打开森林集市界面失败'
       errorType = 1
+    }
+    // 无论主任务是否成功，都收自己能量
+    enterAntForest()
+    for (let i = 1; i <= 6; i++) {
+      taskLog('第' + i + '/6次收自己能量')
+      collectOwnEnergy()
+      if (i < 6) sleep(5000)
     }
     return {
       success: success,
@@ -178,7 +189,11 @@ function BrowserExecutor () {
         automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
         sleep(500)
       }
-      // 每轮8次滑动结束后判断任务是否完成
+      // 每轮8次滑动结束后，上滑到最上面
+      let h = config.device_height
+      automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
+      sleep(500)
+      // 判断任务是否完成
       if (checkAndClickIfTaskEnd()) {
         breakLoop = true
       }
@@ -355,6 +370,54 @@ function closeFirstPurchaseRedPack () {
   }
 }
 
+
+/**
+ * 进入蚂蚁森林
+ */
+function enterAntForest() {
+  taskLog('进入蚂蚁森林')
+
+  commonFunctions.backHomeIfInVideoPackage()
+
+  app.startActivity({
+    action: 'VIEW',
+    data: 'alipays://platformapi/startapp?appId=60000002',
+    packageName: config.package_name
+  })
+
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 1000)
+  if (confirm) {
+    automator.clickCenter(confirm)
+  }
+
+  commonFunctions.readyForAlipayWidgets()
+
+  let waitCount = 0
+  while (!widgetUtils.homePageWaiting() && waitCount++ < 10) {
+    sleep(1000)
+  }
+
+  if (!widgetUtils.homePageWaiting()) {
+    taskLog('进入蚂蚁森林失败')
+    return false
+  }
+  taskLog('进入蚂蚁森林成功')
+  return true
+}
+
+/**
+ * 收取自己的能量
+ */
+function collectOwnEnergy() {
+  if (config.not_collect_self) {
+    debugInfo('配置为不收取自己能量，跳过')
+    return
+  }
+
+  let ReviveBaseScanner = require('../../core/BaseScanner.js')
+  let scanner = new ReviveBaseScanner()
+  scanner.collectEnergy(true)
+}
 
 function checkDialogAndClose () {
   logFloaty.pushLog('检查是否存在关闭弹窗按钮')

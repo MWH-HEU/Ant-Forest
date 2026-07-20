@@ -28,6 +28,20 @@ let widgetUtils = sRequire('WidgetUtils')
 let LogFloaty = sRequire('LogFloaty')
 let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
+let killProcessUtil = require('../lib/KillProcessUtil.js')
+
+function killApps () {
+  try {
+    killProcessUtil.killMultiple([
+      { pkg: config.package_name, name: '支付宝' }
+    ], function(name, success) {
+      taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+    })
+  } catch (e) {
+    taskLog('kill进程失败: ' + e)
+  }
+}
+
 // YoloDetection 和 YoloTrainHelper 由 BaseScanner 内部自行加载
 
 
@@ -55,19 +69,6 @@ function taskLog(msg) {
 function goBack() {
   back()
   sleep(800)
-}
-
-function killApps() {
-  try {
-    let killProcessUtil = require('../lib/KillProcessUtil.js')
-    killProcessUtil.killMultiple([
-      { pkg: config.package_name, name: '支付宝' }
-    ], function(name, success) {
-      taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
-    })
-  } catch (e) {
-    taskLog('kill进程失败: ' + e)
-  }
 }
 
 // ============ 核心功能 ============

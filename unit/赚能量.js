@@ -18,6 +18,10 @@ let { config, storage_name: _storage_name } = require('../config.js')(runtime, g
 let args = config.parseExecArgv()
 let killProcessUtil = require('../lib/KillProcessUtil.js')
 
+function taskLog (msg) {
+  LogFloaty.pushLog(msg)
+}
+
 function killApps () {
   try {
     let success = killProcessUtil.kill(config.package_name || 'com.eg.android.AlipayGphone')
@@ -76,7 +80,7 @@ let isRunning = true
 // 自动模式：先打开页面，等进入拼手速后再开始点击
 if (executeByTimeTask) {
   threads.start(function () {
-    LogFloaty.pushLog('自动模式：正在打开蚂蚁森林')
+    taskLog('自动模式：正在打开蚂蚁森林')
     commonFunction.backHomeIfInVideoPackage()
     app.startActivity({
       action: 'VIEW',
@@ -88,22 +92,22 @@ if (executeByTimeTask) {
       automator.clickCenter(confirm)
     }
     // 等待进入蚂蚁森林
-    LogFloaty.pushLog('等待蚂蚁森林页面加载')
+    taskLog('等待蚂蚁森林页面加载')
     sleep(2000)
     widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', 6000)
     sleep(1500)
     // 找「赚能量」入口
-    LogFloaty.pushLog('查找赚能量入口')
+    taskLog('查找赚能量入口')
     let earnEntry = widgetUtils.widgetGetOne('.*赚能量.*', 3000)
     if (earnEntry) {
-      LogFloaty.pushLog('点击赚能量')
+      taskLog('点击赚能量')
       automator.clickCenter(earnEntry)
       sleep(500)
       // 找「拼手速」
-      LogFloaty.pushLog('查找拼手速任务')
+      taskLog('查找拼手速任务')
       let speedRace = widgetUtils.widgetGetOne('.*拼手速.*', 2000)
       if (speedRace) {
-        LogFloaty.pushLog('点击拼手速任务')
+        taskLog('点击拼手速任务')
         automator.clickCenter(speedRace)
         sleep(500)
       } else {
@@ -113,7 +117,7 @@ if (executeByTimeTask) {
       warnInfo('未找到赚能量入口，请手动进入拼手速页面')
     }
     // 进入拼手速页面后，开始点击
-    LogFloaty.pushLog('自动模式：开始点击')
+    taskLog('自动模式：开始点击')
     writeLock.lock()
     try {
       startTimestamp = new Date().getTime()
@@ -134,8 +138,8 @@ let startY = config.speed_race_start_y || cvt(1275)
 let clickGapHorizontal = config.speed_race_gap_horizontal || cvt(320)
 let clickGapVertical = config.speed_race_gap_vertical || cvt(255)
 
-LogFloaty.pushLog(`默认配置：${config.speed_race_start_x} ${config.speed_race_start_y} ${config.speed_race_gap_horizontal} ${config.speed_race_gap_vertical}`)
-LogFloaty.pushLog(`初始配置：${startX} ${startY} ${clickGapHorizontal} ${clickGapVertical}`)
+taskLog(`默认配置：${config.speed_race_start_x} ${config.speed_race_start_y} ${config.speed_race_gap_horizontal} ${config.speed_race_gap_vertical}`)
+taskLog(`初始配置：${startX} ${startY} ${clickGapHorizontal} ${clickGapVertical}`)
 // 暴力点击的区域
 let violentClickPoints = []
 handleGapsChanged()
@@ -154,9 +158,9 @@ let clickThread = threads.start(function () {
     writeLock.lock()
     try {
       if (!clickRunning) {
-        LogFloaty.pushLog('等待开始点击')
+        taskLog('等待开始点击')
         waitStart.await()
-        LogFloaty.pushLog('开始暴力点击')
+        taskLog('开始暴力点击')
       }
     } finally {
       writeLock.unlock()
@@ -168,7 +172,7 @@ let clickThread = threads.start(function () {
         violentClickPoints.forEach(p => press(p[0], p[1], pressDuration))
         sleep(sleepTime)
       } else {
-        LogFloaty.pushLog('暴力点击完毕')
+        taskLog('暴力点击完毕')
         clickRunning = false
         changeButtonInfo()
         if (executeByTimeTask) {
@@ -359,7 +363,7 @@ function openSpeedRacePage () {
     return
   }
   _openingSpeedRace = true
-  LogFloaty.pushLog('正在打开赚能量界面')
+  taskLog('正在打开赚能量界面')
   commonFunction.backHomeIfInVideoPackage()
   clickButtons.changeButtonText('openSpeedRace', '正在打开...')
   clickButtons.changeButtonStyle('openSpeedRace', null, '#f36838')
@@ -375,16 +379,16 @@ function openSpeedRacePage () {
   sleep(2000)
   widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', 6000)
   sleep(1500)
-  LogFloaty.pushLog('查找赚能量入口')
+  taskLog('查找赚能量入口')
   let earnEntry = widgetUtils.widgetGetOne('.*赚能量.*', 3000)
   if (earnEntry) {
-    LogFloaty.pushLog('点击赚能量')
+    taskLog('点击赚能量')
     automator.clickCenter(earnEntry)
     sleep(2000)
-    LogFloaty.pushLog('查找拼手速任务')
+    taskLog('查找拼手速任务')
     let speedRace = widgetUtils.widgetGetOne('.*拼手速.*', 2000)
     if (speedRace) {
-      LogFloaty.pushLog('点击拼手速任务')
+      taskLog('点击拼手速任务')
       automator.clickCenter(speedRace)
       sleep(1000)
     } else {

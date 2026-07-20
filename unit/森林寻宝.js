@@ -35,6 +35,10 @@ let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let SimpleFloatyButton = require('../lib/FloatyButtonSimple.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
 
+function taskLog (msg) {
+  LogFloaty.pushLog(msg)
+}
+
 function killApps () {
   try {
     killProcessUtil.killMultiple([
@@ -46,10 +50,10 @@ function killApps () {
       { pkg: 'com.taobao.trip', name: '飞猪' },
       { pkg: 'com.autonavi.minimap', name: '高德地图' }
     ], function(name, success) {
-      LogFloaty.pushLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+      taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
     })
   } catch (e) {
-    LogFloaty.pushLog('kill进程失败: ' + e)
+    taskLog('kill进程失败: ' + e)
   }
 }
 
@@ -73,8 +77,8 @@ runningQueueDispatcher.addRunningTask()
 // }
 // 
 // // 重写LogFloaty的pushLog方法，同时写入文件日志
-// let _origPushLog = LogFloaty.pushLog
-// LogFloaty.pushLog = function (msg) {
+// let _origPushLog = taskLog
+// taskLog = function (msg) {
 //   writeLog(msg)
 //   _origPushLog.call(LogFloaty, msg)
 // }
@@ -195,7 +199,7 @@ setInterval(function () { }, 1000)
 
 if (executeByTimeTask) {
   // 自动模式：先打开森林寻宝页面，然后自动执行全部任务
-  LogFloaty.pushLog('自动模式：正在打开森林寻宝')
+  taskLog('自动模式：正在打开森林寻宝')
   openForestHuntPage()
   // 将悬浮窗移到屏幕边缘，防止影响操作
   clickButtonWindow.setPosition(0, config.device_height * 0.1)
@@ -205,7 +209,7 @@ if (executeByTimeTask) {
   clickButtons.changeButtonStyle('autoTask', null, '#3FBE7B')
   clickButtons.changeButtonText('autoTask', '自动执行任务')
   // 返回蚂蚁森林收集页面
-  LogFloaty.pushLog('任务完成，返回蚂蚁森林收集页面')
+  taskLog('任务完成，返回蚂蚁森林收集页面')
   commonFunction.minimize()
   sleep(500)
   killApps()
@@ -230,7 +234,7 @@ const CATEGORY = 'forestTreasureHunt'
 const CATEGORY2 = 'forestTreasureHunt2'
 
 function checkMutualCodeStatus () {
-  LogFloaty.pushLog('正在检查当前互助码状态，请稍等')
+  taskLog('正在检查当前互助码状态，请稍等')
   http.get(BASE_URL + '/mine?category=' + CATEGORY + '&deviceId=' + DEVICE_ID, {}, (response, err) => {
     if (err) {
       console.error('请求异常', err)
@@ -246,11 +250,11 @@ function checkMutualCodeStatus () {
           let record = data.record
           CONTEXT.recordText = record.text
           console.log('互助码：' + record.text)
-          LogFloaty.pushLog('当前互助码更新时间：' + record.updatedAt)
-          LogFloaty.pushLog('今天被获取次数：' + record.dailyCount)
-          LogFloaty.pushLog('被报告无效次数：' + record.invalidCount)
+          taskLog('当前互助码更新时间：' + record.updatedAt)
+          taskLog('今天被获取次数：' + record.dailyCount)
+          taskLog('被报告无效次数：' + record.invalidCount)
         } else if (data.error) {
-          LogFloaty.pushLog(data.error)
+          taskLog(data.error)
         }
       } catch (e) {
         console.error('执行异常' + e)
@@ -261,7 +265,7 @@ function checkMutualCodeStatus () {
 }
 
 function checkMutualCodeStatusEvent () {
-  LogFloaty.pushLog('正在检查当前活动互助码状态，请稍等')
+  taskLog('正在检查当前活动互助码状态，请稍等')
   http.get(BASE_URL + '/mine?category=' + CATEGORY2 + '&deviceId=' + DEVICE_ID, {}, (response, err) => {
     if (err) {
       console.error('请求异常', err)
@@ -276,11 +280,11 @@ function checkMutualCodeStatusEvent () {
           let record = data.record
           CONTEXT.recordText = record.text
           console.log('互助码：' + record.text)
-          LogFloaty.pushLog('当前活动互助码更新时间：' + record.updatedAt)
-          LogFloaty.pushLog('今天被获取次数：' + record.dailyCount)
-          LogFloaty.pushLog('被报告无效次数：' + record.invalidCount)
+          taskLog('当前活动互助码更新时间：' + record.updatedAt)
+          taskLog('今天被获取次数：' + record.dailyCount)
+          taskLog('被报告无效次数：' + record.invalidCount)
         } else if (data.error) {
-          LogFloaty.pushLog(data.error)
+          taskLog(data.error)
         }
       } catch (e) {
         console.error('执行异常' + e)
@@ -367,10 +371,10 @@ function getCodeAndOpen (category) {
     let isValid = widgetUtils.widgetWaiting('去看看')
     if (!isValid) {
       if (widgetUtils.widgetWaiting('吱口令已失效', 1000)) {
-        LogFloaty.pushLog('互助码已失效')
+        taskLog('互助码已失效')
         markTextInvalid(result.text)
       }
-      LogFloaty.pushLog('准备获取下一个互助码')
+      taskLog('准备获取下一个互助码')
       return getCodeAndOpen(category)
     }
     // 等待界面加载完毕
@@ -386,14 +390,14 @@ function getCodeAndOpen (category) {
         automator.clickCenter(target)
         sleep(1000)
         if (widgetUtils.widgetWaiting('^助力成功$', 2000)) {
-          LogFloaty.pushLog('准备获取下一个互助码')
+          taskLog('准备获取下一个互助码')
           markUsed(result.text)
           return getCodeAndOpen(category)
         } else {
-          LogFloaty.pushLog('未能找到 助力成功 可能已经到达上限')
+          taskLog('未能找到 助力成功 可能已经到达上限')
         }
       } else {
-        LogFloaty.pushLog('未能找到 帮ta助力 可能已经到达上限')
+        taskLog('未能找到 帮ta助力 可能已经到达上限')
       }
     }
   } else {
@@ -406,7 +410,7 @@ function getCodeAndOpen (category) {
 
 // 打开蚂蚁森林领奖励页面，然后点击森林寻宝区域的"去抽奖"进入森林寻宝
 function openForestHuntPage () {
-  LogFloaty.pushLog('正在打开蚂蚁森林')
+  taskLog('正在打开蚂蚁森林')
   commonFunction.backHomeIfInVideoPackage()
   app.startActivity({
     action: 'VIEW',
@@ -420,12 +424,12 @@ function openForestHuntPage () {
   sleep(1000)
   widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', 3000)
   sleep(3000)
-  LogFloaty.pushLog('蚂蚁森林已打开')
+  taskLog('蚂蚁森林已打开')
   
   // 点击"领奖励"进入领奖励弹窗
-  LogFloaty.pushLog('查找领奖励入口')
+  taskLog('查找领奖励入口')
   if (!clickClaimRewardByOcr()) {
-    LogFloaty.pushLog('OCR未找到领奖励，尝试控件方式')
+    taskLog('OCR未找到领奖励，尝试控件方式')
     clickClaimRewardByWidget()
   }
   sleep(3000)
@@ -433,7 +437,7 @@ function openForestHuntPage () {
   // 在领奖励弹窗中找"去抽奖"，点击进入森林寻宝
   // 这里要点击的是弹窗上半部分森林寻宝区域的"去抽奖"（y < 0.35*高度）
   // 与每日任务中排除的逻辑相反
-  LogFloaty.pushLog('查找森林寻宝区域的"去抽奖"')
+  taskLog('查找森林寻宝区域的"去抽奖"')
   
   // 先通过控件查找
   let found = false
@@ -448,7 +452,7 @@ function openForestHuntPage () {
             let bounds = node.bounds()
             // 只点击上半部分的"去抽奖"（森林寻宝区域）
             if (bounds.centerY() < config.device_height * 0.35) {
-              LogFloaty.pushLog('找到森林寻宝"去抽奖"，点击: (' + bounds.centerX() + ', ' + bounds.centerY() + ')')
+              taskLog('找到森林寻宝"去抽奖"，点击: (' + bounds.centerX() + ', ' + bounds.centerY() + ')')
               automator.click(bounds.centerX(), bounds.centerY())
               sleep(3000)
               found = true
@@ -459,12 +463,12 @@ function openForestHuntPage () {
       }
     }
   } catch (e) {
-    LogFloaty.pushLog('控件查找"去抽奖"异常: ' + e)
+    taskLog('控件查找"去抽奖"异常: ' + e)
   }
   
   // OCR兜底
   if (!found && localOcrUtil.enabled) {
-    LogFloaty.pushLog('控件未找到，尝试OCR识别"去抽奖"')
+    taskLog('控件未找到，尝试OCR识别"去抽奖"')
     commonFunction.requestScreenCaptureOrRestart()
     sleep(500)
     let screen = commonFunction.captureScreen()
@@ -474,7 +478,7 @@ function openForestHuntPage () {
       screen.recycle()
       if (results && results.length > 0) {
         let match = results[0]
-        LogFloaty.pushLog('OCR找到"去抽奖": 点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
+        taskLog('OCR找到"去抽奖": 点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
         automator.click(match.bounds.centerX(), match.bounds.centerY())
         sleep(3000)
         found = true
@@ -483,9 +487,9 @@ function openForestHuntPage () {
   }
   
   if (!found) {
-    LogFloaty.pushLog('未找到森林寻宝"去抽奖"入口')
+    taskLog('未找到森林寻宝"去抽奖"入口')
   } else {
-    LogFloaty.pushLog('已进入森林寻宝页面')
+    taskLog('已进入森林寻宝页面')
     // 等待页面加载完成
     sleep(2000)
     // 检测双Tab（最多重试3次）
@@ -493,20 +497,20 @@ function openForestHuntPage () {
     for (let retry = 0; retry < 3; retry++) {
       eventTabs = checkHasEvent()
       if (eventTabs && eventTabs.length > 1) {
-        LogFloaty.pushLog('检测到双Tab，共 ' + eventTabs.length + ' 个')
+        taskLog('检测到双Tab，共 ' + eventTabs.length + ' 个')
         // 先切换到Tab 0
         eventTabs[0].click()
-        LogFloaty.pushLog('切换到Tab 0（默认界面）')
+        taskLog('切换到Tab 0（默认界面）')
         sleep(1000)
         break
       }
       if (retry < 2) {
-        LogFloaty.pushLog('未检测到双Tab，等待1秒后重试')
+        taskLog('未检测到双Tab，等待1秒后重试')
         sleep(1000)
       }
     }
     // 进入页面后向下滚动一次，让任务列表区域显示出来
-    LogFloaty.pushLog('滚动到任务列表区域')
+    taskLog('滚动到任务列表区域')
     automator.scrollDown()
     sleep(500)
   }
@@ -514,7 +518,7 @@ function openForestHuntPage () {
 
 // 等待后返回森林寻宝页面（kill支付宝进程重新打开）
 function reopenForestHuntPage () {
-  LogFloaty.pushLog('返回桌面并重新打开森林寻宝')
+  taskLog('返回桌面并重新打开森林寻宝')
   
   // 返回桌面
   commonFunction.minimize()
@@ -537,7 +541,7 @@ function clickClaimRewardByOcr () {
   sleep(500)
   let screen = commonFunction.captureScreen()
   if (!screen) {
-    LogFloaty.pushLog('截图失败')
+    taskLog('截图失败')
     return false
   }
   
@@ -550,7 +554,7 @@ function clickClaimRewardByOcr () {
     let bounds = match.bounds
     let clickX = bounds.centerX()
     let clickY = bounds.top - 60
-    LogFloaty.pushLog('OCR找到领奖励: "' + match.label + '" 点击: (' + clickX + ', ' + clickY + ')')
+    taskLog('OCR找到领奖励: "' + match.label + '" 点击: (' + clickX + ', ' + clickY + ')')
     automator.click(clickX, clickY)
     sleep(2000)
     return true
@@ -561,7 +565,7 @@ function clickClaimRewardByOcr () {
 
 // 通过控件查找领奖励入口
 function clickClaimRewardByWidget () {
-  LogFloaty.pushLog('遍历控件查找领奖励入口')
+  taskLog('遍历控件查找领奖励入口')
   try {
     let allTextViews = className('android.widget.TextView').find()
     if (allTextViews) {
@@ -573,7 +577,7 @@ function clickClaimRewardByWidget () {
             let bounds = tv.bounds()
             let clickX = bounds.centerX()
             let clickY = bounds.top - 60
-            LogFloaty.pushLog('找到领奖励文字控件，点击: (' + clickX + ', ' + clickY + ')')
+            taskLog('找到领奖励文字控件，点击: (' + clickX + ', ' + clickY + ')')
             automator.click(clickX, clickY)
             sleep(2000)
             return true
@@ -582,18 +586,18 @@ function clickClaimRewardByWidget () {
       }
     }
   } catch (e) {
-    LogFloaty.pushLog('遍历控件异常: ' + e)
+    taskLog('遍历控件异常: ' + e)
   }
   
   // 通过"背包"推算
-  LogFloaty.pushLog('尝试通过背包推算领奖励位置')
+  taskLog('尝试通过背包推算领奖励位置')
   let neighbor = widgetUtils.widgetGetOne('背包', 2000)
   if (neighbor) {
     let bounds = neighbor.bounds()
     let iconWidth = bounds.right - bounds.left
     let rewardX = bounds.left + iconWidth + 10
     let rewardY = bounds.centerY()
-    LogFloaty.pushLog('通过背包推算领奖励: (' + rewardX + ', ' + rewardY + ')')
+    taskLog('通过背包推算领奖励: (' + rewardX + ', ' + rewardY + ')')
     automator.click(rewardX, rewardY)
     sleep(2000)
     return true
@@ -606,7 +610,7 @@ function clickClaimRewardByWidget () {
     let iconWidth = bounds.right - bounds.left
     let rewardX = bounds.left + iconWidth * 2 + 20
     let rewardY = bounds.centerY()
-    LogFloaty.pushLog('通过乐园推算领奖励: (' + rewardX + ', ' + rewardY + ')')
+    taskLog('通过乐园推算领奖励: (' + rewardX + ', ' + rewardY + ')')
     automator.click(rewardX, rewardY)
     sleep(2000)
     return true
@@ -617,7 +621,7 @@ function clickClaimRewardByWidget () {
 
 // 处理弹窗：检测"支付宝想要打开xxx"等并点击"打开"
 function handlePopupDialog () {
-  LogFloaty.pushLog('检查是否有弹窗')
+  taskLog('检查是否有弹窗')
   
   // 等待弹窗动画完成
   sleep(500)
@@ -625,7 +629,7 @@ function handlePopupDialog () {
   // 查找"打开"按钮（系统弹窗）
   let openBtn = widgetUtils.widgetGetOne(/^打开$/, 2000)
   if (openBtn) {
-    LogFloaty.pushLog('检测到系统弹窗，点击"打开"')
+    taskLog('检测到系统弹窗，点击"打开"')
     automator.clickCenter(openBtn)
     sleep(1500)
     return true
@@ -657,17 +661,17 @@ function handlePopupDialog () {
       }
       
       if (hasAlipayText && hasOpenButton && openButton) {
-        LogFloaty.pushLog('检测到"支付宝想要打开xxx"弹窗，点击"打开"')
+        taskLog('检测到"支付宝想要打开xxx"弹窗，点击"打开"')
         automator.clickCenter(openButton)
         sleep(1500)
         return true
       }
     }
   } catch (e) {
-    LogFloaty.pushLog('检查弹窗异常: ' + e)
+    taskLog('检查弹窗异常: ' + e)
   }
   
-  LogFloaty.pushLog('未检测到弹窗')
+  taskLog('未检测到弹窗')
   return false
 }
 
@@ -689,7 +693,7 @@ function hasCountdownInRow (rowNode) {
       for (let i = 0; i < allDescendants.size(); i++) {
         let text = getNodeText(allDescendants.get(i))
         if (/\d+s/.test(text)) {
-          LogFloaty.pushLog('检测到倒计时: ' + text)
+          taskLog('检测到倒计时: ' + text)
           return true
         }
       }
@@ -718,19 +722,19 @@ function rowContainsText (rowNode, keyword) {
 function tryClaim () {
   let claimTarget = widgetUtils.widgetGetOne('领取', 500)
   if (claimTarget) {
-    LogFloaty.pushLog('执行领取奖励')
+    taskLog('执行领取奖励')
     claimTarget.click()
     sleep(800)
   }
 }
 
 function doAutoCollect () {
-  LogFloaty.pushLog('准备自动执行森林集市逛一逛')
+  taskLog('准备自动执行森林集市逛一逛')
   
   // 最多2轮
   let maxRounds = 3
   for (let round = 0; round < maxRounds; round++) {
-    LogFloaty.pushLog('=== 森林寻宝 第 ' + (round + 1) + ' 轮 ===')
+    taskLog('=== 森林寻宝 第 ' + (round + 1) + ' 轮 ===')
     
     // 每轮依次执行5个分支
     // 每个分支最多执行5次：每次找到则执行（执行后尝试领取），找不到则进入下一个分支
@@ -740,7 +744,7 @@ function doAutoCollect () {
     for (let signTry = 0; signTry < 5; signTry++) {
       let signTarget = widgetUtils.widgetGetOne('签到', 1000)
       if (signTarget) {
-        LogFloaty.pushLog('执行签到')
+        taskLog('执行签到')
         signTarget.click()
         sleep(1000)
         tryClaim()
@@ -765,11 +769,11 @@ function doAutoCollect () {
       
       if (isForestMarket) {
         // 2.1 森林市集逛一逛 - 滑动分支
-        LogFloaty.pushLog('找到"去森林市集逛一逛"，执行逛一逛')
+        taskLog('找到"去森林市集逛一逛"，执行逛一逛')
         goTarget.click()
         widgetUtils.widgetWaiting('滑动浏览得抽奖机会')
         sleep(1000)
-        LogFloaty.pushLog('开始自动滑动浏览')
+        taskLog('开始自动滑动浏览')
         for (let s = 8; s > 0; s--) {
           let start = new Date().getTime()
           LogFloaty.replaceLastLog('逛一逛 等待倒计时结束 剩余：' + s + 's')
@@ -782,7 +786,7 @@ function doAutoCollect () {
           // 每次滑动后检查弹窗
           let abandonTarget = widgetUtils.widgetGetOne('放弃奖励', 800)
           if (abandonTarget) {
-            LogFloaty.pushLog('检测到弹窗，点击"放弃奖励"')
+            taskLog('检测到弹窗，点击"放弃奖励"')
             abandonTarget.click()
             sleep(1000)
           } else if (localOcrUtil.enabled) {
@@ -794,7 +798,7 @@ function doAutoCollect () {
               screen.recycle()
               if (results && results.length > 0) {
                 let match = results[0]
-                LogFloaty.pushLog('OCR找到"放弃奖励"，点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
+                taskLog('OCR找到"放弃奖励"，点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
                 automator.click(match.bounds.centerX(), match.bounds.centerY())
                 sleep(1000)
               }
@@ -804,10 +808,10 @@ function doAutoCollect () {
         }
         sleep(2000)
         // 滑动结束后再检查一次弹窗
-        LogFloaty.pushLog('检查是否有弹窗需要关闭')
+        taskLog('检查是否有弹窗需要关闭')
         let abandonTarget = widgetUtils.widgetGetOne('放弃奖励', 1000)
         if (abandonTarget) {
-          LogFloaty.pushLog('检测到弹窗，点击"放弃奖励"')
+          taskLog('检测到弹窗，点击"放弃奖励"')
           abandonTarget.click()
           sleep(1000)
         } else if (localOcrUtil.enabled) {
@@ -819,7 +823,7 @@ function doAutoCollect () {
             screen.recycle()
             if (results && results.length > 0) {
               let match = results[0]
-              LogFloaty.pushLog('OCR找到"放弃奖励"，点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
+              taskLog('OCR找到"放弃奖励"，点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
               automator.click(match.bounds.centerX(), match.bounds.centerY())
               sleep(1000)
             }
@@ -831,11 +835,11 @@ function doAutoCollect () {
         tryClaim()
       } else {
         // 2.2 其他"去逛逛" - 等待35s分支
-        LogFloaty.pushLog('找到其他"去逛逛"，点击后处理弹窗')
+        taskLog('找到其他"去逛逛"，点击后处理弹窗')
         automator.clickCenter(goTarget)
         sleep(2000)
         handlePopupDialog()
-        LogFloaty.pushLog('等待5秒后返回森林寻宝')
+        taskLog('等待5秒后返回森林寻宝')
         sleep(5000)
         reopenForestHuntPage()
         tryClaim()
@@ -864,7 +868,7 @@ function doAutoCollect () {
                       let tvBounds = allTextViews.get(t).bounds()
                       // 同一行（Y坐标差距<100）
                       if (Math.abs(tvBounds.centerY() - playBounds.centerY()) < 100) {
-                        LogFloaty.pushLog('检测到倒计时: ' + tvText)
+                        taskLog('检测到倒计时: ' + tvText)
                         hasTimed = true
                         break
                       }
@@ -873,24 +877,24 @@ function doAutoCollect () {
                 }
               } catch (e) {}
               if (hasTimed) {
-                LogFloaty.pushLog('找到带倒计时的"马上玩"，点击后处理弹窗')
+                taskLog('找到带倒计时的"马上玩"，点击后处理弹窗')
                 automator.clickCenter(node)
                 sleep(2000)
                 handlePopupDialog()
-                LogFloaty.pushLog('等待35秒后返回森林寻宝')
+                taskLog('等待35秒后返回森林寻宝')
                 sleep(35000)
                 reopenForestHuntPage()
                 tryClaim()
                 foundTimedPlay = true
                 break
               } else {
-                LogFloaty.pushLog('跳过无倒计时的"马上玩"（需手动完成）')
+                taskLog('跳过无倒计时的"马上玩"（需手动完成）')
               }
             }
           }
         }
       } catch (e) {
-        LogFloaty.pushLog('查找"马上玩"异常: ' + e)
+        taskLog('查找"马上玩"异常: ' + e)
       }
       if (!foundTimedPlay) break  // 找不到带倒计时的就进入下一个分支
     }
@@ -900,20 +904,20 @@ function doAutoCollect () {
       let exchangeTarget = widgetUtils.widgetGetOne('去兑换', 1000)
       if (!exchangeTarget) break
       
-      LogFloaty.pushLog('找到"去兑换"')
+      taskLog('找到"去兑换"')
       exchangeTarget.click()
       sleep(2000)
       // 处理兑换确认弹窗
       let confirm = widgetUtils.widgetGetOne('确认兑换', 2000)
       if (confirm) {
-        LogFloaty.pushLog('点击"确认兑换"')
+        taskLog('点击"确认兑换"')
         confirm.click()
         sleep(2000)
       }
       // 点击后弹窗可能还在，再点一次关闭
       confirm = widgetUtils.widgetGetOne('确认兑换', 2000)
       if (confirm) {
-        LogFloaty.pushLog('再次点击"确认兑换"')
+        taskLog('再次点击"确认兑换"')
         confirm.click()
         sleep(2000)
       }
@@ -925,15 +929,15 @@ function doAutoCollect () {
       let claimTarget = widgetUtils.widgetGetOne('领取', 1000)
       if (!claimTarget) break
       
-      LogFloaty.pushLog('点击"领取"')
+      taskLog('点击"领取"')
       claimTarget.click()
       sleep(1000)
     }
     
-    LogFloaty.pushLog('第 ' + (round + 1) + ' 轮执行完毕，所有分支均无任务')
+    taskLog('第 ' + (round + 1) + ' 轮执行完毕，所有分支均无任务')
   }
   
-  LogFloaty.pushLog('森林集市逛一逛执行完毕')
+  taskLog('森林集市逛一逛执行完毕')
 }
 
 // 使用OCR查找并点击弹窗中的文字，返回true表示找到并点击了
@@ -949,7 +953,7 @@ function clickPopupButtonByOcr (keyword, timeout) {
       screen.recycle()
       if (results && results.length > 0) {
         let match = results[0]
-        LogFloaty.pushLog('OCR找到"' + keyword + '"，点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
+        taskLog('OCR找到"' + keyword + '"，点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
         automator.click(match.bounds.centerX(), match.bounds.centerY())
         sleep(1000)
         return true
@@ -968,13 +972,13 @@ function doDraw () {
     LogFloaty.pushErrorLog('抽奖已经标记结束 可能界面存在干扰')
     return false
   }
-  LogFloaty.pushLog('准备开始抽奖 (第' + CONTEXT.drawExecuteCount + '次)')
+  taskLog('准备开始抽奖 (第' + CONTEXT.drawExecuteCount + '次)')
   CONTEXT.drawExecuteCount++
   
   // 先检查是否出现"明日再来"（抽奖机会已用完）
   let tomorrowTarget = widgetUtils.widgetGetOne('明日再来', 1000)
   if (tomorrowTarget) {
-    LogFloaty.pushLog('检测到"明日再来"，抽奖机会已用完')
+    taskLog('检测到"明日再来"，抽奖机会已用完')
     CONTEXT.drawEnd = true
     return false
   }
@@ -986,34 +990,34 @@ function doDraw () {
       let chanceText = chance.text()
       if (chanceText) {
         if (chanceText != '0') {
-          LogFloaty.pushLog('剩余抽奖次数: ' + chanceText + '，点击抽奖')
+          taskLog('剩余抽奖次数: ' + chanceText + '，点击抽奖')
           automator.clickCenter(chance)
           sleep(3000)
           // 点击后可能出现弹窗："继续抽"（还有机会）或"做任务继续抽"（没机会了）
           // 先用OCR找"继续抽"，再找"做任务继续抽"
           let foundContinue = clickPopupButtonByOcr('继续抽', 3000)
           if (foundContinue) {
-            LogFloaty.pushLog('点击"继续抽"关闭弹窗')
+            taskLog('点击"继续抽"关闭弹窗')
             sleep(1500)
           } else {
             // 找"做任务继续抽"
             let foundTaskContinue = clickPopupButtonByOcr('做任务继续抽', 3000)
             if (foundTaskContinue) {
-              LogFloaty.pushLog('点击"做任务继续抽"，抽奖机会已用完')
+              taskLog('点击"做任务继续抽"，抽奖机会已用完')
               sleep(1500)
               CONTEXT.drawEnd = true
             } else {
               // 再尝试控件方式查找"继续抽"
               let continueTarget = widgetUtils.widgetGetOne('继续抽', 2000)
               if (continueTarget) {
-                LogFloaty.pushLog('点击"继续抽"关闭弹窗')
+                taskLog('点击"继续抽"关闭弹窗')
                 continueTarget.click()
                 sleep(1500)
               } else {
                 // 控件查找"做任务继续抽"
                 let taskContinueTarget = widgetUtils.widgetGetOne(/做任务继续抽/, 2000)
                 if (taskContinueTarget) {
-                  LogFloaty.pushLog('点击"做任务继续抽"，抽奖机会已用完')
+                  taskLog('点击"做任务继续抽"，抽奖机会已用完')
                   taskContinueTarget.click()
                   sleep(1500)
                   CONTEXT.drawEnd = true
@@ -1021,7 +1025,7 @@ function doDraw () {
                   // 找关闭按钮（叉号）
                   let closeBtn = selector().clickable().className('android.widget.TextView').filter(node => node.bounds().width() == node.bounds().height()).depth(16).findOne(1000)
                   if (closeBtn) {
-                    LogFloaty.pushLog('点击关闭按钮')
+                    taskLog('点击关闭按钮')
                     closeBtn.click()
                     sleep(1000)
                   } else {
@@ -1032,16 +1036,16 @@ function doDraw () {
             }
           }
           // 弹窗关闭后，检查是否还有抽奖机会
-          LogFloaty.pushLog('检查是否还有抽奖机会')
+          taskLog('检查是否还有抽奖机会')
           sleep(1000)
           return doDraw()
         } else {
-          LogFloaty.pushLog('剩余抽奖次数为0')
+          taskLog('剩余抽奖次数为0')
         }
       }
     }
   } else {
-    LogFloaty.pushLog('未找到抽奖按钮')
+    taskLog('未找到抽奖按钮')
   }
   // 没有抽奖机会了，返回false
   return false
@@ -1064,10 +1068,10 @@ function executeAllTabs () {
     let eventTabs = checkHasEvent()
     if (eventTabs && eventTabs.length > 1) {
       eventTabs[1].click()
-      LogFloaty.pushLog('切换到Tab 1（活动界面）')
+      taskLog('切换到Tab 1（活动界面）')
       sleep(1000)
       // 切换Tab后滚动到任务区域
-      LogFloaty.pushLog('滚动到任务列表区域')
+      taskLog('滚动到任务列表区域')
       automator.scrollDown()
       sleep(500)
       hasChance = executeTab()
@@ -1084,7 +1088,7 @@ function checkHasEvent () {
       try {
         let eventTabContainer = subContainer.child(1).child(0)
         if (eventTabContainer && eventTabContainer.childCount() > 1) {
-          LogFloaty.pushLog('检测到双Tab，Tab数量: ' + eventTabContainer.childCount())
+          taskLog('检测到双Tab，Tab数量: ' + eventTabContainer.childCount())
           return [eventTabContainer.child(0), eventTabContainer.child(1)]
         }
       } catch (e) {

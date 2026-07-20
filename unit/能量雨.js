@@ -36,6 +36,10 @@ let LogFloaty = sRequire('LogFloaty')
 let processShare = sRequire('ProcessShare')
 let storage = storages.create(_storage_name)
 
+function taskLog (msg) {
+  LogFloaty.pushLog(msg)
+}
+
 function killApps () {
   try {
     let success = killProcessUtil.kill(config.package_name || 'com.eg.android.AlipayGphone')
@@ -108,9 +112,9 @@ let clickThread = threads.start(function () {
     writeLock.lock()
     try {
       if (!clickRunning) {
-        LogFloaty.pushLog('等待开始点击')
+        taskLog('等待开始点击')
         ballsComplete.await()
-        LogFloaty.pushLog('开始暴力点击')
+        taskLog('开始暴力点击')
       }
     } finally {
       writeLock.unlock()
@@ -122,7 +126,7 @@ let clickThread = threads.start(function () {
         violentClickPoints.forEach(p => press(p[0], p[1], pressDuration))
         sleep(sleepTime)
       } else {
-        LogFloaty.pushLog('暴力点击完毕')
+        taskLog('暴力点击完毕')
         clickRunning = false
         floatyBtnInstance.changeButtonText('changeStatus', '检查是否还有机会')
         sleep(1000)
@@ -249,7 +253,7 @@ function checkAndSendChance () {
   if (checkHasValidation()) {
     return false
   }
-  LogFloaty.pushLog('正在校验是否存在 “更多好友”，请稍等')
+  taskLog('正在校验是否存在 “更多好友”，请稍等')
   // 设置至少十秒的查找时间
   let endDateForCheck = new Date().getTime() + 10000 + (config.timeout_rain_find_friend || 3000)
   targetEndTime = endDateForCheck > targetEndTime ? endDateForCheck : targetEndTime
@@ -258,10 +262,10 @@ function checkAndSendChance () {
     // 尝试获取目标好友
     let targetFriend = widgetUtils.widgetGetOne(targetSendName, config.timeout_rain_find_friend || 3000)
     if (targetFriend) {
-      LogFloaty.pushLog('快捷界面找到了目标好友')
+      taskLog('快捷界面找到了目标好友')
       targetFriend.parent().child(1).click()
       infoLog(['点击了送ta机会'])
-      LogFloaty.pushLog('点击了送ta机会')
+      taskLog('点击了送ta机会')
       let newEnd = new Date().getTime() + 25000
       targetEndTime = newEnd > targetEndTime ? newEnd : targetEndTime
       sleep(1000)
@@ -272,11 +276,11 @@ function checkAndSendChance () {
       return true
     }
     automator.clickCenter(showMoreFriend)
-    LogFloaty.pushLog('点击了更多好友')
-    LogFloaty.pushLog('点击了更多好友，校验是否存在目标好友:' + targetSendName)
+    taskLog('点击了更多好友')
+    taskLog('点击了更多好友，校验是否存在目标好友:' + targetSendName)
     setDisplayText('点击了更多好友，校验是否存在目标好友:' + targetSendName, showMoreFriend.bounds().centerX(), showMoreFriend.bounds().centerY())
     sleep(2000)
-    LogFloaty.pushLog('查找目标好友中:' + targetSendName)
+    taskLog('查找目标好友中:' + targetSendName)
     let targetFriends = widgetUtils.widgetGetAll(targetSendName, config.timeout_rain_find_friend || 3000, false, null, { algorithm: 'PDFS' })
     if (targetFriends) {
       let matched = false
@@ -289,13 +293,13 @@ function checkAndSendChance () {
           let context = send.text() || send.desc()
           if (!/送TA机会/.test(context)) {
             warnInfo(['目标好友已被赠送，无法再次赠送 {}', context], true)
-            LogFloaty.pushLog('目标好友已被赠送，无法再次赠送:' + context)
+            taskLog('目标好友已被赠送，无法再次赠送:' + context)
             return false
           }
           infoLog(['送ta机会按钮：{}', send.text() || send.desc()], true)
           send.click()
           infoLog(['点击了送ta机会'])
-          LogFloaty.pushLog('点击了送ta机会')
+          taskLog('点击了送ta机会')
           let newEnd = new Date().getTime() + 25000
           targetEndTime = newEnd > targetEndTime ? newEnd : targetEndTime
           sleep(1000)
@@ -339,7 +343,7 @@ function checkAndStartCollect () {
     config._execute_finding = false
     writeLock.lock()
     try {
-      LogFloaty.pushLog('点击音量下键可以停止运行')
+      taskLog('点击音量下键可以停止运行')
       ui.post(() => {
         clickButtonWindow.setPosition(-cvt(150), config.device_height * 0.65)
       })
@@ -474,7 +478,7 @@ function openRainPage (reopen) {
   if (starting) {
     return
   }
-  LogFloaty.pushLog('正在打开能量雨界面')
+  taskLog('正在打开能量雨界面')
   commonFunction.backHomeIfInVideoPackage()
   floatyBtnInstance.changeButtonText('openRainPage', '正在打开能量雨界面')
   floatyBtnInstance.changeButtonStyle('openRainPage', null, '#f36838')
@@ -498,7 +502,7 @@ function openRainPage (reopen) {
       RUNNING_CONTEXT.message = '打开能量雨界面失败'
       return
     }
-    LogFloaty.pushLog('关闭支付宝，再次打开能量雨界面')
+    taskLog('关闭支付宝，再次打开能量雨界面')
     app.launch(config.package_name)
     sleep(1000)
     commonFunction.killCurrentApp()
@@ -557,16 +561,16 @@ function checkHasValidation () {
 
 // 关闭震动
 function checkAndCloseVibrate () {
-  LogFloaty.pushLog('准备检查并关闭震动')
+  taskLog('准备检查并关闭震动')
   let moreIcon = widgetUtils.widgetGetById('com.alipay.multiplatform.phone.xriver_integration:id/imageButton_rightButton1', 1000)
   if (moreIcon) {
     moreIcon.click()
     let closedOrOpen = widgetUtils.alternativeWidget('关闭震动', '打开震动', 1000, true)
     if (closedOrOpen.value == 1) {
-      LogFloaty.pushLog('关闭震动')
+      taskLog('关闭震动')
       automator.clickCenter(closedOrOpen.target)
     } else {
-      LogFloaty.pushLog('已关闭震动')
+      taskLog('已关闭震动')
       automator.clickCenter(moreIcon)
     }
   }

@@ -408,15 +408,15 @@ function collectOwnEnergy() {
 function main() {
   infoLog('复活能量脚本启动', true)
 
-  if (!checkTimeRange()) {
-    commonFunction.minimize()
-    sleep(500)
-    // 杀掉后台进程
-    killApps()
-    sleep(500)
-    runningQueueDispatcher.removeRunningTask()
-    exit()
-  }
+  // if (!checkTimeRange()) {
+  //   commonFunction.minimize()
+  //   sleep(500)
+  //   // 杀掉后台进程
+  //   killApps()
+  //   sleep(500)
+  //   runningQueueDispatcher.removeRunningTask()
+  //   exit()
+  // }
 
   threads.start(function () {
     events.observeKey()

@@ -40,7 +40,7 @@ function Market () {
     }
     if (widgetUtils.widgetWaiting('绿色商品', null)) {
       checkDialogAndClose()
-      // 关闭首购红包弹窗（方案A：点击领取）
+      // 关闭首购红包弹窗，如果识别到则重新进入森林集市
       closeFirstPurchaseRedPack()
       return true
     }
@@ -88,7 +88,7 @@ function Market () {
       }
       if (!taskRunner.run()) {
         // 未匹配到任何执行器，确认在森林集市页面，说明任务已完成
-        logFloaty.pushLog('在森林集市界面且无任务可执行，任务已完成')
+        taskLog('在森林集市界面且无任务可执行，任务已完成')
         return true
       }
       i++
@@ -113,18 +113,18 @@ function Market () {
     let success = false
     let errorMsg = ''
     let errorType = 0
-    let timeoutMs = 4 * 60 * 1000  // 全局超时4分钟
+    let timeoutMs = 4 * 60 * 1000 + 30 * 1000 // 全局超时4分半
     let startTime = new Date().getTime()
-    logFloaty.pushLog('准备打开森林集市')
+    taskLog('准备打开森林集市')
     while ((opened = startApp()) == false && retry++ < 3) {
       if (checkIfInVerify()) {
         errorMsg = '触发身份验证'
         break
       }
       warnInfo('打开森林集市失败')
-      sleep(1000)
+      sleep(500)
       home()
-      sleep(1000)
+      sleep(500)
     }
     if (opened) {
       try {
@@ -148,10 +148,10 @@ function Market () {
     }
     // 无论主任务是否成功，都收自己能量
     enterAntForest()
-    for (let i = 1; i <= 6; i++) {
-      taskLog('第' + i + '/6次收自己能量')
+    for (let i = 1; i <= 4; i++) {
+      taskLog('第' + i + '/4次收自己能量')
       collectOwnEnergy()
-      if (i < 6) sleep(5000)
+      if( i < 4 ) sleep(5000)
     }
     return {
       success: success,
@@ -168,7 +168,7 @@ function BrowserExecutor () {
   }
 
   this.execute = function () {
-    logFloaty.pushLog('找到了倒计时控件，开始浏览商品')
+    taskLog('找到了倒计时控件，开始浏览商品')
     let maxTry = 2
     let breakLoop = false
     while (maxTry-- > 0 && widgetUtils.widgetGetOne('浏览商品\\d+s得能量', 1000)) {
@@ -176,7 +176,7 @@ function BrowserExecutor () {
       let target = widgetUtils.widgetGetById('greenItem', 1000)
       if (target) {
         target.click()
-        sleep(2000)
+        sleep(1000)
       }
       // 先下滑再上滑，循环8次
       let scrollRound = 8
@@ -211,7 +211,7 @@ function ClickExecutor () {
   }
 
   this.execute = function () {
-    logFloaty.pushLog('点击商品进行浏览')
+    taskLog('点击商品进行浏览')
     let maxTry = 2
     let breakLoop = false
     while (maxTry-- > 0 && widgetUtils.widgetGetOne('点击', 1000)) {
@@ -244,11 +244,11 @@ function ClickExecutor () {
   this.clickGoodDetail = function () {
     let clickBtn = widgetUtils.widgetGetOne('到手价|入会价|优惠后|补贴后')
     if (clickBtn) {
-      logFloaty.pushLog('随机点击一个商品')
+      taskLog('随机点击一个商品')
       clickBtn.click()
-      sleep(2000)
+      sleep(500)
       back()
-      sleep(1000)
+      sleep(500)
       return true
     } else {
       logFloaty.pushErrorLog('未找到可点击商品')
@@ -278,8 +278,8 @@ function RewardExecutor () {
     let collectReword = widgetUtils.widgetGetOne('可领取', 1000)
     if (collectReword) {
       collectReword.click()
-      logFloaty.pushLog('点击了领取奖励，等待界面加载, 5s')
-      let limit = 5
+      taskLog('点击了领取奖励，等待界面加载, 6s')
+      let limit = 6
       while (limit-- > 0) {
         sleep(1000)
         logFloaty.replaceLastLog('点击了领取奖励，等待界面加载, ' + limit + 's')
@@ -338,7 +338,7 @@ function checkIfInVerify () {
 }
 
 /**
- * 关闭首购红包弹窗（方案A：点击"点击领取"）
+ * 关闭首购红包弹窗，如果识别到首购红包则重新进入森林集市
  */
 function closeFirstPurchaseRedPack () {
   // 先确认弹窗是否存在（查找"首购红包"或"点击领取"文本）
@@ -346,28 +346,11 @@ function closeFirstPurchaseRedPack () {
     debugInfo(['未发现首购红包弹窗'])
     return
   }
-  logFloaty.pushLog('发现首购红包弹窗，尝试关闭')
-  // 查找弹窗下方的关闭按钮（X）
-  let closeBtn = selector().filter(node => {
-    if (!node || !node.bounds()) {
-      return false
-    }
-    let bd = node.bounds()
-    let rate = bd.width() / bd.height()
-    let centerX = bd.centerX()
-    let centerY = bd.centerY()
-    return rate >= 0.8 && rate <= 1.2 && centerX > config.device_width * 0.4 && centerX < config.device_width * 0.7 && centerY > config.device_height * 0.5 && centerY < config.device_height * 0.8
-  }).findOne(2000)
-  if (closeBtn) {
-    logFloaty.pushLog('找到关闭按钮，点击关闭')
-    automator.clickCenter(closeBtn)
-    sleep(1500)
-  } else {
-    // 如果找不到X按钮，尝试点击弹窗外部区域关闭
-    logFloaty.pushWarningLog('未找到关闭按钮，尝试点击弹窗外部')
-    automator.click(config.device_width / 2, config.device_height * 0.85)
-    sleep(1500)
-  }
+  taskLog('发现首购红包弹窗，重新进入森林集市')
+  // 重新进入森林集市
+  commonFunctions.minimize()
+  sleep(500)
+  startApp()
 }
 
 
@@ -420,7 +403,7 @@ function collectOwnEnergy() {
 }
 
 function checkDialogAndClose () {
-  logFloaty.pushLog('检查是否存在关闭弹窗按钮')
+  taskLog('检查是否存在关闭弹窗按钮')
   let targetCloseBtn = selector().filter(node => {
     if (!node || !node.bounds()) {
       return false
@@ -432,8 +415,8 @@ function checkDialogAndClose () {
     return rate >= 0.9 && rate <= 1.1 && Math.abs(centerX - config.device_width / 2) < 10 && centerY > config.device_height / 2
   }).findOne(1000)
   if (targetCloseBtn) {
-    logFloaty.pushLog('找到关闭弹窗按钮')
+    taskLog('找到关闭弹窗按钮')
     automator.clickCenter(targetCloseBtn)
-    sleep(1000)
+    sleep(500)
   }
 }

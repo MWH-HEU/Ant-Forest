@@ -109,7 +109,7 @@ function getCachedY (keyword, cachedTexts) {
 
 function hasTextInSameRow (bounds, keyword, cachedTexts) {
   try {
-    // 使用缓存的文字列表，避免重复查找控件树
+    // 从缓存中查找同行关键字（传入null时跳过缓存查找，由调用方自行处理）
     if (cachedTexts) {
       for (let i = 0; i < cachedTexts.length; i++) {
         let item = cachedTexts[i]
@@ -162,7 +162,7 @@ function clickGetEnergy () {
   taskLog('通过OCR识别"得能量"')
 
   if (localOcrUtil.enabled) {
-    
+
     commonFunction.requestScreenCaptureOrRestart()
     sleep(500)
     let screen = commonFunction.captureScreen()
@@ -214,7 +214,6 @@ function doBrowseTask (bounds) {
 
   automator.click(bounds.centerX(), bounds.centerY())
   sleep(2000)
-  sleep(1000)
 
   let maxScroll = 3
   for (let s = 0; s < maxScroll; s++) {
@@ -297,7 +296,6 @@ function doQuizTask (bounds) {
 
   automator.click(bounds.centerX(), bounds.centerY())
   sleep(2000)
-  sleep(1000)
 
   taskLog('等待答题弹窗加载')
   let quizPage = widgetUtils.widgetWaiting('.*(绿色答题|提交答案).*', 3000)
@@ -382,7 +380,6 @@ function doAntForestTask (bounds) {
 
   automator.click(bounds.centerX(), bounds.centerY())
   sleep(2000)
-  sleep(1000)
 
   taskLog('等待进入蚂蚁森林')
   widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', 5000)
@@ -402,69 +399,66 @@ function doAntForestTask (bounds) {
 function findAndExecuteTasks () {
   taskLog('通过控件查找任务按钮')
 
-  let tasksFound = 0
-  let maxTasks = 3
-
   try {
     let allNodes = className('android.widget.TextView').find()
-    if (!allNodes) return tasksFound
+    if (!allNodes || allNodes.size() === 0) {
+      taskLog('未找到任何TextView控件')
+      return false
+    }
 
-    // taskLog('通过 TextView 找到 ' + allNodes.size() + ' 个控件')
-    let cachedTexts = []
-    for (let d = 0; d < allNodes.size(); d++) {
+    for (let i = 0; i < allNodes.size(); i++) {
       try {
-        let node = allNodes.get(d)
+        let node = allNodes.get(i)
         let t = node.text() || node.desc()
-        if (t) {
-          let bounds = node.bounds()
-          cachedTexts.push({
-            text: t.toString(),
-            y: bounds.centerY(),
-            bounds: bounds
-          })
+        if (!t) continue
+        let text = t.toString()
+        let bounds = node.bounds()
+        let y = bounds.centerY()
+
+        if (y < config.device_height * 0.15) continue
+        if (y > config.device_height * 0.85) continue
+
+        if (text === '去浏览') {
+          if (hasTextInSameRow({centerY: () => y}, '点击1个商品进入详情页', null)) {
+            taskLog('找到"去浏览"任务（点击1个商品），当前控件y=' + y)
+            doBrowseTask(bounds)
+            return true
+          }
+        } else if (text === '去完成') {
+          if (hasTextInSameRow({centerY: () => y}, '参与绿色科普答题', null)) {
+            taskLog('找到"去完成"任务（参与绿色科普答题），当前控件y=' + y)
+            doQuizTask(bounds)
+            return true
+          } else if (hasTextInSameRow({centerY: () => y}, '去蚂蚁森林收更多能量', null)) {
+            taskLog('找到"去完成"任务（去蚂蚁森林收更多能量），当前控件y=' + y)
+            doAntForestTask(bounds)
+            return true
+          }
         }
       } catch (e) {}
     }
-    // taskLog('缓存完成，有文字TextView ' + cachedTexts.length + ' 个')
 
-    // writeLog('=== 所有TextView文字及坐标 ===')
-    for (let i = 0; i < cachedTexts.length; i++) {
-      if (tasksFound >= maxTasks) break
-
-      let item = cachedTexts[i]
-      let text = item.text
-      let y = item.y
-
-      // writeLog('TextView[' + i + ']: \"' + text + '\" y=' + y)
-
-      if (y < config.device_height * 0.15) continue
-      if (y > config.device_height * 0.85) continue
-
-      if (text === '去浏览') {
-        if (hasTextInSameRow({centerY: () => y}, '点击1个商品进入详情页', cachedTexts)) {
-          taskLog('找到"去浏览"任务（点击1个商品），当前控件y=' + y + '，缓存中"点击1个商品进入详情页" y=' + getCachedY('点击1个商品进入详情页', cachedTexts))
-          tasksFound++
-          doBrowseTask(item.bounds)
-        }
-      } else if (text === '去完成') {
-        if (hasTextInSameRow({centerY: () => y}, '参与绿色科普答题', cachedTexts)) {
-          taskLog('找到"去完成"任务（参与绿色科普答题）')
-          tasksFound++
-          doQuizTask(item.bounds)
-        } else if (hasTextInSameRow({centerY: () => y}, '去蚂蚁森林收更多能量', cachedTexts)) {
-          taskLog('找到"去完成"任务（去蚂蚁森林收更多能量）')
-          tasksFound++
-          doAntForestTask(item.bounds)
-        }
-      }
-    }
-    // writeLog('=== TextView打印完毕 ===')
+    // // 输出3个任务的位置信息（用于调试）
+    // let browseY = -1, quizY = -1, forestY = -1
+    // for (let i = 0; i < allNodes.size(); i++) {
+    //   try {
+    //     let node = allNodes.get(i)
+    //     let t = node.text() || node.desc()
+    //     if (!t) continue
+    //     let text = t.toString()
+    //     let y = node.bounds().centerY()
+    //     if (text.indexOf('点击1个商品进入详情页') >= 0) browseY = y
+    //     else if (text.indexOf('参与绿色科普答题') >= 0) quizY = y
+    //     else if (text.indexOf('去蚂蚁森林收更多能量') >= 0) forestY = y
+    //   } catch (e) {}
+    // }
+    // taskLog('任务位置 - 点击1个商品进入详情页: y=' + browseY + ', 参与绿色科普答题: y=' + quizY + ', 去蚂蚁森林收更多能量: y=' + forestY)
   } catch (e) {
     taskLog('TextView查找任务异常: ' + e)
   }
 
-  taskLog('共识别到 ' + tasksFound + ' 个任务')
-  return tasksFound
+  taskLog('未找到可执行的任务按钮')
+  return false
 }
 
 /**
@@ -497,6 +491,76 @@ function doMainPageTasks () {
   screen.recycle()
 }
 
+
+/**
+ * 通过OCR识别任务按钮，匹配同行文字后执行
+ */
+function findAndExecuteTasksOcr () {
+  taskLog('通过OCR查找任务按钮')
+
+  if (!localOcrUtil.enabled) {
+    taskLog('OCR不可用')
+    return false
+  }
+
+  commonFunction.requestScreenCaptureOrRestart()
+  sleep(500)
+  let screen = commonFunction.captureScreen()
+  if (!screen) {
+    taskLog('截图失败')
+    return false
+  }
+
+  let allResults = localOcrUtil.recognizeWithBounds(screen, [0, 0, config.device_width, config.device_height], '')
+  screen.recycle()
+  if (!allResults || allResults.length === 0) {
+    taskLog('OCR未识别到任何文字')
+    return false
+  }
+
+  for (let i = 0; i < allResults.length; i++) {
+    let match = allResults[i]
+    let text = match.label
+    let y = match.bounds.centerY()
+
+    if (y < config.device_height * 0.15) continue
+    if (y > config.device_height * 0.85) continue
+
+    if (text === '去浏览') {
+      // if (hasTextInSameRow({centerY: () => y}, '点击1个商品进入详情页', null)) {
+      if (hasTextInSameRow({centerY: () => y}, '点击1个商品进入', null)) {
+        taskLog('OCR找到"去浏览"任务（点击1个商品），当前控件y=' + y)
+        doBrowseTask(match.bounds)
+        return true
+      }
+    } else if (text === '去完成') {
+      if (hasTextInSameRow({centerY: () => y}, '参与绿色科普答题', null)) {
+        taskLog('OCR找到"去完成"任务（参与绿色科普答题），当前控件y=' + y)
+        doQuizTask(match.bounds)
+        return true
+      } else if (hasTextInSameRow({centerY: () => y}, '去蚂蚁森林收更多能量', null)) {
+        taskLog('OCR找到"去完成"任务（去蚂蚁森林收更多能量），当前控件y=' + y)
+        doAntForestTask(match.bounds)
+        return true
+      }
+    }
+  }
+
+  // // 输出3个任务的位置信息（用于调试）
+  // let browseY = -1, quizY = -1, forestY = -1
+  // for (let i = 0; i < allResults.length; i++) {
+  //   let text = allResults[i].label
+  //   let y = allResults[i].bounds.centerY()
+  //   // if (text.indexOf('点击1个商品进入详情页') >= 0) browseY = y
+  //   if (text.indexOf('点击1个商品进入') >= 0) browseY = y
+  //   else if (text.indexOf('参与绿色科普答题') >= 0) quizY = y
+  //   else if (text.indexOf('去蚂蚁森林收更多能量') >= 0) forestY = y
+  // }
+  // taskLog('OCR任务位置 - 点击1个商品进入详情页: y=' + browseY + ', 参与绿色科普答题: y=' + quizY + ', 去蚂蚁森林收更多能量: y=' + forestY)
+
+  taskLog('OCR未找到可执行的任务按钮')
+  return false
+}
 // ============ 主流程 ============
 
 function main () {
@@ -551,7 +615,13 @@ function main () {
   taskLog('=== 步骤4: 执行任务 ===')
   for (let round = 0; round < 2; round++) {
     taskLog('第 ' + (round + 1) + ' 轮执行')
-    let tasksDone = findAndExecuteTasks()
+    let tasksDone = 0
+    while (findAndExecuteTasks()) {
+      tasksDone++
+    }
+    // while (findAndExecuteTasksOcr()) {
+    //   tasksDone++
+    // }
     taskLog('本轮完成 ' + tasksDone + ' 个任务')
     sleep(1000)
   }

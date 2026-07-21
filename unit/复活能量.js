@@ -1,20 +1,16 @@
 /*
  * @Author: Auto-generated for Ant-Forest
  * @Description: 复活能量子脚本
- * 每天8:00-22:00运行，复活好友能量，每次获得5g
- * 大循环2次，每次内小循环7次
- * 
+ * 复活好友能量，每次获得5g
+ *
  * 流程：
- * 大循环2次：
- *   1. 进入蚂蚁森林
- *   2. 点击总能量榜tab → 下滑找"查看更多好友" → 进入完整排行榜
- *   3. 小循环（最多7次）：
- *      a. 控件查找+5g，连续2次没有就下滑30%，最多10次
- *      b. 遍历当前屏幕所有+5g，逐个进入好友森林复活
- *      c. 复活6次后跳过剩余小循环
- *      d. 返回总榜继续
- *   4. 重新进入自己森林 → 收取自己能量
- * 退出：minimize → killApps → removeRunningTask → exit
+ * 大循环最多9次，复活6次或找不到+5g时退出：
+ *   1. 进入蚂蚁森林 → 收取自己能量
+ *   2. 进入总能量榜（完整排行榜）
+ *   3. findColor查找+5g（橙色按钮），连续2次没找到下滑30%，最多10次
+ *      找到后取第一个，进入好友森林复活
+ *   4. 回到步骤1
+ * 退出前：再收一次能量 → minimize → killApps → removeRunningTask → exit
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
@@ -74,13 +70,13 @@ function goBack() {
 // ============ 核心功能 ============
 
 /**
- * 检查时间是否在8:00-22:00之间
+ * 检查时间是否在7:00-22:00之间
  */
 function checkTimeRange() {
   let now = new Date()
   let hour = now.getHours()
-  if (hour < 8 || hour >= 22) {
-    taskLog('当前时间不在8:00-22:00范围内，跳过复活能量操作')
+  if (hour < 7 || hour >= 22) {
+    taskLog('当前时间不在7:00-22:00范围内，跳过复活能量操作')
     return false
   }
   return true
@@ -117,7 +113,7 @@ function enterAntForest() {
     errorInfo('进入蚂蚁森林失败')
     return false
   }
-  taskLog('进入蚂蚁森林成功')
+  // taskLog('进入蚂蚁森林成功')
   sleep(2000)
   return true
 }
@@ -159,7 +155,7 @@ function clickEnergyRankTab() {
  * 首次进入总能量榜：点击tab + 下滑进入完整排行榜列表
  */
 function enterEnergyRankFirstTime() {
-  taskLog('首次进入总能量榜')
+  taskLog('进入总能量榜')
 
   if (!clickEnergyRankTab()) {
     return false
@@ -176,7 +172,7 @@ function enterEnergyRankFirstTime() {
     if (moreFriends) {
       moreFriends.click()
       sleep(1000)
-      taskLog('进入完整排行榜')
+      // taskLog('进入完整排行榜')
       return true
     }
     if (localOcrUtil.enabled) {
@@ -189,7 +185,7 @@ function enterEnergyRankFirstTime() {
           let bd = target.bounds
           automator.click(bd.centerX(), bd.centerY())
           sleep(1000)
-          taskLog('OCR找到"查看更多好友"并点击')
+          // taskLog('OCR找到"查看更多好友"并点击')
           return true
         }
       }
@@ -205,45 +201,67 @@ function enterEnergyRankFirstTime() {
  * 只用控件查找，必须带+号
  */
 function findReviveMarkers() {
-  taskLog('查找+5g复活标志')
+  // taskLog('查找+5g复活标志')
 
   let results = []
 
-  debugInfo('使用控件查找+5g标志')
-  let widgets = widgetUtils.widgetGetAll('[+＋]5g', 2000, true, null, { algorithm: 'PDFS' })
-  if (widgets && widgets.target) {
-    let isDesc = widgets.isDesc
-    widgets.target.forEach(w => {
-      let text = isDesc ? w.desc() : w.text()
-      text = text || ''
-      if (/[+＋]5g/i.test(text)) {
-        let bd = w.bounds()
-        debugInfo(['控件找到+5g: {} 位置: {}', text, JSON.stringify(bd)])
-        results.push({
-          text: text,
-          bounds: bd,
-          centerX: Math.round(bd.centerX()),
-          centerY: Math.round(bd.centerY())
+  // 用findColor找橙色按钮（+5g是橙底白字）
+  debugInfo('使用findColor查找橙色按钮')
+  try {
+    let screen = commonFunction.captureScreen()
+    if (screen) {
+      // 橙色 #FF8F00 附近，阈值50，只扫描右侧10%宽度区域
+      let color = '#FF8F00'
+      let threshold = 50
+      let w = config.device_width
+      let region = [w * 0.9, 0, w * 0.1, config.device_height]
+      let maxFind = 20
+      while (maxFind-- > 0) {
+        let point = images.findColor(screen, color, {
+          region: region,
+          threshold: threshold
         })
+        if (!point) break
+
+        // 计算按钮中心（按钮约30px高，取点+15px为中心）
+        let centerY = point.y + 15
+        let centerX = point.x + 20  // 按钮宽约35px
+
+        debugInfo(['findColor找到橙色点: ({}, {})', point.x, point.y])
+        results.push({
+          text: '+5g',
+          centerX: centerX,
+          centerY: centerY
+        })
+
+        // 排除这个点附近区域，继续找下一个
+        region = [w * 0.9, point.y + 30, w * 0.1, config.device_height - (point.y + 30)]
+        if (region[3] <= 0) break
       }
-    })
+    }
+  } catch (e) {
+    warnInfo('findColor异常: ' + e)
   }
 
-  // 去重
+  // 去重（按y坐标去重，同一按钮上下边缘各有一个点）
   let uniqueResults = []
   results.forEach(r => {
     let isDuplicate = uniqueResults.some(u =>
-      Math.abs(u.centerX - r.centerX) < 50 && Math.abs(u.centerY - r.centerY) < 50
+      Math.abs(u.centerY - r.centerY) < 40
     )
     if (!isDuplicate) {
       uniqueResults.push(r)
     }
   })
 
-  taskLog('找到 ' + uniqueResults.length + ' 个+5g标志')
+  // taskLog('找到 ' + uniqueResults.length + ' 个+5g标志')
   return uniqueResults
 }
 
+/**
+ * 只查找第一个+5g标志，找到即返回，不遍历全部
+ * @returns {Object|null} marker对象或null
+ */
 /**
  * 点击5g标志进入好友森林
  */
@@ -287,7 +305,7 @@ function clickAndEnterFriendForest(marker) {
  * 查找并点击"帮TA复活能量"
  */
 function clickReviveEnergy() {
-  taskLog('查找"帮TA复活能量"')
+  // taskLog('查找"帮TA复活能量"')
 
   // 方法1: 控件查找
   let reviveBtn = widgetUtils.widgetGetOne('帮TA复活能量|帮好友复活能量', 2000)
@@ -331,7 +349,7 @@ function clickReviveEnergy() {
  * 点击"确认发送"
  */
 function clickConfirmSend() {
-  taskLog('查找"确认发送"按钮')
+  // taskLog('查找"确认发送"按钮')
 
   // 方法1: 控件查找
   let confirmBtn = widgetUtils.widgetGetOne('确认发送', 2000)
@@ -400,23 +418,164 @@ function collectOwnEnergy() {
   let scanner = new ReviveBaseScanner()
   scanner.collectEnergy(true)
 
-  taskLog('收取自己能量完成')
+  // taskLog('收取自己能量完成')
 }
 
 // ============ 主流程 ============
 
+// ============ 旧架构（备份） ============
+// function main() {
+//   infoLog('复活能量脚本启动', true)
+//
+//   // if (!checkTimeRange()) {
+//   //   commonFunction.minimize()
+//   //   sleep(500)
+//   //   // 杀掉后台进程
+//   //   killApps()
+//   //   sleep(500)
+//   //   runningQueueDispatcher.removeRunningTask()
+//   //   exit()
+//   // }
+//
+//   threads.start(function () {
+//     events.observeKey()
+//     events.on("key_down", function (keyCode, event) {
+//       if (keyCode === 24) {
+//         toastLog('用户按音量上键，退出脚本')
+//         killApps()
+//         runningQueueDispatcher.removeRunningTask()
+//         exit()
+//       }
+//     })
+//   })
+//
+//   taskLog('====== 开始复活能量流程 ======')
+//
+//   // 大循环2次
+//   for (let bigLoop = 1; bigLoop <= 2; bigLoop++) {
+//     taskLog('====== 第' + bigLoop + '次大循环 ======')
+//
+//     // 步骤1: 进入蚂蚁森林
+//     taskLog('=== 步骤1: 进入蚂蚁森林 ===')
+//     if (!enterAntForest()) {
+//       errorInfo('进入蚂蚁森林失败，跳过本轮')
+//       continue
+//     }
+//
+//     // 步骤2: 首次进入总能量榜（点击tab + 下滑进完整列表）
+//     taskLog('=== 步骤2: 进入总能量榜 ===')
+//     enterEnergyRankFirstTime()
+//
+//     // 小循环7次：查找并复活能量
+//     let revivedCount = 0
+//
+//     for (let smallLoop = 1; smallLoop <= 7; smallLoop++) {
+//       taskLog('=== 第' + smallLoop + '次小循环（第' + (revivedCount + 1) + '次复活） ===')
+//
+//       // 步骤3: 查找+5g标志
+//       // 查找+5g，连续2次没有就下滑1次，最多下滑10次
+//       taskLog('步骤3: 查找+5g标志')
+//       let markers = []
+//       let noFoundCount = 0  // 连续没找到的次数
+//       let scrollCount = 0   // 下滑次数
+//       while (markers.length === 0 && scrollCount < 10) {
+//         markers = findReviveMarkers()
+//         if (markers.length > 0) {
+//           noFoundCount = 0
+//           break
+//         }
+//         noFoundCount++
+//         if (noFoundCount >= 2) {
+//           // 连续2次没找到，下滑一次
+//           let h = config.device_height
+//           automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
+//           sleep(600)
+//           scrollCount++
+//           noFoundCount = 0  // 重置连续计数
+//         } else {
+//           sleep(200)
+//         }
+//       }
+//
+//       if (markers.length === 0) {
+//         warnInfo('未找到+5g标志，结束本轮小循环')
+//         break
+//       }
+//
+//       // 遍历当前屏幕所有+5g标志，逐个复活
+//       let reviveSuccess = false
+//       for (let mi = 0; mi < markers.length && revivedCount < 6; mi++) {
+//         let marker = markers[mi]
+//
+//         // 步骤4: 点击进入好友森林
+//         taskLog('步骤4: 点击进入好友森林，第' + (mi + 1) + '/' + markers.length + '个')
+//         if (!clickAndEnterFriendForest(marker)) {
+//           warnInfo('进入好友森林失败，尝试下一个')
+//           continue
+//         }
+//
+//         sleep(1000)
+//
+//         // 步骤5: 查找并点击"帮TA复活能量"
+//         taskLog('步骤5: 查找"帮TA复活能量"')
+//         if (!clickReviveEnergy()) {
+//           warnInfo('未找到"帮TA复活能量"，返回继续')
+//           goBack()
+//           sleep(1000)
+//           continue
+//         }
+//
+//         // 步骤6: 点击"确认发送"
+//         taskLog('步骤6: 点击"确认发送"')
+//         if (clickConfirmSend()) {
+//           revivedCount++
+//           reviveSuccess = true
+//           taskLog('成功复活能量，累计复活 ' + revivedCount + ' 次')
+//           // 复活6次后直接跳到步骤7
+//           if (revivedCount >= 6) {
+//             taskLog('已复活6次，跳过剩余小循环')
+//             break
+//           }
+//         } else {
+//           warnInfo('确认发送失败')
+//         }
+//
+//         // 返回总榜（从好友森林返回一次直接回到完整总榜）
+//         taskLog('返回总榜')
+//         goBack()
+//         sleep(1000)
+//       }
+//
+//       if (revivedCount >= 6) {
+//         break
+//       }
+//     }
+//
+//     taskLog('第' + bigLoop + '次大循环完成，共复活 ' + revivedCount + ' 次')
+//
+//     // 步骤7: 回到自己的蚂蚁森林，收取自己的能量
+//     taskLog('步骤7: 重新进入蚂蚁森林收取能量')
+//     enterAntForest()
+//     sleep(1000)
+//     collectOwnEnergy()
+//   }
+//
+//   taskLog('====== 复活能量流程结束 ======')
+//   commonFunction.minimize()
+//   sleep(500)
+//   // 杀掉后台进程
+//   killApps()
+//   sleep(500)
+//   runningQueueDispatcher.removeRunningTask()
+//   exit()
+// }
+//
+// main()
+
+// ============ 新架构 ============
+
 function main() {
   infoLog('复活能量脚本启动', true)
-
-  // if (!checkTimeRange()) {
-  //   commonFunction.minimize()
-  //   sleep(500)
-  //   // 杀掉后台进程
-  //   killApps()
-  //   sleep(500)
-  //   runningQueueDispatcher.removeRunningTask()
-  //   exit()
-  // }
 
   threads.start(function () {
     events.observeKey()
@@ -432,119 +591,76 @@ function main() {
 
   taskLog('====== 开始复活能量流程 ======')
 
-  // 大循环2次
-  for (let bigLoop = 1; bigLoop <= 2; bigLoop++) {
-    taskLog('====== 第' + bigLoop + '次大循环 ======')
+  let find = true
+  let revivedCount = 0
 
-    // 步骤1: 进入蚂蚁森林
-    taskLog('=== 步骤1: 进入蚂蚁森林 ===')
+  for (let i = 1; i <= 9 && revivedCount < 6 && find; i++) {
+    taskLog('第' + i + '轮（已复活' + revivedCount + '次）')
+
+    // 步骤1: 进入蚂蚁森林并收取自己的能量
     if (!enterAntForest()) {
-      errorInfo('进入蚂蚁森林失败，跳过本轮')
-      continue
+      errorInfo('进入蚂蚁森林失败，结束脚本')
+      break
     }
+    sleep(1000)
+    collectOwnEnergy()
 
-    // 步骤2: 首次进入总能量榜（点击tab + 下滑进完整列表）
-    taskLog('=== 步骤2: 进入总能量榜 ===')
+    // 步骤2: 进入总能量榜
     enterEnergyRankFirstTime()
 
-    // 小循环7次：查找并复活能量
-    let revivedCount = 0
-    
-    for (let smallLoop = 1; smallLoop <= 7; smallLoop++) {
-      taskLog('=== 第' + smallLoop + '次小循环（第' + (revivedCount + 1) + '次复活） ===')
-
-      // 步骤3: 查找+5g标志
-      // 查找+5g，连续2次没有就下滑1次，最多下滑10次
-      taskLog('步骤3: 查找+5g标志')
-      let markers = []
-      let noFoundCount = 0  // 连续没找到的次数
-      let scrollCount = 0   // 下滑次数
-      while (markers.length === 0 && scrollCount < 10) {
-        markers = findReviveMarkers()
-        if (markers.length > 0) {
-          noFoundCount = 0
-          break
-        }
-        noFoundCount++
-        if (noFoundCount >= 2) {
-          // 连续2次没找到，下滑一次
-          let h = config.device_height
-          automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
-          sleep(600)
-          scrollCount++
-          noFoundCount = 0  // 重置连续计数
-        } else {
-          sleep(200)
-        }
-      }
-
-      if (markers.length === 0) {
-        warnInfo('未找到+5g标志，结束本轮小循环')
+    // 步骤3: 查找+5g，连续2次没有下滑30%，最多10次
+    let markers = []
+    let noFoundCount = 0
+    let scrollCount = 0
+    while (markers.length === 0 && scrollCount < 10) {
+      markers = findReviveMarkers()
+      if (markers.length > 0) {
+        noFoundCount = 0
         break
       }
+      noFoundCount++
+      if (noFoundCount >= 2) {
+        let h = config.device_height
+        automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
+        sleep(600)
+        scrollCount++
+        noFoundCount = 0
+      } else {
+        sleep(200)
+      }
+    }
 
-      // 遍历当前屏幕所有+5g标志，逐个复活
-      let reviveSuccess = false
-      for (let mi = 0; mi < markers.length && revivedCount < 6; mi++) {
-        let marker = markers[mi]
+    if (markers.length === 0) {
+      warnInfo('未找到+5g，结束脚本')
+      find = false
+      break
+    }
 
-        // 步骤4: 点击进入好友森林
-        taskLog('步骤4: 点击进入好友森林，第' + (mi + 1) + '/' + markers.length + '个')
-        if (!clickAndEnterFriendForest(marker)) {
-          warnInfo('进入好友森林失败，尝试下一个')
-          continue
-        }
-
-        sleep(1000)
-
-        // 步骤5: 查找并点击"帮TA复活能量"
-        taskLog('步骤5: 查找"帮TA复活能量"')
-        if (!clickReviveEnergy()) {
-          warnInfo('未找到"帮TA复活能量"，返回继续')
-          goBack()
-          sleep(1000)
-          continue
-        }
-
-        // 步骤6: 点击"确认发送"
-        taskLog('步骤6: 点击"确认发送"')
+    // 取第一个+5g进入好友森林复活
+    if (clickAndEnterFriendForest(markers[0])) {
+      sleep(1000)
+      if (clickReviveEnergy()) {
         if (clickConfirmSend()) {
           revivedCount++
-          reviveSuccess = true
-          taskLog('成功复活能量，累计复活 ' + revivedCount + ' 次')
-          // 复活6次后直接跳到步骤7
-          if (revivedCount >= 6) {
-            taskLog('已复活6次，跳过剩余小循环')
-            break
-          }
+          taskLog('成功复活，累计' + revivedCount + '次')
         } else {
           warnInfo('确认发送失败')
         }
-
-        // 返回总榜（从好友森林返回一次直接回到完整总榜）
-        taskLog('返回总榜')
-        goBack()
-        sleep(1000)
+      } else {
+        warnInfo('未找到"帮TA复活能量"')
       }
-
-      if (revivedCount >= 6) {
-        break
-      }
+    } else {
+      warnInfo('进入好友森林失败')
     }
-
-    taskLog('第' + bigLoop + '次大循环完成，共复活 ' + revivedCount + ' 次')
-
-    // 步骤7: 回到自己的蚂蚁森林，收取自己的能量
-    taskLog('步骤7: 重新进入蚂蚁森林收取能量')
-    enterAntForest()
-    sleep(1000)
-    collectOwnEnergy()
   }
 
-  taskLog('====== 复活能量流程结束 ======')
+  taskLog('流程结束，共复活' + revivedCount + '次')
+  // 退出前再收取自己的能量
+  enterAntForest()
+  sleep(1000)
+  collectOwnEnergy()
   commonFunction.minimize()
   sleep(500)
-  // 杀掉后台进程
   killApps()
   sleep(500)
   runningQueueDispatcher.removeRunningTask()

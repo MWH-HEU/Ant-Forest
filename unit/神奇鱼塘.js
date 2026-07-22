@@ -620,16 +620,28 @@ function main () {
     let tasksDone = 0
     while (findAndExecuteTasks()) {
       tasksDone++
+      // 执行完一个任务后重新打开鱼塘进入得能量页面，确保下次查找时页面状态最新
+      openFishPool()
+      sleep(2000)
+      clickGetEnergy()
+      sleep(2000)
+      waitForTaskPage()
     }
+    // OCR版（备用，取消注释即可启用）
     // while (findAndExecuteTasksOcr()) {
     //   tasksDone++
+    //   openFishPool()
+    //   sleep(2000)
+    //   clickGetEnergy()
+    //   sleep(2000)
+    //   waitForTaskPage()
     // }
     taskLog('本轮完成 ' + tasksDone + ' 个任务')
     sleep(1000)
   }
 
   taskLog('所有任务执行完毕')
-  // 重新进入鱼塘等待2s，再返回桌面杀掉进程
+  // 重新进入鱼塘，执行主页面任务后杀掉进程
   openFishPool()
   sleep(2000)
   doMainPageTasks()

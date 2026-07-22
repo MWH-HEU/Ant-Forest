@@ -204,7 +204,71 @@ function waitForTaskPage () {
   return false
 }
 
-// ============ 任务分支 ============
+/**
+ * 检查并关闭"领取并投喂"浮层
+ * 先找"领取并投喂"按钮，再在其正下方找X按钮（宽高比接近1:1的正方形）
+ */
+function checkDialogAndClose () {
+  taskLog('检查是否存在"领取并投喂"弹窗')
+  try {
+    let feedBtn = selector().filter(node => {
+      let t = node.text() || node.desc()
+      return t && t.toString() === '领取并投喂'
+    }).findOne(1000)
+    if (!feedBtn) {
+      taskLog('未找到"领取并投喂"弹窗')
+      return false
+    }
+
+    let feedBounds = feedBtn.bounds()
+    taskLog('找到"领取并投喂"，查找其正下方关闭按钮')
+
+    let closeBtn = selector().filter(node => {
+      if (!node || !node.bounds()) return false
+      let bd = node.bounds()
+      let rate = bd.width() / bd.height()
+      if (rate < 0.8 || rate > 1.2) return false
+      if (Math.abs(bd.centerX() - feedBounds.centerX()) > 50) return false
+      if (bd.top < feedBounds.bottom + 50) return false
+      if (bd.top > feedBounds.bottom + 400) return false
+      return true
+    }).findOne(500)
+
+    if (closeBtn) {
+      taskLog('找到关闭按钮，点击关闭')
+      automator.clickCenter(closeBtn)
+      sleep(500)
+      return true
+    }
+
+    taskLog('未找到关闭按钮')
+    return false
+  } catch (e) {
+    taskLog('关闭弹窗异常: ' + e)
+    return false
+  }
+}
+
+/**
+ * 检测到"领取并投喂"浮层时重新进入神奇鱼塘
+ */
+function reopenIfDialogExists () {
+  try {
+    let feedBtn = selector().filter(node => {
+      let t = node.text() || node.desc()
+      return t && t.toString() === '领取并投喂'
+    }).findOne(500)
+    if (feedBtn) {
+      taskLog('检测到"领取并投喂"浮层，重新进入神奇鱼塘')
+      openFishPool()
+      sleep(2000)
+      return true
+    }
+    return false
+  } catch (e) {
+    return false
+  }
+}
 
 /**
  * 执行浏览商品任务：点击"去浏览"→下滑查找"抵后价"（OCR优先，控件兜底）→返回

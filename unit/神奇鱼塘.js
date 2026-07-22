@@ -420,7 +420,7 @@ function findAndExecuteTasks () {
         else if (text.indexOf('去蚂蚁森林收更多能量') >= 0) forestY = y
       } catch (e) {}
     }
-    taskLog('任务位置 - 点击1个商品进入详情页: y=' + browseY + ', 参与绿色科普答题: y=' + quizY + ', 去蚂蚁森林收更多能量: y=' + forestY)
+    // taskLog('任务位置 - 点击1个商品进入详情页: y=' + browseY + ', 参与绿色科普答题: y=' + quizY + ', 去蚂蚁森林收更多能量: y=' + forestY)
 
     // 第二遍遍历：匹配按钮文字，用记录的y值做同行判断
     for (let i = 0; i < allNodes.size(); i++) {
@@ -437,17 +437,17 @@ function findAndExecuteTasks () {
 
         if (text === '去浏览') {
           if (browseY >= 0 && Math.abs(y - browseY) < 200) {
-            taskLog('找到"去浏览"任务（点击1个商品），当前控件y=' + y + '，描述y=' + browseY)
+            taskLog('找到"浏览商品"任务，当前控件y=' + y + '，描述y=' + browseY)
             doBrowseTask(bounds)
             return true
           }
         } else if (text === '去完成') {
           if (quizY >= 0 && Math.abs(y - quizY) < 200) {
-            taskLog('找到"去完成"任务（参与绿色科普答题），当前控件y=' + y + '，描述y=' + quizY)
+            taskLog('找到"参与答题"任务，当前控件y=' + y + '，描述y=' + quizY)
             doQuizTask(bounds)
             return true
           } else if (forestY >= 0 && Math.abs(y - forestY) < 200) {
-            taskLog('找到"去完成"任务（去蚂蚁森林收更多能量），当前控件y=' + y + '，描述y=' + forestY)
+            taskLog('找到"蚂蚁森林"任务，当前控件y=' + y + '，描述y=' + forestY)
             doAntForestTask(bounds)
             return true
           }
@@ -528,7 +528,7 @@ function findAndExecuteTasksOcr () {
     else if (text.indexOf('参与绿色科普答题') >= 0) quizY = y
     else if (text.indexOf('去蚂蚁森林收更多能量') >= 0) forestY = y
   }
-  taskLog('OCR任务位置 - 点击1个商品进入详情页: y=' + browseY + ', 参与绿色科普答题: y=' + quizY + ', 去蚂蚁森林收更多能量: y=' + forestY)
+  // taskLog('OCR任务位置 - 点击1个商品进入详情页: y=' + browseY + ', 参与绿色科普答题: y=' + quizY + ', 去蚂蚁森林收更多能量: y=' + forestY)
 
   // 第二遍遍历：匹配按钮文字，用记录的y值做同行判断
   for (let i = 0; i < allResults.length; i++) {
@@ -541,17 +541,17 @@ function findAndExecuteTasksOcr () {
 
     if (text === '去浏览') {
       if (browseY >= 0 && Math.abs(y - browseY) < 200) {
-        taskLog('OCR找到"去浏览"任务（点击1个商品），当前控件y=' + y + '，描述y=' + browseY)
+        taskLog('OCR找到"浏览商品"任务，当前控件y=' + y + '，描述y=' + browseY)
         doBrowseTask(match.bounds)
         return true
       }
     } else if (text === '去完成') {
       if (quizY >= 0 && Math.abs(y - quizY) < 200) {
-        taskLog('OCR找到"去完成"任务（参与绿色科普答题），当前控件y=' + y + '，描述y=' + quizY)
+        taskLog('OCR找到"参与答题"任务，当前控件y=' + y + '，描述y=' + quizY)
         doQuizTask(match.bounds)
         return true
       } else if (forestY >= 0 && Math.abs(y - forestY) < 200) {
-        taskLog('OCR找到"去完成"任务（去蚂蚁森林收更多能量），当前控件y=' + y + '，描述y=' + forestY)
+        taskLog('OCR找到"蚂蚁森林"任务，当前控件y=' + y + '，描述y=' + forestY)
         doAntForestTask(match.bounds)
         return true
       }
@@ -571,6 +571,8 @@ function main () {
     events.on("key_down", function (keyCode, event) {
       if (keyCode === 24) {
         toastLog('用户按音量上键，退出脚本')
+        killApps()
+        sleep(500)
         exit()
       }
     })

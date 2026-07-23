@@ -91,6 +91,20 @@ function checkDialogAndClose () {
 
 let FloatyButtonSimple = require('../lib/FloatyButtonSimple.js')
 
+// 悬浮窗移到屏幕右侧边缘外
+function moveFloatyToEdge () {
+  ui.post(() => {
+    floatyBtnInstance.window.setPosition(config.device_width - 10, config.device_height * 0.65)
+  })
+}
+
+// 悬浮窗移回屏幕中间
+function moveFloatyToCenter () {
+  ui.post(() => {
+    floatyBtnInstance.window.setPosition(config.device_width / 2 - ~~(floatyBtnInstance.window.getWidth() / 2), config.device_height * 0.65)
+  })
+}
+
 let btns = [
   {
     id: 'testControl',
@@ -108,6 +122,9 @@ let btns = [
       
       taskLog('====== 测试控件 结束 ======')
       LogFloaty.pushLog('测试控件执行完毕，详情请查看日志文件')
+      
+      // 执行完毕后把悬浮窗移到边缘
+      moveFloatyToEdge()
     }
   },
   {
@@ -115,6 +132,7 @@ let btns = [
     text: '关闭弹窗',
     onClick: function () {
       checkDialogAndClose()
+      moveFloatyToEdge()
     }
   }
 ]

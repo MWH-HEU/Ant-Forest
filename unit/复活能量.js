@@ -7,9 +7,14 @@
  * 大循环最多9次，复活6次或找不到+5g时退出：
  *   1. 进入蚂蚁森林 → 收取自己能量
  *   2. 进入总能量榜（完整排行榜）
- *   3. findColor查找+5g（橙色按钮），连续2次没找到下滑30%，最多10次
+ *   3. findColor查找+5g（橙色按钮#FF8F00），连续2次没找到下滑30%，最多10次
  *      找到后取第一个，进入好友森林复活
  *   4. 回到步骤1
+ *
+ * 控件查找：使用WidgetInspector.detectAllNodes遍历所有控件匹配文本
+ * +5g查找：findColor颜色匹配
+ * 帮TA复活能量：OCR模糊匹配"复活/能量/立得"，限制屏幕上半部
+ *
  * 退出前：再收一次能量 → minimize → killApps → removeRunningTask → exit
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
@@ -25,6 +30,7 @@ let LogFloaty = sRequire('LogFloaty')
 let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
+let widgetInspector = require('../lib/WidgetInspector.js')(runtime, global)
 
 function killApps () {
   try {
@@ -65,6 +71,27 @@ function taskLog(msg) {
 function goBack() {
   back()
   sleep(800)
+}
+
+/**
+ * 使用WidgetInspector方法2遍历所有控件，匹配文本并点击
+ * @param {RegExp} pattern - 匹配文本的正则
+ * @returns {boolean} 是否找到并点击成功
+ */
+function findAndClickByText(pattern) {
+  let result = widgetInspector.detectAllNodes()
+  for (let node of result.nodes) {
+    if (pattern.test(node.text)) {
+      let bd = node.bounds
+      if (bd && bd.centerX() >= 0 && bd.centerX() <= config.device_width
+          && bd.centerY() >= 0 && bd.centerY() <= config.device_height) {
+        automator.click(bd.centerX(), bd.centerY())
+        return true
+      }
+      // 控件不在屏幕可视区域内，跳过继续找下一个
+    }
+  }
+  return false
 }
 
 // ============ 核心功能 ============
@@ -129,10 +156,7 @@ function clickEnergyRankTab() {
     sleep(1000)
     return true
   }
-  let rankTab = widgetUtils.widgetGetOne('.*(今日|本周|总)能量榜.*', 2000)
-  if (rankTab) {
-    debugInfo(['通过文案找到能量榜按钮: {}', rankTab.text()])
-    rankTab.click()
+  if (findAndClickByText(/总能量榜/)) {
     sleep(1000)
     return true
   }
@@ -140,9 +164,7 @@ function clickEnergyRankTab() {
   do {
     let h = config.device_height
     automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
-    rankTab = widgetUtils.widgetGetOne('.*(今日|本周|总)能量榜.*', 1000)
-    if (rankTab) {
-      rankTab.click()
+    if (findAndClickByText(/总能量榜/)) {
       sleep(1000)
       return true
     }
@@ -162,33 +184,14 @@ function enterEnergyRankFirstTime() {
   }
 
   // 下滑找到"查看更多好友"并点击进入完整排行榜
-  let moreFriends = null
   let scrollLimit = 8
   do {
     let h = config.device_height
     automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
     sleep(500)
-    moreFriends = widgetUtils.widgetGetOne(config.enter_friend_list_ui_content || '.*查看更多好友.*', 1000)
-    if (moreFriends) {
-      moreFriends.click()
+    if (findAndClickByText(/查看更多好友/)) {
       sleep(1000)
-      // taskLog('进入完整排行榜')
       return true
-    }
-    if (localOcrUtil.enabled) {
-      let screen = commonFunction.captureScreen()
-      if (screen) {
-        let ocrResult = localOcrUtil.recognizeWithBounds(screen, null, '查看更多好友')
-        screen.recycle()
-        if (ocrResult && ocrResult.length > 0) {
-          let target = ocrResult[0]
-          let bd = target.bounds
-          automator.click(bd.centerX(), bd.centerY())
-          sleep(1000)
-          // taskLog('OCR找到"查看更多好友"并点击')
-          return true
-        }
-      }
     }
   } while (--scrollLimit > 0)
 
@@ -270,26 +273,22 @@ function clickAndEnterFriendForest(marker) {
 
   // 点击5g标志的位置
   automator.click(marker.centerX, marker.centerY)
-  sleep(2000)
 
-  // 检查是否进入了好友的蚂蚁森林
-  let hasReviveBtn = widgetUtils.widgetGetOne('帮TA复活能量|帮好友复活能量', 2000)
-  if (hasReviveBtn) {
-    debugInfo('成功进入好友森林，找到"帮TA复活能量"')
-    return true
-  }
-
-  // 尝试OCR识别"帮TA复活能量"
+  // 等待页面加载，用OCR检查是否进入好友森林
   if (localOcrUtil.enabled) {
-    let screen = commonFunction.captureScreen()
-    if (screen) {
-      let ocrResult = localOcrUtil.recognizeWithBounds(screen)
-      screen.recycle()
-      if (ocrResult) {
-        let found = ocrResult.some(item => /帮TA复活能量|帮好友复活能量/.test(item.text || item.label || ''))
-        if (found) {
-          debugInfo('OCR确认进入好友森林')
-          return true
+    let waitCount = 5
+    while (waitCount-- > 0) {
+      sleep(1000)
+      let screen = commonFunction.captureScreen()
+      if (screen) {
+        let ocrResult = localOcrUtil.recognizeWithBounds(screen)
+        screen.recycle()
+        if (ocrResult) {
+          let found = ocrResult.some(item => /复活|能量|立得/.test(item.text || item.label || ''))
+          if (found) {
+            debugInfo('OCR确认进入好友森林')
+            return true
+          }
         }
       }
     }
@@ -305,18 +304,7 @@ function clickAndEnterFriendForest(marker) {
  * 查找并点击"帮TA复活能量"
  */
 function clickReviveEnergy() {
-  // taskLog('查找"帮TA复活能量"')
-
-  // 方法1: 控件查找
-  let reviveBtn = widgetUtils.widgetGetOne('帮TA复活能量|帮好友复活能量', 2000)
-  if (reviveBtn) {
-    debugInfo('找到"帮TA复活能量"按钮')
-    automator.clickCenter(reviveBtn)
-    sleep(1500)
-    return true
-  }
-
-  // 方法2: OCR识别
+  // OCR识别"帮TA复活能量"，模糊匹配"复活""能量""立得"，限制在屏幕上半部
   if (localOcrUtil.enabled) {
     commonFunction.requestScreenCaptureOrRestart()
     sleep(500)
@@ -325,16 +313,19 @@ function clickReviveEnergy() {
       let ocrResult = localOcrUtil.recognizeWithBounds(screen)
       screen.recycle()
       if (ocrResult) {
+        let halfH = config.device_height / 2
         for (let item of ocrResult) {
           let text = item.text || item.label || ''
-          if (/帮TA复活能量|帮好友复活能量/.test(text)) {
+          if (/复活|能量|立得/.test(text)) {
             let bd = item.bounds
-            let cx = Math.round((bd.left + bd.right) / 2)
             let cy = Math.round((bd.top + bd.bottom) / 2)
-            debugInfo(['OCR找到"帮TA复活能量" 位置: ({}, {})', cx, cy])
-            automator.click(cx, cy)
-            sleep(1500)
-            return true
+            if (cy < halfH) {
+              let cx = Math.round((bd.left + bd.right) / 2)
+              debugInfo(['OCR找到"帮TA复活能量" 位置: ({}, {})', cx, cy])
+              automator.click(cx, cy)
+              sleep(1500)
+              return true
+            }
           }
         }
       }
@@ -349,40 +340,10 @@ function clickReviveEnergy() {
  * 点击"确认发送"
  */
 function clickConfirmSend() {
-  // taskLog('查找"确认发送"按钮')
-
-  // 方法1: 控件查找
-  let confirmBtn = widgetUtils.widgetGetOne('确认发送', 2000)
-  if (confirmBtn) {
+  if (findAndClickByText(/确认发送/)) {
     debugInfo('找到"确认发送"按钮')
-    automator.clickCenter(confirmBtn)
     sleep(1000)
     return true
-  }
-
-  // 方法2: OCR识别
-  if (localOcrUtil.enabled) {
-    commonFunction.requestScreenCaptureOrRestart()
-    sleep(500)
-    let screen = commonFunction.captureScreen()
-    if (screen) {
-      let ocrResult = localOcrUtil.recognizeWithBounds(screen)
-      screen.recycle()
-      if (ocrResult) {
-        for (let item of ocrResult) {
-          let text = item.text || item.label || ''
-          if (/确认发送/.test(text)) {
-            let bd = item.bounds
-            let cx = Math.round((bd.left + bd.right) / 2)
-            let cy = Math.round((bd.top + bd.bottom) / 2)
-            debugInfo(['OCR找到"确认发送" 位置: ({}, {})', cx, cy])
-            automator.click(cx, cy)
-            sleep(1000)
-            return true
-          }
-        }
-      }
-    }
   }
 
   warnInfo('未找到"确认发送"按钮')
@@ -422,157 +383,6 @@ function collectOwnEnergy() {
 }
 
 // ============ 主流程 ============
-
-// ============ 旧架构（备份） ============
-// function main() {
-//   infoLog('复活能量脚本启动', true)
-//
-//   // if (!checkTimeRange()) {
-//   //   commonFunction.minimize()
-//   //   sleep(500)
-//   //   // 杀掉后台进程
-//   //   killApps()
-//   //   sleep(500)
-//   //   runningQueueDispatcher.removeRunningTask()
-//   //   exit()
-//   // }
-//
-//   threads.start(function () {
-//     events.observeKey()
-//     events.on("key_down", function (keyCode, event) {
-//       if (keyCode === 24) {
-//         toastLog('用户按音量上键，退出脚本')
-//         killApps()
-//         runningQueueDispatcher.removeRunningTask()
-//         exit()
-//       }
-//     })
-//   })
-//
-//   taskLog('====== 开始复活能量流程 ======')
-//
-//   // 大循环2次
-//   for (let bigLoop = 1; bigLoop <= 2; bigLoop++) {
-//     taskLog('====== 第' + bigLoop + '次大循环 ======')
-//
-//     // 步骤1: 进入蚂蚁森林
-//     taskLog('=== 步骤1: 进入蚂蚁森林 ===')
-//     if (!enterAntForest()) {
-//       errorInfo('进入蚂蚁森林失败，跳过本轮')
-//       continue
-//     }
-//
-//     // 步骤2: 首次进入总能量榜（点击tab + 下滑进完整列表）
-//     taskLog('=== 步骤2: 进入总能量榜 ===')
-//     enterEnergyRankFirstTime()
-//
-//     // 小循环7次：查找并复活能量
-//     let revivedCount = 0
-//
-//     for (let smallLoop = 1; smallLoop <= 7; smallLoop++) {
-//       taskLog('=== 第' + smallLoop + '次小循环（第' + (revivedCount + 1) + '次复活） ===')
-//
-//       // 步骤3: 查找+5g标志
-//       // 查找+5g，连续2次没有就下滑1次，最多下滑10次
-//       taskLog('步骤3: 查找+5g标志')
-//       let markers = []
-//       let noFoundCount = 0  // 连续没找到的次数
-//       let scrollCount = 0   // 下滑次数
-//       while (markers.length === 0 && scrollCount < 10) {
-//         markers = findReviveMarkers()
-//         if (markers.length > 0) {
-//           noFoundCount = 0
-//           break
-//         }
-//         noFoundCount++
-//         if (noFoundCount >= 2) {
-//           // 连续2次没找到，下滑一次
-//           let h = config.device_height
-//           automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
-//           sleep(600)
-//           scrollCount++
-//           noFoundCount = 0  // 重置连续计数
-//         } else {
-//           sleep(200)
-//         }
-//       }
-//
-//       if (markers.length === 0) {
-//         warnInfo('未找到+5g标志，结束本轮小循环')
-//         break
-//       }
-//
-//       // 遍历当前屏幕所有+5g标志，逐个复活
-//       let reviveSuccess = false
-//       for (let mi = 0; mi < markers.length && revivedCount < 6; mi++) {
-//         let marker = markers[mi]
-//
-//         // 步骤4: 点击进入好友森林
-//         taskLog('步骤4: 点击进入好友森林，第' + (mi + 1) + '/' + markers.length + '个')
-//         if (!clickAndEnterFriendForest(marker)) {
-//           warnInfo('进入好友森林失败，尝试下一个')
-//           continue
-//         }
-//
-//         sleep(1000)
-//
-//         // 步骤5: 查找并点击"帮TA复活能量"
-//         taskLog('步骤5: 查找"帮TA复活能量"')
-//         if (!clickReviveEnergy()) {
-//           warnInfo('未找到"帮TA复活能量"，返回继续')
-//           goBack()
-//           sleep(1000)
-//           continue
-//         }
-//
-//         // 步骤6: 点击"确认发送"
-//         taskLog('步骤6: 点击"确认发送"')
-//         if (clickConfirmSend()) {
-//           revivedCount++
-//           reviveSuccess = true
-//           taskLog('成功复活能量，累计复活 ' + revivedCount + ' 次')
-//           // 复活6次后直接跳到步骤7
-//           if (revivedCount >= 6) {
-//             taskLog('已复活6次，跳过剩余小循环')
-//             break
-//           }
-//         } else {
-//           warnInfo('确认发送失败')
-//         }
-//
-//         // 返回总榜（从好友森林返回一次直接回到完整总榜）
-//         taskLog('返回总榜')
-//         goBack()
-//         sleep(1000)
-//       }
-//
-//       if (revivedCount >= 6) {
-//         break
-//       }
-//     }
-//
-//     taskLog('第' + bigLoop + '次大循环完成，共复活 ' + revivedCount + ' 次')
-//
-//     // 步骤7: 回到自己的蚂蚁森林，收取自己的能量
-//     taskLog('步骤7: 重新进入蚂蚁森林收取能量')
-//     enterAntForest()
-//     sleep(1000)
-//     collectOwnEnergy()
-//   }
-//
-//   taskLog('====== 复活能量流程结束 ======')
-//   commonFunction.minimize()
-//   sleep(500)
-//   // 杀掉后台进程
-//   killApps()
-//   sleep(500)
-//   runningQueueDispatcher.removeRunningTask()
-//   exit()
-// }
-//
-// main()
-
-// ============ 新架构 ============
 
 function main() {
   infoLog('复活能量脚本启动', true)

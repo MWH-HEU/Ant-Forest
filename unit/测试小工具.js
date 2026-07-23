@@ -1,6 +1,6 @@
 /*
  * @Description: 测试小工具 - 悬浮窗工具
- * 三个按钮：测试控件、关闭弹窗、退出脚本
+ * 两个按钮：测试控件、关闭弹窗
  * 测试控件：调用 lib/WidgetInspector.js 的 3 种检测方法
  * 关闭弹窗：使用森林集市中的checkDialogAndClose函数
  * 日志文件：button.log
@@ -30,11 +30,19 @@ commonFunction.autoSetUpBangOffset(true)
 // ============ 文件日志 (button.log) ============
 let _logFile = null
 let _logFilePath = FileUtils.getRealMainScriptPath(true) + '/logs/button.log'
+
+// 以覆盖模式打开日志文件
+function openLogFile () {
+  try {
+    if (_logFile) {
+      _logFile.close()
+    }
+  } catch (e) {}
+  _logFile = open(_logFilePath, 'w')
+}
+
 function writeLog (msg) {
   try {
-    if (!_logFile) {
-      _logFile = open(_logFilePath, 'w')
-    }
     if (_logFile) {
       let now = new Date()
       _logFile.writeline('[' + now.toLocaleString() + '] ' + msg)
@@ -91,17 +99,10 @@ function checkDialogAndClose () {
 
 let FloatyButtonSimple = require('../lib/FloatyButtonSimple.js')
 
-// 悬浮窗移到屏幕右侧边缘外
+// 悬浮窗移到屏幕左侧边缘，只露一点边缘方便重新点击
 function moveFloatyToEdge () {
   ui.post(() => {
-    floatyBtnInstance.window.setPosition(config.device_width - 10, config.device_height * 0.65)
-  })
-}
-
-// 悬浮窗移回屏幕中间
-function moveFloatyToCenter () {
-  ui.post(() => {
-    floatyBtnInstance.window.setPosition(config.device_width / 2 - ~~(floatyBtnInstance.window.getWidth() / 2), config.device_height * 0.65)
+    floatyBtnInstance.window.setPosition(-90, config.device_height * 0.65)
   })
 }
 
@@ -110,6 +111,12 @@ let btns = [
     id: 'testControl',
     text: '测试控件',
     onClick: function () {
+      // 先移走悬浮窗，避免遮挡
+      moveFloatyToEdge()
+      
+      // 重新打开日志文件，覆盖旧内容
+      openLogFile()
+      
       taskLog('====== 测试控件 开始 ======')
       taskLog('设备分辨率: ' + config.device_width + 'x' + config.device_height)
       taskLog('日志文件: ' + _logFilePath)
@@ -122,17 +129,15 @@ let btns = [
       
       taskLog('====== 测试控件 结束 ======')
       LogFloaty.pushLog('测试控件执行完毕，详情请查看日志文件')
-      
-      // 执行完毕后把悬浮窗移到边缘
-      moveFloatyToEdge()
     }
   },
+
   {
     id: 'closeDialog',
     text: '关闭弹窗',
     onClick: function () {
-      checkDialogAndClose()
       moveFloatyToEdge()
+      checkDialogAndClose()
     }
   }
 ]
@@ -165,13 +170,11 @@ function exitAndClean () {
       _logFile.close()
     } catch (e) {}
   }
-  killApps()
   runningQueueDispatcher.removeRunningTask()
   exit()
 }
 
 commonFunction.registerOnEngineRemoved(function () {
-  killApps()
   runningQueueDispatcher.removeRunningTask()
   if (_logFile) {
     try {

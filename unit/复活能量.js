@@ -74,7 +74,7 @@ function goBack() {
 }
 
 /**
- * 使用WidgetInspector方法2遍历所有控件，匹配文本并点击
+ * 遍历所有控件，匹配文本并点击（含屏幕内判断）
  * @param {RegExp} pattern - 匹配文本的正则
  * @returns {boolean} 是否找到并点击成功
  */
@@ -88,7 +88,25 @@ function findAndClickByText(pattern) {
         automator.click(bd.centerX(), bd.centerY())
         return true
       }
-      // 控件不在屏幕可视区域内，跳过继续找下一个
+    }
+  }
+  return false
+}
+
+/**
+ * 遍历可见控件（visibleToUser），匹配文本并点击
+ * @param {RegExp} pattern - 匹配文本的正则
+ * @returns {boolean} 是否找到并点击成功
+ */
+function findAndClickByTextVisible(pattern) {
+  let result = widgetInspector.detectAllNodesVisible()
+  for (let node of result.nodes) {
+    if (pattern.test(node.text)) {
+      let bd = node.bounds
+      if (bd) {
+        automator.click(bd.centerX(), bd.centerY())
+        return true
+      }
     }
   }
   return false
@@ -156,7 +174,7 @@ function clickEnergyRankTab() {
     sleep(1000)
     return true
   }
-  if (findAndClickByText(/总能量榜/)) {
+  if (findAndClickByTextVisible(/总能量榜/)) {
     sleep(1000)
     return true
   }
@@ -164,7 +182,7 @@ function clickEnergyRankTab() {
   do {
     let h = config.device_height
     automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
-    if (findAndClickByText(/总能量榜/)) {
+    if (findAndClickByTextVisible(/总能量榜/)) {
       sleep(1000)
       return true
     }
@@ -189,7 +207,7 @@ function enterEnergyRankFirstTime() {
     let h = config.device_height
     automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
     sleep(500)
-    if (findAndClickByText(/查看更多好友/)) {
+    if (findAndClickByTextVisible(/查看更多好友/)) {
       sleep(1000)
       return true
     }
@@ -340,7 +358,7 @@ function clickReviveEnergy() {
  * 点击"确认发送"
  */
 function clickConfirmSend() {
-  if (findAndClickByText(/确认发送/)) {
+  if (findAndClickByTextVisible(/确认发送/)) {
     debugInfo('找到"确认发送"按钮')
     sleep(1000)
     return true

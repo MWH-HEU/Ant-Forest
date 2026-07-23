@@ -13,6 +13,9 @@ let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
 let widgetInspector = require('../lib/WidgetInspector.js')(runtime, global)
 
+// 是否启用能量保护罩兑换
+const ENABLE_PROTECTOR_EXCHANGE = true
+
 function taskLog (msg) {
   LogFloaty.pushLog(msg)
 }
@@ -167,7 +170,7 @@ function clickExchangeWithVitality () {
     return false
   }
 
-  if (!findAndClickByText(/活力值积分商店/)) {
+  if (!findAndClickByTextVisible(/活力值积分商店/)) {
     LogFloaty.pushErrorLog('未找到"活力值积分商店"')
     return false
   }
@@ -183,7 +186,7 @@ function clickExchangeWithVitality () {
 function clickEnergyRainCard () {
   waitPopupStable(500)
 
-  if (!findAndClickByText(/能量雨次卡/)) {
+  if (!findAndClickByTextVisible(/能量雨次卡/)) {
     LogFloaty.pushErrorLog('未找到"能量雨次卡"卡片')
     return false
   }
@@ -205,29 +208,29 @@ function clickEnergyRainCard () {
 function confirmExchange () {
   waitPopupStable(500)
 
-  if (!findAndClickByText(/立即兑换/)) {
+  if (!findAndClickByTextVisible(/立即兑换/)) {
     LogFloaty.pushErrorLog('未找到"立即兑换"按钮')
     return false
   }
   waitPopupStable(500)
 
-  if (!findAndClickByText(/确认兑换/)) {
+  if (!findAndClickByTextVisible(/确认兑换/)) {
     LogFloaty.pushErrorLog('未找到"确认兑换"按钮')
     return false
   }
   waitPopupStable(500)
 
-  if (!findAndClickByText(/立即使用/)) {
+  if (!findAndClickByTextVisible(/立即使用/)) {
     LogFloaty.pushErrorLog('未找到"立即使用"按钮')
     return false
   }
-  waitPopupStable(500)
+  sleep(2000)
 
   return true
 }
 
-// 在背包中查找"限时能量雨机会"卡片上的"使用"按钮并点击（带滑动重试）
-function findAndUseEnergyRainCard () {
+// 在背包中查找匹配关键词的卡片上的"使用"按钮并点击（带滑动重试）
+function findAndUseCard (keyword) {
   waitPopupStable(500)
 
   let found = false
@@ -242,14 +245,15 @@ function findAndUseEnergyRainCard () {
 
     let allNodes = widgetInspector.detectAllNodesVisible().nodes
 
-    let cardNode = allNodes.find(function (n) { return /限时能量雨机会/.test(n.text) && !/使用了/.test(n.text) })
+    // 匹配包含关键词且未使用的卡片
+    let cardNode = allNodes.find(function (n) { return new RegExp(keyword).test(n.text) && !/使用了/.test(n.text) && !/阻挡/.test(n.text) })
     if (!cardNode || !cardNode.bounds) {
       scrollAttempt++
       continue
     }
 
     let useNode = allNodes.find(function (n) {
-      return /^使用$/.test(n.text) && n.bounds && Math.abs(n.bounds.centerY() - cardNode.bounds.centerY()) < 300
+      return n.text === '使用' && n.bounds && Math.abs(n.bounds.centerY() - cardNode.bounds.centerY()) < 300
     })
 
     if (useNode) {
@@ -263,7 +267,7 @@ function findAndUseEnergyRainCard () {
   }
 
   if (!found) {
-    LogFloaty.pushErrorLog('未找到"限时能量雨机会"卡片，可能已使用完或不存在')
+    LogFloaty.pushErrorLog('未找到"' + keyword + '"卡片，可能已使用完或不存在')
     return false
   }
 
@@ -271,11 +275,146 @@ function findAndUseEnergyRainCard () {
   return true
 }
 
+// 智能关闭弹窗：用detectAllNodesVisible找到"关闭"的x坐标，找附近可点击按钮（排除文本为"关闭"的按钮）；兜底用OCR识别X
+function smartClosePopup () {
+  let allNodes = widgetInspector.detectAllNodesVisible().nodes
+
+  // 找到完全匹配"关闭"的控件（仅用于获取x坐标，不点击它）
+  let closeLabel = null
+  for (let n of allNodes) {
+    if (n.text === '关闭' && n.bounds) {
+      closeLabel = n
+      break
+    }
+  }
+
+  if (closeLabel) {
+    let closeX = closeLabel.bounds.centerX()
+
+    // 找所有可点击的按钮，x坐标与"关闭"相差小于50，但排除文本为"关闭"的按钮
+    for (let n of allNodes) {
+      if (n.clickable && n.bounds && n.text !== '关闭' && Math.abs(n.bounds.centerX() - closeX) < 50) {
+        taskLog('找到关闭按钮: "' + n.text + '"，点击: (' + n.bounds.centerX() + ', ' + n.bounds.centerY() + ')')
+        automator.click(n.bounds.centerX(), n.bounds.centerY())
+        waitPopupStable(500)
+        return true
+      }
+    }
+  }
+
+  // 兜底：OCR识别"X"
+  taskLog('未找到关闭按钮，尝试OCR识别X')
+  clickByOcr('X', 2000)
+  waitPopupStable(500)
+  return true
+}
+
+// 点击使用后处理"确认延长"弹窗（保护罩特有）
+function handleExtendPopup () {
+  waitPopupStable(800)
+  if (findAndClickByTextVisible(/确认延长/)) {
+    taskLog('已点击"确认延长"')
+    waitPopupStable(500)
+    return true
+  }
+  return false
+}
+
+// 在活力值积分商店中遍历保护罩卡片进行兑换（带滑动重试）
+function exchangeProtectorCard () {
+  waitPopupStable(500)
+
+  let maxScrollAttempts = 3
+  let scrollAttempt = 0
+
+  while (scrollAttempt < maxScrollAttempts) {
+    if (scrollAttempt > 0) {
+      automator.randomScrollDown()
+      sleep(1000)
+    }
+
+    let allNodes = widgetInspector.detectAllNodesVisible().nodes
+
+    // 找出当前可见的所有保护罩卡片
+    let cardNodes = allNodes.filter(function (n) { return /保护罩/.test(n.text) && n.bounds })
+
+    for (let ci = 0; ci < cardNodes.length; ci++) {
+      let cardNode = cardNodes[ci]
+      taskLog('尝试兑换: "' + cardNode.text + '"')
+      automator.click(cardNode.bounds.centerX(), cardNode.bounds.centerY())
+      waitPopupStable(800)
+
+      // 先点击"限时3天内使用"（如果有这个选项），触发库存不足/已达上限判断
+      findAndClickByTextVisible(/限时3天内使用/)
+      waitPopupStable(500)
+
+      // 检查是否弹出"库存不足"或"已达上限"
+      let checkResult = widgetInspector.detectAllNodesVisible()
+      let hasOutOfStock = checkResult.nodes.some(function (n) { return /库存不足/.test(n.text) })
+      let hasAlreadyExchanged = checkResult.nodes.some(function (n) { return /已达上限/.test(n.text) })
+
+      if (hasOutOfStock) {
+        taskLog('"' + cardNode.text + '"库存不足，尝试下一个')
+        smartClosePopup()
+        continue
+      }
+
+      if (hasAlreadyExchanged) {
+        taskLog('已达上限，跳过兑换')
+        smartClosePopup()
+        return 'already_exchanged'
+      }
+
+      // 点击"立即兑换"
+      if (!findAndClickByTextVisible(/立即兑换/)) {
+        taskLog('未找到"立即兑换"，尝试下一个保护罩')
+        smartClosePopup()
+        continue
+      }
+      waitPopupStable(800)
+
+      // 确认兑换流程
+      taskLog('兑换成功，执行确认兑换')
+      if (!findAndClickByTextVisible(/确认兑换/)) {
+        LogFloaty.pushErrorLog('未找到"确认兑换"按钮')
+        return false
+      }
+      waitPopupStable(500)
+
+      if (!findAndClickByTextVisible(/立即使用/)) {
+        LogFloaty.pushErrorLog('未找到"立即使用"按钮')
+        return false
+      }
+      sleep(2000)
+
+      taskLog('=== 在背包中查找并使用保护罩 ===')
+      if (!findAndUseCard('保护罩')) {
+        LogFloaty.pushErrorLog('保护罩：未找到保护罩卡片')
+        return false
+      }
+      if (!clickUseNow()) {
+        LogFloaty.pushErrorLog('保护罩：点击立即使用失败')
+        return false
+      }
+
+      // 保护罩使用后可能有"确认延长"弹窗
+      handleExtendPopup()
+
+      return true
+    }
+
+    scrollAttempt++
+  }
+
+  LogFloaty.pushErrorLog('所有保护罩卡片兑换失败（库存不足或未找到）')
+  return false
+}
+
 // 点击"立即使用"弹窗
 function clickUseNow () {
   waitPopupStable(500)
 
-  if (!findAndClickByText(/立即使用/)) {
+  if (!findAndClickByTextVisible(/立即使用/)) {
     LogFloaty.pushErrorLog('未找到"立即使用"按钮')
     return false
   }
@@ -284,79 +423,122 @@ function clickUseNow () {
   return true
 }
 
+// 能量雨次卡流程
+function doEnergyRainExchange () {
+  taskLog('========== 能量雨次卡 开始 ==========')
+
+  taskLog('=== 打开蚂蚁森林并进入背包 ===')
+  if (!openBackpack()) {
+    LogFloaty.pushErrorLog('能量雨：无法进入背包页面')
+    return false
+  }
+
+  taskLog('=== 检查背包中是否有已有能量雨卡片 ===')
+  let hasRainCard = findAndUseCard('限时能量雨机会')
+
+  if (hasRainCard) {
+    taskLog('=== 点击"立即使用" ===')
+    if (!clickUseNow()) {
+      LogFloaty.pushErrorLog('能量雨：点击立即使用失败')
+      return false
+    }
+    taskLog('能量雨次卡已成功使用！')
+    return true
+  }
+
+  taskLog('背包中未找到能量雨机会卡片，开始兑换流程')
+
+  taskLog('=== 重新进入背包并点击"活力值积分商店" ===')
+  if (!clickExchangeWithVitality()) {
+    LogFloaty.pushErrorLog('能量雨：无法进入活力值积分商店页面')
+    return false
+  }
+
+  taskLog('=== 点击能量雨次卡的"兑换" ===')
+  let cardResult = clickEnergyRainCard()
+  if (cardResult === 'already_exchanged') {
+    taskLog('能量雨次卡已达上限，跳过兑换')
+    return true
+  } else if (!cardResult) {
+    LogFloaty.pushErrorLog('能量雨：无法点击能量雨次卡的兑换')
+    return false
+  } else {
+    taskLog('=== 兑换并立即使用 ===')
+    if (!confirmExchange()) {
+      LogFloaty.pushErrorLog('能量雨：兑换流程异常')
+      return false
+    }
+    taskLog('=== 在背包中查找并使用能量雨机会 ===')
+    if (!findAndUseCard('限时能量雨机会')) {
+      LogFloaty.pushErrorLog('能量雨：未找到能量雨机会卡片')
+      return false
+    }
+    if (!clickUseNow()) {
+      LogFloaty.pushErrorLog('能量雨：点击立即使用失败')
+      return false
+    }
+    taskLog('能量雨次卡已成功使用！')
+    return true
+  }
+}
+
+// 能量保护罩流程
+function doProtectorExchange () {
+  taskLog('========== 能量保护罩 开始 ==========')
+
+  taskLog('=== 打开蚂蚁森林并进入背包 ===')
+  if (!openBackpack()) {
+    LogFloaty.pushErrorLog('保护罩：无法进入背包页面')
+    return false
+  }
+
+  taskLog('=== 检查背包中是否有已有保护罩卡片 ===')
+  let hasProtectorCard = findAndUseCard('保护罩')
+
+  if (hasProtectorCard) {
+    taskLog('=== 点击"立即使用" ===')
+    if (!clickUseNow()) {
+      LogFloaty.pushErrorLog('保护罩：点击立即使用失败')
+      return false
+    }
+    // 保护罩使用后可能有"确认延长"弹窗
+    handleExtendPopup()
+    taskLog('保护罩已成功使用！')
+    return true
+  }
+
+  taskLog('背包中未找到保护罩卡片，开始兑换流程')
+
+  taskLog('=== 重新进入背包并点击"活力值积分商店" ===')
+  if (!clickExchangeWithVitality()) {
+    LogFloaty.pushErrorLog('保护罩：无法进入活力值积分商店页面')
+    return false
+  }
+
+  taskLog('=== 遍历兑换保护罩卡片 ===')
+  let protectorResult = exchangeProtectorCard()
+
+  if (protectorResult === 'already_exchanged') {
+    taskLog('保护罩已达上限，跳过兑换')
+    return true
+  } else if (!protectorResult) {
+    LogFloaty.pushErrorLog('保护罩：所有卡片兑换失败')
+    return false
+  } else {
+    taskLog('保护罩已成功使用！')
+    return true
+  }
+}
+
 // 主流程
 function main () {
   taskLog('========== 限时道具兑换 开始 ==========')
 
-  // 打开蚂蚁森林 -> 背包
-  taskLog('=== 打开蚂蚁森林并进入背包 ===')
-  if (!openBackpack()) {
-    LogFloaty.pushErrorLog('步骤1失败：无法进入背包页面')
-    return false
+  doEnergyRainExchange()
+
+  if (ENABLE_PROTECTOR_EXCHANGE) {
+    doProtectorExchange()
   }
-
-  // 检查背包中是否有已有卡片
-  // 如果有则直接使用，跳过兑换流程
-  taskLog('=== 检查背包中是否有已有卡片 ===')
-  let hasCard = findAndUseEnergyRainCard()
-
-  if (hasCard) {
-    taskLog('=== 点击"立即使用" ===')
-    if (!clickUseNow()) {
-      LogFloaty.pushErrorLog('步骤3失败：无法点击立即使用')
-      return false
-    }
-    taskLog('能量雨次卡已成功使用！')
-    taskLog('========== 限时道具兑换 完成 ==========')
-    return true
-  }
-
-  // 背包中没有，走兑换流程
-  taskLog('背包中未找到能量雨机会卡片，开始兑换流程')
-
-  // 重新进入背包后点击"活力值积分商店"
-  taskLog('=== 重新进入背包并点击"活力值积分商店" ===')
-  if (!clickExchangeWithVitality()) {
-    LogFloaty.pushErrorLog('步骤3失败：无法进入活力值积分商店页面')
-    return false
-  }
-
-  // 点击"能量雨次卡"
-  taskLog('=== 点击能量雨次卡的"兑换" ===')
-  let cardResult = clickEnergyRainCard()
-  if (cardResult === 'already_exchanged') {
-    taskLog('已达上限，跳过兑换步骤，直接去背包使用')
-    taskLog('=== 重新打开蚂蚁森林并进入背包 ===')
-    if (!openBackpack()) {
-      LogFloaty.pushErrorLog('重新打开背包失败')
-      return false
-    }
-  } else if (!cardResult) {
-    LogFloaty.pushErrorLog('步骤4失败：无法点击能量雨次卡的兑换')
-    return false
-  } else {
-    // 步骤5：立即兑换 -> 确认兑换 -> 立即使用
-    taskLog('=== 兑换并立即使用 ===')
-    if (!confirmExchange()) {
-      LogFloaty.pushErrorLog('步骤5失败：兑换流程异常')
-      return false
-    }
-  }
-
-  // 查找能量雨机会并点击"使用"
-  taskLog('=== 在背包中查找并使用能量雨机会 ===')
-  if (!findAndUseEnergyRainCard()) {
-    LogFloaty.pushErrorLog('步骤6失败：未找到能量雨机会卡片')
-    return false
-  }
-
-  // 点击"立即使用"
-  taskLog('=== 点击"立即使用" ===')
-  if (!clickUseNow()) {
-    LogFloaty.pushErrorLog('步骤7失败：无法点击立即使用')
-    return false
-  }
-  taskLog('能量雨次卡已成功使用！')
 
   taskLog('========== 限时道具兑换 完成 ==========')
   return true

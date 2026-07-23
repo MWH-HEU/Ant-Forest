@@ -121,10 +121,10 @@ let btns = [
       taskLog('设备分辨率: ' + config.device_width + 'x' + config.device_height)
       taskLog('日志文件: ' + _logFilePath)
       
-      // 使用公共函数库 WidgetInspector 的 3 种检测方法
+      // 使用公共函数库 WidgetInspector 的检测方法（仅可见区域）
       let opts = { onLog: taskLog }
-      WidgetInspector.detectByWidget(opts)
-      WidgetInspector.detectAllNodes(opts)
+      WidgetInspector.detectByWidgetVisible(opts)
+      WidgetInspector.detectAllNodesVisible(opts)
       WidgetInspector.detectByOcr(opts)
       
       taskLog('====== 测试控件 结束 ======')

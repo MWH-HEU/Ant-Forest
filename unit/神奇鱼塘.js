@@ -134,10 +134,14 @@ function findAndExecuteTask (descText, btnText, taskFn) {
     let text = allNodes[i].text
     if (text.indexOf(descText) >= 0) {
       descY = allNodes[i].bounds.centerY()
+      // taskLog('找到任务: "' + descText + '"')
       break
     }
   }
-  if (descY < 0) return false
+  if (descY < 0) {
+    taskLog('未找到任务: "' + descText + '"')
+    return false
+  }
 
   // 第二遍：匹配按钮文字，同行判断
   for (let i = 0; i < allNodes.length; i++) {
@@ -147,7 +151,7 @@ function findAndExecuteTask (descText, btnText, taskFn) {
       if (y < config.device_height * 0.15) continue
       if (y > config.device_height * 0.85) continue
       if (Math.abs(y - descY) < 200) {
-        taskLog('找到"' + descText + '"任务，当前控件y=' + y + '，描述y=' + descY)
+        taskLog('找到任务: "' + descText + '"，对应按钮: ' + btnText)
         automator.click(node.bounds.centerX(), node.bounds.centerY())
         sleep(2000)
         taskFn()
@@ -155,6 +159,7 @@ function findAndExecuteTask (descText, btnText, taskFn) {
       }
     }
   }
+  taskLog('找到任务: "' + descText + '"，未找到对应按钮: ' + btnText + '"，任务可能已完成')
   return false
 }
 // ============ 神奇鱼塘操作 ============

@@ -1,21 +1,21 @@
 /*
  * @Author: Auto-generated for Ant-Forest
- * @Description: 复活能量子脚本
+ * @Description: 复活能量子脚本（已重构）
  * 复活好友能量，每次获得5g
  *
  * 流程：
- * 大循环最多9次，复活6次或找不到+5g时退出：
+ * 一直循环，5分钟超时退出：
  *   1. 进入蚂蚁森林 → 收取自己能量
  *   2. 进入总能量榜（完整排行榜）
- *   3. findColor查找+5g（橙色按钮#FF8F00），连续2次没找到下滑30%，最多10次
+ *   3. findColor查找+5g（橙色按钮#FF8F00），连续2次没找到检查"没有更多了"
  *      找到后取第一个，进入好友森林复活
  *   4. 回到步骤1
  *
- * 控件查找：使用WidgetInspector.detectAllNodes遍历所有控件匹配文本
- * +5g查找：findColor颜色匹配
- * 帮TA复活能量：OCR模糊匹配"复活/能量/立得"，限制屏幕上半部
+ * 控件查找：findAndClickByTextVisible（WidgetInspector.detectAllNodesVisible）
+ * +5g查找：findOrangeMarkers（findColor颜色匹配）
+ * 帮TA复活能量：clickReviveEnergy（OCR模糊匹配"复活/能量/立得"，限制屏幕上半部）
  *
- * 退出前：再收一次能量 → minimize → killApps → removeRunningTask → exit
+ * 退出前：再收一次能量 → minimize → killApps（仅退出时） → removeRunningTask → exit
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
@@ -218,8 +218,7 @@ function enterEnergyRankFirstTime() {
 }
 
 /**
- * 查找"+5g"复活标志
- * 只用控件查找，必须带+号
+ * 查找+5g复活标志（使用findColor找橙色按钮，保留兼容）
  */
 function findReviveMarkers() {
   // taskLog('查找+5g复活标志')
@@ -250,7 +249,6 @@ function findReviveMarkers() {
 
         debugInfo(['findColor找到橙色点: ({}, {})', point.x, point.y])
         results.push({
-          text: '+5g',
           centerX: centerX,
           centerY: centerY
         })
@@ -280,9 +278,58 @@ function findReviveMarkers() {
 }
 
 /**
- * 只查找第一个+5g标志，找到即返回，不遍历全部
- * @returns {Object|null} marker对象或null
+ * 使用findColor查找橙色按钮（+5g按钮）
+ * @returns {Array} 橙色按钮位置列表
  */
+function findOrangeMarkers() {
+  let results = []
+
+  debugInfo('使用findColor查找橙色按钮')
+  try {
+    let screen = commonFunction.captureScreen()
+    if (screen) {
+      let color = '#FF8F00'
+      let threshold = 50
+      let w = config.device_width
+      let region = [w * 0.9, 0, w * 0.1, config.device_height]
+      let maxFind = 20
+      while (maxFind-- > 0) {
+        let point = images.findColor(screen, color, {
+          region: region,
+          threshold: threshold
+        })
+        if (!point) break
+
+        let centerY = point.y + 15
+        let centerX = point.x + 20
+
+        debugInfo(['findColor找到橙色点: ({}, {})', point.x, point.y])
+        results.push({
+          centerX: centerX,
+          centerY: centerY
+        })
+
+        region = [w * 0.9, point.y + 30, w * 0.1, config.device_height - (point.y + 30)]
+        if (region[3] <= 0) break
+      }
+    }
+  } catch (e) {
+    warnInfo('findColor异常: ' + e)
+  }
+
+  let uniqueResults = []
+  results.forEach(r => {
+    let isDuplicate = uniqueResults.some(u =>
+      Math.abs(u.centerY - r.centerY) < 40
+    )
+    if (!isDuplicate) {
+      uniqueResults.push(r)
+    }
+  })
+
+  return uniqueResults
+}
+
 /**
  * 点击5g标志进入好友森林
  */
@@ -292,29 +339,13 @@ function clickAndEnterFriendForest(marker) {
   // 点击5g标志的位置
   automator.click(marker.centerX, marker.centerY)
 
-  // 等待页面加载，用OCR检查是否进入好友森林
-  if (localOcrUtil.enabled) {
-    let waitCount = 5
-    while (waitCount-- > 0) {
-      sleep(1000)
-      let screen = commonFunction.captureScreen()
-      if (screen) {
-        let ocrResult = localOcrUtil.recognizeWithBounds(screen)
-        screen.recycle()
-        if (ocrResult) {
-          let found = ocrResult.some(item => /复活|能量|立得/.test(item.text || item.label || ''))
-          if (found) {
-            debugInfo('OCR确认进入好友森林')
-            return true
-          }
-        }
-      }
-    }
+  // 等待页面加载，确认进入好友首页
+  if (widgetUtils.friendHomeWaiting()) {
+    debugInfo('friendHomeWaiting确认进入好友森林')
+    return true
   }
 
-  warnInfo('可能未进入好友森林，尝试返回')
-  goBack()
-  sleep(1000)
+  warnInfo('可能未进入好友森林')
   return false
 }
 
@@ -375,29 +406,11 @@ function clickConfirmSend() {
 function collectOwnEnergy() {
   taskLog('收取自己的能量')
 
-  if (config.not_collect_self) {
-    debugInfo('配置为不收取自己能量，跳过')
-    return
-  }
-
-  // 确保在首页
-  if (!widgetUtils.homePageWaiting()) {
-    warnInfo('不在首页，尝试返回')
-    goBack()
-    sleep(1000)
-    if (!widgetUtils.homePageWaiting()) {
-      warnInfo('返回首页失败，尝试重新进入')
-      enterAntForest()
-    }
-  }
-
   // 使用 BaseScanner 收取能量
   // Yolo 不可用时自动降级为霍夫变换找圆（checkAndCollectByHough）
   let ReviveBaseScanner = require('../core/BaseScanner.js')
   let scanner = new ReviveBaseScanner()
   scanner.collectEnergy(true)
-
-  // taskLog('收取自己能量完成')
 }
 
 // ============ 主流程 ============
@@ -410,7 +423,6 @@ function main() {
     events.on("key_down", function (keyCode, event) {
       if (keyCode === 24) {
         toastLog('用户按音量上键，退出脚本')
-        killApps()
         runningQueueDispatcher.removeRunningTask()
         exit()
       }
@@ -419,48 +431,55 @@ function main() {
 
   taskLog('====== 开始复活能量流程 ======')
 
-  let find = true
   let revivedCount = 0
+  let roundCount = 0
+  let startTime = new Date().getTime()
+  let timeout = 5 * 60 * 1000 // 5分钟超时
 
-  for (let i = 1; i <= 9 && revivedCount < 6 && find; i++) {
-    taskLog('第' + i + '轮（已复活' + revivedCount + '次）')
+  while (new Date().getTime() - startTime < timeout) {
+    roundCount++
+    taskLog('第' + roundCount + '轮（已复活' + revivedCount + '次)')
 
     // 步骤1: 进入蚂蚁森林并收取自己的能量
     if (!enterAntForest()) {
       errorInfo('进入蚂蚁森林失败，结束脚本')
       break
     }
-    sleep(1000)
     collectOwnEnergy()
+    sleep(1000)
 
     // 步骤2: 进入总能量榜
     enterEnergyRankFirstTime()
 
-    // 步骤3: 查找+5g，连续2次没有下滑30%，最多10次
+    // 步骤3: 查找+5g，连续2次没找到检查"没有更多了"
     let markers = []
     let noFoundCount = 0
-    let scrollCount = 0
-    while (markers.length === 0 && scrollCount < 10) {
-      markers = findReviveMarkers()
+    while (markers.length === 0) {
+      markers = findOrangeMarkers()
       if (markers.length > 0) {
         noFoundCount = 0
         break
       }
       noFoundCount++
       if (noFoundCount >= 2) {
+        // 检查是否有"没有更多了"文本，有的话说明到底了
+        let result = widgetInspector.detectAllNodesVisible()
+        let hasEnd = result.nodes.some(n => /没有更多了/.test(n.text))
+        if (hasEnd) {
+          warnInfo('已滑到底部未找到+5g，结束脚本')
+          break
+        }
+        noFoundCount = 0
+      }
+      if (markers.length === 0) {
         let h = config.device_height
         automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
         sleep(600)
-        scrollCount++
-        noFoundCount = 0
-      } else {
-        sleep(200)
       }
     }
 
     if (markers.length === 0) {
       warnInfo('未找到+5g，结束脚本')
-      find = false
       break
     }
 
@@ -470,7 +489,7 @@ function main() {
       if (clickReviveEnergy()) {
         if (clickConfirmSend()) {
           revivedCount++
-          taskLog('成功复活，累计' + revivedCount + '次')
+          taskLog('成功复活，累计' + revivedCount + '次)')
         } else {
           warnInfo('确认发送失败')
         }
@@ -481,12 +500,11 @@ function main() {
       warnInfo('进入好友森林失败')
     }
   }
-
   taskLog('流程结束，共复活' + revivedCount + '次')
   // 退出前再收取自己的能量
   enterAntForest()
-  sleep(1000)
   collectOwnEnergy()
+  sleep(1000)
   commonFunction.minimize()
   sleep(500)
   killApps()

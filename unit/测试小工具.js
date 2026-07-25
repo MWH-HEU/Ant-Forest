@@ -75,7 +75,7 @@ function killApps () {
 
 function checkDialogAndClose () {
   // 不写入日志文件
-  LogFloaty.pushLog('检查是否存在关闭弹窗按钮')
+  taskLog('检查是否存在关闭弹窗按钮')
   let targetCloseBtn = selector().filter(node => {
     if (!node || !node.bounds()) {
       return false
@@ -87,11 +87,13 @@ function checkDialogAndClose () {
     return rate >= 0.9 && rate <= 1.1 && Math.abs(centerX - config.device_width / 2) < 10 && centerY > config.device_height / 2
   }).findOne(1000)
   if (targetCloseBtn) {
-    LogFloaty.pushLog('找到关闭弹窗按钮')
+    let bd = targetCloseBtn.bounds()
+    let msg = '找到关闭弹窗按钮, 位置: (' + bd.centerX() + ',' + bd.centerY() + ') bounds=(' + bd.left + ',' + bd.top + ',' + bd.right + ',' + bd.bottom + ')'
+    taskLog(msg)
     automator.clickCenter(targetCloseBtn)
     sleep(500)
   } else {
-    LogFloaty.pushLog('未找到关闭弹窗按钮')
+    taskLog('未找到关闭弹窗按钮')
   }
 }
 
@@ -113,22 +115,21 @@ let btns = [
     onClick: function () {
       // 先移走悬浮窗，避免遮挡
       moveFloatyToEdge()
-      
+
       // 重新打开日志文件，覆盖旧内容
       openLogFile()
-      
+
       taskLog('====== 测试控件 开始 ======')
       taskLog('设备分辨率: ' + config.device_width + 'x' + config.device_height)
       taskLog('日志文件: ' + _logFilePath)
-      
+
       // 使用公共函数库 WidgetInspector 的检测方法（仅可见区域）
       let opts = { onLog: taskLog }
       WidgetInspector.detectByWidgetVisible(opts)
       WidgetInspector.detectAllNodesVisible(opts)
       WidgetInspector.detectByOcr(opts)
-      
+
       taskLog('====== 测试控件 结束 ======')
-      LogFloaty.pushLog('测试控件执行完毕，详情请查看日志文件')
     }
   },
 

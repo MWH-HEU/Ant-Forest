@@ -14,16 +14,29 @@ let runningQueueDispatcher = singletonRequire('RunningQueueDispatcher')
 let { logInfo, errorInfo, warnInfo, debugInfo, infoLog, debugForDev, clearLogFile, flushAllLogs } = singletonRequire('LogUtils')
 let commonFunctions = singletonRequire('CommonFunction')
 let killProcessUtil = require('./lib/KillProcessUtil.js')
+let logFloaty = singletonRequire('LogFloaty')
+
+function taskLog (msg) {
+  logFloaty.pushLog(msg)
+}
 
 function killApps () {
   try {
     killProcessUtil.killMultiple([
-      { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' }
+      { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' },
+      { pkg: 'com.taobao.taobao', name: '淘宝' },
+      { pkg: 'com.sankuai.meituan', name: '美团' },
+      { pkg: 'com.taobao.idlefish', name: '闲鱼' },
+      { pkg: 'com.taobao.etao', name: '一淘' },
+      { pkg: 'com.taobao.trip', name: '飞猪' },
+      { pkg: 'com.autonavi.minimap', name: '高德地图' },
+      { pkg: 'com.taobao.live', name: '点淘' },
+      { pkg: 'com.baidu.searchbox.lite', name: '百度极速版' }
     ], function (name, success) {
-      debugInfo(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+      taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
     })
   } catch (e) {
-    debugInfo('kill进程失败: ' + e)
+    taskLog('kill进程失败: ' + e)
   }
 }
 
@@ -210,6 +223,9 @@ if (config.develop_mode) {
     commonFunctions.printExceptionStack(e)
   }
 }
+// 杀掉后台进程
+logFloaty.show()
+killApps()
 flushAllLogs()
 runningQueueDispatcher.removeRunningTask(true)
 // 30秒后关闭，防止立即停止

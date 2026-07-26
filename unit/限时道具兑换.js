@@ -20,7 +20,6 @@ function taskLog (msg) {
   LogFloaty.pushLog(msg)
 }
 
-}
 
 function killApps () {
   try {
@@ -226,16 +225,19 @@ function confirmExchange () {
   return true
 }
 
-// 在背包中查找匹配关键词的卡片上的"使用"按钮并点击（检测"没有更多了"停止滑动）
+// 在背包中查找匹配正则的卡片，遍历所有匹配卡片找同列的"使用"按钮并点击（检测"没有更多了"停止滑动）
 function findAndUseCard (pattern) {
   sleep(500)
 
   while (true) {
     let allNodes = widgetInspector.detectAllNodesVisible().nodes
 
-    // 匹配背包中带数量和使用按钮的卡片
-    let cardNode = allNodes.find(function (n) { return n.text && pattern.test(n.text) })
-    if (cardNode && cardNode.bounds) {
+    // 匹配所有符合条件的卡片
+    let cardNodes = allNodes.filter(function (n) { return n.text && pattern.test(n.text) && n.bounds })
+
+    // 遍历所有匹配的卡片，找同列的"使用"按钮
+    for (let ci = 0; ci < cardNodes.length; ci++) {
+      let cardNode = cardNodes[ci]
       let useNode = allNodes.find(function (n) {
         return n.text === '使用' && n.bounds && Math.abs(n.bounds.centerY() - cardNode.bounds.centerY()) < 200
       })
@@ -261,40 +263,6 @@ function findAndUseCard (pattern) {
   LogFloaty.pushErrorLog('未找到卡片，可能已使用完或不存在')
   return false
 }
-  exit()
-
-  while (true) {
-    let allNodes = widgetInspector.detectAllNodesVisible().nodes
-
-    // 匹配背包中带数量和使用按钮的卡片
-    let cardNode = allNodes.find(function (n) { return n.text && pattern.test(n.text) })
-    if (cardNode && cardNode.bounds) {
-      let useNode = allNodes.find(function (n) {
-        return n.text === '使用' && n.bounds && Math.abs(n.bounds.centerY() - cardNode.bounds.centerY()) < 200
-      })
-
-      if (useNode) {
-        automator.click(useNode.bounds.centerX(), useNode.bounds.centerY())
-        sleep(500)
-        return true
-      }
-    }
-
-    // 检查是否已到底部
-    let hasEnd = allNodes.some(function (n) { return /没有更多了/.test(n.text) })
-    if (hasEnd) {
-      break
-    }
-
-    automator.randomScrollDown()
-    sleep(1000)
-  }
-
-  sleep(500)
-  LogFloaty.pushErrorLog('未找到卡片，可能已使用完或不存在')
-  return false
-}
-// 智能关闭弹窗：用detectAllNodesVisible找到"关闭"的x坐标，找附近可点击按钮（排除文本为"关闭"的按钮）；兜底用OCR识别X
 function smartClosePopup () {
   sleep(800)
 
@@ -456,7 +424,7 @@ function doEnergyRainExchange () {
   }
 
   taskLog('=== 检查背包中是否有已有能量雨卡片 ===')
-  let hasRainCard = findAndUseCard(/.*保护罩.*共\d+个.*使用/)
+  let hasRainCard = findAndUseCard(/.*能量雨.*共\d+个.*使用/)
 
   if (hasRainCard) {
     taskLog('=== 点击"立即使用" ===')

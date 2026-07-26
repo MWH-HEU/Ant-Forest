@@ -229,7 +229,10 @@ function confirmExchange () {
 function findAndUseCard (pattern) {
   sleep(500)
 
-  while (true) {
+  let startTime = new Date().getTime()
+  let timeout = 60 * 1000
+
+  while (new Date().getTime() - startTime < timeout) {
     let allNodes = widgetInspector.detectAllNodesVisible().nodes
 
     // 匹配所有符合条件的卡片
@@ -313,7 +316,10 @@ function handleExtendPopup () {
 function exchangeProtectorCard () {
   sleep(500)
 
-  while (true) {
+  let startTime = new Date().getTime()
+  let timeout = 60 * 1000
+
+  while (new Date().getTime() - startTime < timeout) {
     let allNodes = widgetInspector.detectAllNodesVisible().nodes
 
     // 找出当前可见的所有保护罩卡片

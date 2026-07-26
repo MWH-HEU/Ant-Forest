@@ -17,8 +17,11 @@ let killProcessUtil = require('./lib/KillProcessUtil.js')
 
 function killApps () {
   try {
-    let success = killProcessUtil.kill(config.package_name || 'com.eg.android.AlipayGphone')
-    debugInfo('支付宝 → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+    killProcessUtil.killMultiple([
+      { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' }
+    ], function (name, success) {
+      debugInfo(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+    })
   } catch (e) {
     debugInfo('kill进程失败: ' + e)
   }

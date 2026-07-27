@@ -427,8 +427,6 @@ function exitAndClean () {
   if (!isRunning) {
     return
   }
-  // 杀掉后台进程
-  killApps()
 
   if (executeByTimeTask) {
     commonFunction.minimize()
@@ -449,10 +447,12 @@ function exitAndClean () {
     window.canvas.removeAllListeners()
     toastLog('close in 1 seconds')
     setTimeout(function () {
+      killApps()
       window.close()
       exit()
     }, 1000)
   } else {
+    killApps()
     exit()
   }
 }

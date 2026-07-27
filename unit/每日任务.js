@@ -4,7 +4,8 @@
  * 2. 进入领奖励页面
  * 3. 控件优先/OCR兜底识别"立即领取"和"去抽奖"按钮，处理领取/抽奖流程
  * 4. 控件查找"逛一逛"、"去看看"、"去参与"、"去领取"、"去守护"、"去完成"探索任务
- *    （排除"玩一场能量雨"、"添加1份看病保障"、"去淘宝看科普视频"、"去蚂蚁阿福健康问答"、"添加小荷包能量插件"、"每日浇水领真绿植"、"逛惊喜市集领红包"）
+ *    （排除"玩一场能量雨"、"添加1份看病保障"、"去淘宝看科普视频"、"去蚂蚁阿福健康问答"、"添加小荷包能量插件"）
+ *    特殊处理："每日浇水领真绿植"进入后下滑上滑8次；"逛惊喜市集领红包"进入后等待15s再下滑上滑15次
  * 5. 点击前检查附近是否有"玩一玩"、"获取更多森林资讯"、"看15s直播得能量"或"逛一逛飞猪"，有则等待15秒，否则2秒
  * 6. 点击后处理弹窗（"支付宝想要打开xxx"等）
  * 7. kill支付宝、淘宝、美团、闲鱼、一淘、飞猪、高德、点淘、百度极速版进程重新打开领奖励页面
@@ -446,8 +447,8 @@ function clickCollectReward () {
 /**
  * 控件查找并点击探索任务按钮
  * 关键词：逛一逛、去看看、去参与、去领取、去守护、去完成
- * 排除：玩一场能量雨、添加1份看病保障、去淘宝看科普视频、去蚂蚁阿福健康问答、添加小荷包能量插件、每日浇水领真绿植、逛惊喜市集领红包（检查按钮附近是否有排除文字）
- * 点击前检查附近是否有"玩一玩"、"获取更多森林资讯"、"看15s直播得能量"或"逛一逛飞猪"，有则等待15秒，否则2秒
+ * 排除：玩一场能量雨、添加1份看病保障、去淘宝看科普视频、去蚂蚁阿福健康问答、添加小荷包能量插件（检查按钮附近是否有排除文字）
+ * 点击前检查附近是否有"玩一玩"、"获取更多森林资讯"、"看15s直播得能量"或"逛一逛飞猪"，有则等待15秒（逛一逛飞猪等待25秒），否则2秒
  * 点击后处理弹窗
  * 返回是否找到了并点击了
  */
@@ -489,7 +490,7 @@ function findAndClickExploreTask () {
                 text.indexOf('去守护') >= 0 || text.indexOf('去完成') >= 0) {
               // 检查该按钮所在行附近是否有需要跳过的任务
               let shouldSkip = false
-              let skipReasons = ['玩一场能量雨', '添加1份看病保障', '去淘宝看科普视频', '去蚂蚁阿福健康问答', '添加小荷包能量插件', '每日浇水领真绿植', '逛惊喜市集领红包']
+              let skipReasons = ['玩一场能量雨', '添加1份看病保障', '去淘宝看科普视频', '去蚂蚁阿福健康问答', '添加小荷包能量插件']
               try {
                 let myBounds = node.bounds()
                 let allNodes2 = className('android.widget.Button').find()
@@ -522,7 +523,9 @@ function findAndClickExploreTask () {
               // 检查该行是否有特殊处理任务（逛一逛点淘得红包等）
               let specialTask = null
               let specialTasks = [
-                { keyword: '逛一逛点淘得红包', waitTime: 15000, clickTarget: '点击领元宝' }
+                { keyword: '逛一逛点淘得红包', waitTime: 15000, clickTarget: '点击领元宝', action: 'clickTarget' },
+                { keyword: '每日浇水领真绿植', waitTime: 0, action: 'scroll8' },
+                { keyword: '逛惊喜市集领红包', waitTime: 15000, action: 'scroll15' }
               ]
               try {
                 let allNodes2 = className('android.widget.Button').find()
@@ -563,13 +566,18 @@ function findAndClickExploreTask () {
                           if (nText.indexOf(longWaitKeywords[w]) >= 0) {
                             let nb = allNodes2.get(n).bounds()
                             if (Math.abs(nb.centerY() - bounds.centerY()) < 200) {
-                              waitTime = 15000
-                              taskLog('附近有"' + nText + '"任务，等待15秒')
+                              if (nText.indexOf('逛一逛飞猪') >= 0) {
+                                waitTime = 25000
+                                taskLog('附近有"' + nText + '"任务，等待25秒')
+                              } else {
+                                waitTime = 15000
+                                taskLog('附近有"' + nText + '"任务，等待15秒')
+                              }
                               break
                             }
                           }
                         }
-                        if (waitTime === 15000) break
+                        if (waitTime > 2000) break
                       }
                     } catch (e) {}
                   }
@@ -586,7 +594,7 @@ function findAndClickExploreTask () {
               if (specialTask) {
                 taskLog('执行特殊任务: ' + specialTask.keyword + '，等待' + specialTask.waitTime + '毫秒')
                 sleep(2000)
-                if (specialTask.clickTarget) {
+                if (specialTask.action === 'clickTarget' && specialTask.clickTarget) {
                   try {
                     // 同时查找 Button 和 TextView
                     let found = false
@@ -630,6 +638,51 @@ function findAndClickExploreTask () {
                     }
                   } catch (e) {
                     taskLog('查找' + specialTask.clickTarget + '异常: ' + e)
+                  }
+                } else if (specialTask.action === 'scroll8') {
+                  // 每日浇水领真绿植：先检查弹窗
+                  taskLog('执行' + specialTask.keyword + '，检查弹窗')
+                  // 每隔2s检查"去逛逛"，最多7次
+                  for (let i = 0; i < 7; i++) {
+                    sleep(2000)
+                    let btn = widgetUtils.widgetGetOne('去逛逛', 1000)
+                    if (btn) {
+                      taskLog('找到"去逛逛"，点击')
+                      automator.clickCenter(btn)
+                      sleep(1000)
+                      break
+                    }
+                  }
+                  // 每隔2s检查"立即使用"，最多2次
+                  for (let i = 0; i < 2; i++) {
+                    sleep(2000)
+                    let btn = widgetUtils.widgetGetOne('立即使用', 1000)
+                    if (btn) {
+                      taskLog('找到"立即使用"，点击')
+                      automator.clickCenter(btn)
+                      sleep(1000)
+                      break
+                    }
+                  }
+                  // 执行滑动操作
+                  taskLog('执行' + specialTask.keyword + '，下滑上滑15次')
+                  let scrollRound = 15
+                  while (scrollRound-- > 0) {
+                    let h = config.device_height
+                    automator.randomScrollDown(0.7 * h, 0.8 * h, 0.2 * h, 0.3 * h)
+                    sleep(500)
+                    automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
+                    sleep(500)
+                  }
+                } else if (specialTask.action === 'scroll15') {
+                  let scrollRound = 15
+                  taskLog('执行' + specialTask.keyword + '，下滑上滑' + scrollRound + '次')
+                  while (scrollRound-- > 0) {
+                    let h = config.device_height
+                    automator.randomScrollDown(0.7 * h, 0.8 * h, 0.2 * h, 0.3 * h)
+                    sleep(500)
+                    automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
+                    sleep(500)
                   }
                 }
                 waitTime = specialTask.waitTime
@@ -684,7 +737,7 @@ function findAndClickExploreTask () {
                     let nt = allNodes2.get(n).text()
                     if (nt) {
                       let nText = nt.toString()
-                      if (nText.indexOf('添加1份看病保障') >= 0 || nText.indexOf('玩一场能量雨') >= 0 || nText.indexOf('去淘宝看科普视频') >= 0 || nText.indexOf('去蚂蚁阿福健康问答') >= 0 || nText.indexOf('添加小荷包能量插件') >= 0 || nText.indexOf('每日浇水领真绿植') >= 0 || nText.indexOf('逛惊喜市集领红包') >= 0) {
+                      if (nText.indexOf('添加1份看病保障') >= 0 || nText.indexOf('玩一场能量雨') >= 0 || nText.indexOf('去淘宝看科普视频') >= 0 || nText.indexOf('去蚂蚁阿福健康问答') >= 0 || nText.indexOf('添加小荷包能量插件') >= 0) {
                         let nb = allNodes2.get(n).bounds()
                         if (Math.abs(nb.centerY() - bounds.centerY()) < 200) {
                           taskLog('OCR跳过"' + nText + '"行的"去完成"')

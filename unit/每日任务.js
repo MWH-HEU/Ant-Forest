@@ -674,7 +674,7 @@ function findAndClickExploreTask () {
                     automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
                     sleep(500)
                   }
-                } else if (specialTask.action === 'scroll15') {
+                } else if (specialTask.action === 'scroll8') {
                   let scrollRound = 8
                   taskLog('执行' + specialTask.keyword + '，下滑上滑' + scrollRound + '次')
                   while (scrollRound-- > 0) {

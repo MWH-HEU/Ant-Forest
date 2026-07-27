@@ -673,6 +673,7 @@ function findAndClickExploreTask () {
                     sleep(500)
                     automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
                     sleep(500)
+                    sleep(500)
                   }
                 } else if (specialTask.action === 'scroll15') {
                   let scrollRound = 15
@@ -682,6 +683,7 @@ function findAndClickExploreTask () {
                     automator.randomScrollDown(0.7 * h, 0.8 * h, 0.2 * h, 0.3 * h)
                     sleep(500)
                     automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
+                    sleep(500)
                     sleep(500)
                   }
                 }
@@ -835,10 +837,6 @@ function reopenRewardPage () {
   // 返回桌面
   commonFunction.minimize()
   sleep(1000)
-  
-  // kill 后台进程
-  killApps()
-  sleep(2000)
   
   // 重新打开蚂蚁森林
   openAntForest()

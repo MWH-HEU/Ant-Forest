@@ -176,12 +176,13 @@ let clickThread = threads.start(function () {
         clickRunning = false
         changeButtonInfo()
         if (executeByTimeTask) {
-          // 自动模式：点击完毕，退出脚本并返回原应用
+          // 自动模式：点击完毕，先杀支付宝再退出脚本
           sleep(500)
           runningQueueDispatcher.removeRunningTask()
           isRunning = false
           commonFunction.minimize()
           sleep(500)
+          killApps()
           exit()
         }
         sleep(1000)
@@ -334,6 +335,7 @@ threads.start(function () {
   events.observeKey()
   events.on("key_down", function (keyCode, event) {
     if (keyCode === 24) {
+      killApps()
       exit()
     } else if (keyCode === 25) {
       // 设置最低间隔200毫秒，避免修改太快
@@ -349,6 +351,7 @@ threads.start(function () {
 // 保持运行
 setInterval(function () { }, 1000)
 
+// 引擎被移除时（如异常崩溃）兜底杀支付宝
 commonFunction.registerOnEngineRemoved(function () {
   killApps()
   runningQueueDispatcher.removeRunningTask()

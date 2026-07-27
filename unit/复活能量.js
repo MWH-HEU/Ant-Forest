@@ -192,29 +192,45 @@ function clickEnergyRankTab() {
 }
 
 /**
- * 首次进入总能量榜：点击tab + 下滑进入完整排行榜列表
+ * 进入总能量榜：点击tab + 下滑找"查看更多好友"
+ * 每5次下滑重新进入蚂蚁森林，最多重试3次
+ * @returns {boolean} 是否成功进入完整排行榜
  */
 function enterEnergyRankFirstTime() {
   taskLog('进入总能量榜')
 
-  if (!clickEnergyRankTab()) {
-    return false
+  let retryCount = 0
+  while (retryCount < 3) {
+    if (!clickEnergyRankTab()) {
+      return false
+    }
+
+    // 下滑找"查看更多好友"，每5次下滑重新进入
+    let scrollCount = 0
+    while (true) {
+      let h = config.device_height
+      automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
+      sleep(500)
+      if (findAndClickByTextVisible(/查看更多好友/)) {
+        sleep(1000)
+        return true
+      }
+      scrollCount++
+      if (scrollCount >= 5) {
+        break // 重新进入
+      }
+    }
+
+    retryCount++
+    if (retryCount < 3) {
+      taskLog('重新进入蚂蚁森林')
+      enterAntForest()
+      sleep(1000)
+    }
   }
 
-  // 下滑找到"查看更多好友"并点击进入完整排行榜
-  let scrollLimit = 8
-  do {
-    let h = config.device_height
-    automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
-    sleep(500)
-    if (findAndClickByTextVisible(/查看更多好友/)) {
-      sleep(1000)
-      return true
-    }
-  } while (--scrollLimit > 0)
-
-  warnInfo('未找到"查看更多好友"，可能已在完整排行榜中')
-  return true
+  warnInfo('多次尝试未找到"查看更多好友"')
+  return false
 }
 
 /**

@@ -524,8 +524,8 @@ function findAndClickExploreTask () {
               let specialTask = null
               let specialTasks = [
                 { keyword: '逛一逛点淘得红包', waitTime: 15000, clickTarget: '点击领元宝', action: 'clickTarget' },
-                { keyword: '每日浇水领真绿植', waitTime: 0, action: 'scroll8' },
-                { keyword: '逛惊喜市集领红包', waitTime: 15000, action: 'scroll15' }
+                { keyword: '每日浇水领真绿植', waitTime: 0, action: 'scroll16' },
+                { keyword: '逛惊喜市集领红包', waitTime: 15000, action: 'scroll8' }
               ]
               try {
                 let allNodes2 = className('android.widget.Button').find()

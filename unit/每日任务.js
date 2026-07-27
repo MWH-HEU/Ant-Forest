@@ -639,7 +639,7 @@ function findAndClickExploreTask () {
                   } catch (e) {
                     taskLog('查找' + specialTask.clickTarget + '异常: ' + e)
                   }
-                } else if (specialTask.action === 'scroll8') {
+                } else if (specialTask.action === 'scroll16') {
                   // 每日浇水领真绿植：先检查弹窗
                   taskLog('执行' + specialTask.keyword + '，检查弹窗')
                   // 每隔2s检查"去逛逛"，最多7次

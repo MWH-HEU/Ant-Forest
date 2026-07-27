@@ -665,8 +665,8 @@ function findAndClickExploreTask () {
                     }
                   }
                   // 执行滑动操作
-                  taskLog('执行' + specialTask.keyword + '，下滑上滑15次')
-                  let scrollRound = 15
+                  taskLog('执行' + specialTask.keyword + '，下滑上滑16次')
+                  let scrollRound = 16
                   while (scrollRound-- > 0) {
                     let h = config.device_height
                     automator.randomScrollDown(0.7 * h, 0.8 * h, 0.2 * h, 0.3 * h)
@@ -675,7 +675,7 @@ function findAndClickExploreTask () {
                     sleep(500)
                   }
                 } else if (specialTask.action === 'scroll15') {
-                  let scrollRound = 15
+                  let scrollRound = 8
                   taskLog('执行' + specialTask.keyword + '，下滑上滑' + scrollRound + '次')
                   while (scrollRound-- > 0) {
                     let h = config.device_height

@@ -1,13 +1,12 @@
 /*
  * @Author: Auto-generated for Ant-Forest
- * @Description: 复活能量子脚本（已重构）
+ * @Description: 复活能量子脚本
  * 复活好友能量，每次获得5g
  *
- * 流程：
- * 一直循环，5分钟超时退出：
+ * 流程（一直循环，直到找不到+5g或进入总榜失败退出）：
  *   1. 进入蚂蚁森林 → 收取自己能量
- *   2. 进入总能量榜（完整排行榜）
- *   3. findColor查找+5g（橙色按钮#FF8F00），连续2次没找到检查"没有更多了"
+ *   2. 进入总能量榜（下滑找"查看更多好友"，点击后确认在总榜，最多重试5次）
+ *   3. findColor查找+5g（橙色#FF8F00），连续2次没找到检查"没有更多了"
  *      找到后取第一个，进入好友森林复活
  *   4. 回到步骤1
  *
@@ -193,43 +192,59 @@ function clickEnergyRankTab() {
 
 /**
  * 进入总能量榜：点击tab + 下滑找"查看更多好友"
- * 每5次下滑重新进入蚂蚁森林，最多重试3次
  * @returns {boolean} 是否成功进入完整排行榜
  */
 function enterEnergyRankFirstTime() {
   taskLog('进入总能量榜')
 
-  let retryCount = 0
-  while (retryCount < 3) {
-    if (!clickEnergyRankTab()) {
-      return false
-    }
+  if (!clickEnergyRankTab()) {
+    return false
+  }
 
-    // 下滑找"查看更多好友"，每5次下滑重新进入
-    let scrollCount = 0
+  let retryCount = 0
+  while (retryCount < 5) {
+    // 下滑找"查看更多好友"，找到"你每养成一棵树"就停止
     while (true) {
       let h = config.device_height
       automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
       sleep(500)
       if (findAndClickByTextVisible(/查看更多好友/)) {
         sleep(1000)
-        return true
+        break
       }
-      scrollCount++
-      if (scrollCount >= 5) {
-        break // 重新进入
+      // 检查是否到底
+      let result = widgetInspector.detectAllNodesVisible()
+      let hasEnd = result.nodes.some(n => /你每养成一棵树/.test(n.text))
+      if (hasEnd) {
+        warnInfo('已滑到底部未找到"查看更多好友"')
+        break
       }
+    }
+
+    // 点击"查看更多好友"后，检查是否在总能量榜
+    let result = widgetInspector.detectAllNodesVisible()
+    let hasRankText = result.nodes.some(n => /排行榜/.test(n.text))
+    let hasDayRank = result.nodes.some(n => /日榜/.test(n.text))
+    let hasWeekRank = result.nodes.some(n => /周榜/.test(n.text))
+    let hasTotalRank = result.nodes.some(n => /总榜/.test(n.text))
+    let hasEnergyRank = result.nodes.some(n => /总能量榜/.test(n.text))
+    if (hasRankText && hasDayRank && hasWeekRank && hasTotalRank && hasEnergyRank) {
+      debugInfo('确认已在总能量榜页面')
+      return true
     }
 
     retryCount++
-    if (retryCount < 3) {
+    if (retryCount < 5) {
       taskLog('重新进入蚂蚁森林')
       enterAntForest()
       sleep(1000)
+      if (!clickEnergyRankTab()) {
+        return false
+      }
     }
   }
 
-  warnInfo('多次尝试未找到"查看更多好友"')
+  warnInfo('多次尝试未进入总能量榜')
   return false
 }
 
@@ -449,10 +464,8 @@ function main() {
 
   let revivedCount = 0
   let roundCount = 0
-  let startTime = new Date().getTime()
-  let timeout = 5 * 60 * 1000 // 5分钟超时
 
-  while (new Date().getTime() - startTime < timeout) {
+  while (true) {
     roundCount++
     taskLog('第' + roundCount + '轮（已复活' + revivedCount + '次)')
 
@@ -465,33 +478,29 @@ function main() {
     sleep(1000)
 
     // 步骤2: 进入总能量榜
-    enterEnergyRankFirstTime()
+    if (!enterEnergyRankFirstTime()) {
+      errorInfo('进入总能量榜失败，结束脚本')
+      break
+    }
 
     // 步骤3: 查找+5g，连续2次没找到检查"没有更多了"
     let markers = []
-    let noFoundCount = 0
+    findcolor:
     while (markers.length === 0) {
-      markers = findOrangeMarkers()
-      if (markers.length > 0) {
-        noFoundCount = 0
+      for (let i = 0; i < 2; i++) {
+        markers = findOrangeMarkers()
+        if (markers.length > 0) break findcolor
+      }
+      // 检查是否有"没有更多了"文本，有的话说明到底了
+      let result = widgetInspector.detectAllNodesVisible()
+      let hasEnd = result.nodes.some(n => /没有更多了/.test(n.text))
+      if (hasEnd) {
+        warnInfo('已滑到底部未找到+5g，结束脚本')
         break
       }
-      noFoundCount++
-      if (noFoundCount >= 2) {
-        // 检查是否有"没有更多了"文本，有的话说明到底了
-        let result = widgetInspector.detectAllNodesVisible()
-        let hasEnd = result.nodes.some(n => /没有更多了/.test(n.text))
-        if (hasEnd) {
-          warnInfo('已滑到底部未找到+5g，结束脚本')
-          break
-        }
-        noFoundCount = 0
-      }
-      if (markers.length === 0) {
-        let h = config.device_height
-        automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
-        sleep(600)
-      }
+      let h = config.device_height
+      automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
+      sleep(600)
     }
 
     if (markers.length === 0) {

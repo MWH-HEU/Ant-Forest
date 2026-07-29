@@ -224,7 +224,7 @@ if (config.develop_mode) {
   }
 }
 // 杀掉后台进程
-logFloaty.show()
+// logFloaty.show()
 killApps()
 flushAllLogs()
 runningQueueDispatcher.removeRunningTask(true)

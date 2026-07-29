@@ -1,7 +1,7 @@
 /*
  * 神奇鱼塘任务脚本
  * 功能：
- * 1. 打开闲鱼神奇鱼塘
+ * 1. 打开闲鱼主Activity，通过控件点击"神奇鱼塘"进入
  * 2. 处理"领取并投喂"弹窗
  * 3. 收取自己的能量
  * 4. 通过OCR识别"得能量"并点击进入任务页面
@@ -165,16 +165,13 @@ function findAndExecuteTask (descText, btnText, taskFn) {
 // ============ 神奇鱼塘操作 ============
 
 /**
- * 打开闲鱼神奇鱼塘
- * 通过支付宝scheme打开闲鱼小程序，然后跳转到神奇鱼塘页面
+ * 打开闲鱼神奇鱼塘（旧版，通过intent直达）
  */
-function openFishPool () {
-  taskLog("准备打开闲鱼神奇鱼塘")
+function openFishPoolByIntent () {
+  taskLog("准备打开闲鱼神奇鱼塘（intent方式）")
 
   commonFunction.backHomeIfInVideoPackage()
 
-  // 通过intent直接打开闲鱼app并跳转到神奇鱼塘页面
-  // 指定packageName为闲鱼，系统不会弹出选择器
   app.startActivity({
     action: "VIEW",
     data: "https://pages.goofish.com/sharexy?url=https%3A%2F%2Fssr.m.goofish.com%2Fwow%2Fmoyu%2Fmoyu-project%2Ffish-pool%2Fpages%2Fhome%3Fx-ssr%3Dtrue%26_from__%3Dmain%26x-cur%3DCNY%26x-lang%3Dzh-CN%26x-tz%3DAsia%252FShanghai%26x-cs%3DCN",
@@ -184,6 +181,29 @@ function openFishPool () {
   if (confirm) {
     automator.clickCenter(confirm)
   }
+
+  return waitForFishPoolPage()
+}
+
+/**
+ * 打开闲鱼神奇鱼塘：打开闲鱼主Activity，再通过控件点击"神奇鱼塘"进入
+ */
+function openFishPool () {
+  taskLog("准备打开闲鱼神奇鱼塘")
+
+  commonFunction.backHomeIfInVideoPackage()
+
+  // 打开闲鱼主Activity
+  app.startActivity({
+    action: "android.intent.action.MAIN",
+    packageName: "com.taobao.idlefish",
+    className: "com.taobao.idlefish.maincontainer.activity.MainActivity"
+  })
+  sleep(3000)
+
+  // 通过控件点击"神奇鱼塘"进入
+  findAndClickByTextVisible(/神奇鱼塘/)
+  sleep(2000)
 
   return waitForFishPoolPage()
 }

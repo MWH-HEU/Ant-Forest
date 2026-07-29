@@ -140,6 +140,26 @@ let btns = [
       moveFloatyToEdge()
       checkDialogAndClose()
     }
+  },
+
+  {
+    id: 'getPageInfo',
+    text: '页面信息',
+    onClick: function () {
+      moveFloatyToEdge()
+
+      openLogFile()
+
+      try {
+        let currentPkg = currentPackage()
+        let currentAct = currentActivity()
+        let msg = '当前包名: ' + currentPkg + '，当前Activity: ' + currentAct
+        taskLog(msg)
+      } catch (e) {
+        let msg = '获取当前页面信息失败: ' + e
+        taskLog(msg)
+      }
+    }
   }
 ]
 

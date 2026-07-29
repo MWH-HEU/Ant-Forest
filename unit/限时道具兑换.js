@@ -13,7 +13,10 @@ let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
 let widgetInspector = require('../lib/WidgetInspector.js')(runtime, global)
 
-// 是否启用能量保护罩兑换
+// 是否启用能量雨次卡兑换（默认启用）
+const ENABLE_ENERGY_RAIN_EXCHANGE = true
+
+// 是否启用能量保护罩兑换（默认启用）
 const ENABLE_PROTECTOR_EXCHANGE = true
 
 function taskLog (msg) {
@@ -530,7 +533,9 @@ function doProtectorExchange () {
 function main () {
   taskLog('========== 限时道具兑换 开始 ==========')
 
-  doEnergyRainExchange()
+  if (ENABLE_ENERGY_RAIN_EXCHANGE) {
+    doEnergyRainExchange()
+  }
 
   if (ENABLE_PROTECTOR_EXCHANGE) {
     doProtectorExchange()

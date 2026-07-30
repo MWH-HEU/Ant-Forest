@@ -1,15 +1,10 @@
 /*
  * 自动执行乐园任务
- * 1. 打开蚂蚁森林 → 通过图片识别进入乐园
- * 2. 进入限时福利
- * 3. 有"领取"先领取（排除"游戏充值优惠券待领取"）
- * 4. 没有领取，找"玩一玩"项目点击"去完成"
- * 5. 进入玩一玩页面，每半分钟搜索"能量"，变成"已完成"则退出，重复3-5
- * 6. 没有领取也没有新的玩一玩，返回原页面
- *
- * "乐园"入口是图片按钮，通过 resources/park_icon.png 图片模板匹配定位
- * 请先截取蚂蚁森林主页中"乐园"入口（熊猫图标+文字）的小图，
- * 保存为 resources/park_icon.png
+ * 1. 打开蚂蚁森林 → OCR进入乐园
+ * 2. 判断当前页面类型（限时福利/乐园/未知）
+ * 3. 不在限时福利页面则OCR进入限时福利
+ * 4. 限时福利页面：循环领取所有能量 → 循环找玩一玩任务
+ * 5. 玩一玩任务完成后退出页面，根据页面类型重新进入限时福利继续
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
@@ -24,6 +19,7 @@ let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let FileUtils = require('../lib/prototype/FileUtils.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
+let widgetInspector = require('../lib/WidgetInspector.js')(runtime, global)
 
 function killApps () {
   try {
@@ -48,8 +44,6 @@ if (!commonFunction.ensureAccessibilityEnabled()) {
 
 // 音量由父脚本控制
 
-
-
 // ============ 工具函数 ============
 
 function openAntForest () {
@@ -64,22 +58,15 @@ function openAntForest () {
   if (confirm) {
     automator.clickCenter(confirm)
   }
-  sleep(1000)
-  widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', 3000)
-  sleep(3000)
-  taskLog('蚂蚁森林已打开')
-}
-
-function waitAndClick (text, timeout) {
-  timeout = timeout || 3000
-  let btn = widgetUtils.widgetGetOne(text, timeout)
-  if (btn) {
-    taskLog('点击: ' + text)
-    automator.clickCenter(btn)
+  // 等待蚂蚁森林首页加载
+  let waitCount = 0
+  while (!widgetUtils.homePageWaiting() && waitCount++ < 10) {
     sleep(1000)
-    return true
   }
-  return false
+  // sleep(1000)
+  // widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', 3000)
+  // sleep(3000)
+  taskLog('蚂蚁森林已打开')
 }
 
 function goBack () {
@@ -87,413 +74,201 @@ function goBack () {
   sleep(800)
 }
 
-function containsText (node, searchText) {
-  if (!node) return false
-  try {
-    let t = node.text()
-    if (t && t.toString().indexOf(searchText) >= 0) return true
-  } catch (e) {}
-  try {
-    let d = node.desc()
-    if (d && d.toString().indexOf(searchText) >= 0) return true
-  } catch (e) {}
-  try {
-    let children = node.children()
-    if (children) {
-      for (let i = 0; i < children.size(); i++) {
-        if (containsText(children.get(i), searchText)) return true
-      }
-    }
-  } catch (e) {}
-  return false
-}
-
-function parentContainsText (node, searchText, maxDepth) {
-  maxDepth = maxDepth || 5
-  let check = node
-  for (let p = 0; p < maxDepth; p++) {
-    try {
-      let parent = check.parent()
-      if (!parent) break
-      if (containsText(parent, searchText)) return true
-      check = parent
-    } catch (e) {
-      break
-    }
-  }
-  return false
-}
-
-function getText (node) {
-  try {
-    let t = node.text()
-    return t ? t.toString() : ''
-  } catch (e) {
-    return ''
-  }
-}
-
 /**
- * 通过OCR识别"乐园"文字找到入口并点击
+ * 通用OCR识别并点击指定关键字（带重试）
  */
-function clickParkByOcr () {
-  taskLog('通过OCR识别查找乐园入口')
-  
-  if (!localOcrUtil.enabled) {
-    taskLog('OCR未启用，尝试通过控件查找')
-    return clickParkByWidget()
-  }
-  
-  // 请求截图权限并截图
-  commonFunction.requestScreenCaptureOrRestart()
-  sleep(500)
-  let screen = commonFunction.captureScreen()
-  if (!screen) {
-    errorInfo('截图失败')
-    return false
-  }
-  
-  // 在屏幕下半部分识别（乐园入口在底部）
-  let region = [0, parseInt(config.device_height * 0.6), config.device_width, parseInt(config.device_height * 0.35)]
-  let results = localOcrUtil.recognizeWithBounds(screen, region, '乐园')
-  screen.recycle()
-  
-  if (results && results.length > 0) {
-    // 取第一个匹配结果
-    let match = results[0]
-    let bounds = match.bounds
-    // 点击文字上方区域（图标位置，文字在图标下方）
-    let clickX = bounds.centerX()
-    let clickY = bounds.top - 60
-    taskLog('OCR找到乐园: "' + match.label + '" 点击: (' + clickX + ', ' + clickY + ')')
-    automator.click(clickX, clickY)
-    sleep(2000)
-    return true
-  } else {
-    taskLog('OCR未识别到乐园文字')
-    return false
-  }
-}
-
-/**
- * 通过控件查找乐园入口（OCR不可用时的降级方案）
- */
-function clickParkByWidget () {
-  // 遍历所有控件找包含"乐园"文字的
-  taskLog('遍历控件查找乐园入口')
-  try {
-    let allTextViews = className('android.widget.TextView').find()
-    if (allTextViews) {
-      for (let i = 0; i < allTextViews.size(); i++) {
-        let tv = allTextViews.get(i)
-        try {
-          let t = tv.text()
-          if (t && t.toString().indexOf('乐园') >= 0) {
-            let bounds = tv.bounds()
-            let clickX = bounds.centerX()
-            let clickY = bounds.top - 60
-            taskLog('找到乐园文字控件，点击: (' + clickX + ', ' + clickY + ')')
-            automator.click(clickX, clickY)
-            sleep(2000)
-            return true
-          }
-        } catch (e) {}
-      }
-    }
-  } catch (e) {
-    taskLog('遍历控件异常: ' + e)
-  }
-
-  // 找"背包"推算
-  taskLog('尝试通过背包推算乐园位置')
-  let neighbor = widgetUtils.widgetGetOne('背包', 2000)
-  if (neighbor) {
-    let bounds = neighbor.bounds()
-    let iconWidth = bounds.right - bounds.left
-    let parkX = bounds.left - iconWidth - 10
-    let parkY = bounds.centerY()
-    taskLog('通过背包推算乐园: (' + parkX + ', ' + parkY + ')')
-    automator.click(parkX, parkY)
-    sleep(2000)
-    return true
-  }
-
-  // 找"领奖励"推算
-  neighbor = widgetUtils.widgetGetOne('领奖励', 2000)
-  if (neighbor) {
-    let bounds = neighbor.bounds()
-    let iconWidth = bounds.right - bounds.left
-    let parkX = bounds.left - iconWidth * 2 - 20
-    let parkY = bounds.centerY()
-    taskLog('通过领奖励推算乐园: (' + parkX + ', ' + parkY + ')')
-    automator.click(parkX, parkY)
-    sleep(2000)
-    return true
-  }
-
-  // 找"赚能量"推算
-  neighbor = widgetUtils.widgetGetOne('赚能量', 2000)
-  if (neighbor) {
-    let bounds = neighbor.bounds()
-    let parkX = config.device_width * 0.22
-    let parkY = bounds.top - 60
-    taskLog('通过赚能量推算乐园: (' + parkX.toFixed(0) + ', ' + parkY.toFixed(0) + ')')
-    automator.click(parkX, parkY)
-    sleep(2000)
-    return true
-  }
-
-  return false
-}
-
-/**
- * 通过OCR识别"限时福利"入口并点击
- */
-function clickLimitedBenefit () {
-  taskLog('通过OCR识别查找限时福利入口')
-  
-  if (localOcrUtil.enabled) {
+function clickByOcr (keyword, timeout) {
+  if (!localOcrUtil.enabled) return false
+  let deadline = new Date().getTime() + (timeout || 3000)
+  while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
-    sleep(500)
+    sleep(300)
     let screen = commonFunction.captureScreen()
     if (screen) {
-      // 限时福利在屏幕右下角
-      let region = [parseInt(config.device_width * 0.5), parseInt(config.device_height * 0.5), parseInt(config.device_width * 0.5), parseInt(config.device_height * 0.5)]
-      let results = localOcrUtil.recognizeWithBounds(screen, region, '限时福利')
+      let results = localOcrUtil.recognizeWithBounds(screen, null, keyword)
       screen.recycle()
       if (results && results.length > 0) {
         let match = results[0]
-        let bounds = match.bounds
-        let clickX = bounds.centerX()
-        let clickY = bounds.centerY()
-        taskLog('OCR找到限时福利: "' + match.label + '" 点击: (' + clickX + ', ' + clickY + ')')
-        automator.click(clickX, clickY)
-        sleep(2000)
+        taskLog('OCR找到"' + keyword + '"，点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
+        automator.click(match.bounds.centerX(), match.bounds.centerY())
+        sleep(500)
+        return true
+      }
+    }
+    sleep(500)
+  }
+  return false
+}
+
+/**
+ * 遍历可见控件，匹配文本并点击
+ * @param {RegExp} pattern - 匹配文本的正则（如 /^领取$/）
+ * @returns {boolean} 是否找到并点击成功
+ */
+function findAndClickByTextVisible (pattern) {
+  let result = widgetInspector.detectAllNodesVisible()
+  for (let node of result.nodes) {
+    if (pattern.test(node.text)) {
+      let bd = node.bounds
+      if (bd) {
+        taskLog('找到"' + node.text + '"，点击: (' + bd.centerX() + ', ' + bd.centerY() + ')')
+        automator.click(bd.centerX(), bd.centerY())
         return true
       }
     }
   }
-  
-  // OCR不可用时，尝试控件查找
-  taskLog('尝试控件查找限时福利')
-  if (waitAndClick('.*限时福利.*', 2000)) {
-    return true
-  }
-  
-  // 遍历所有TextView
-  try {
-    let allTextViews = className('android.widget.TextView').find()
-    if (allTextViews) {
-      for (let i = 0; i < allTextViews.size(); i++) {
-        let tv = allTextViews.get(i)
-        try {
-          let t = tv.text()
-          if (t && t.toString().indexOf('限时福利') >= 0) {
-            let bounds = tv.bounds()
-            taskLog('找到限时福利控件，点击: (' + bounds.centerX() + ', ' + bounds.centerY() + ')')
-            automator.clickCenter(tv)
-            sleep(2000)
-            return true
-          }
-        } catch (e) {}
-      }
-    }
-  } catch (e) {
-    taskLog('遍历控件异常: ' + e)
-  }
-  
-  return false
-}
-
-function tryClaimEnergy () {
-  // 全屏OCR识别"领取"，完全匹配后点击
-  if (localOcrUtil.enabled) {
-    taskLog('通过OCR识别领取按钮')
-    commonFunction.requestScreenCaptureOrRestart()
-    sleep(500)
-    let screen = commonFunction.captureScreen()
-    if (screen) {
-      // 全屏识别
-      let region = [0, 0, config.device_width, config.device_height]
-      let results = localOcrUtil.recognizeWithBounds(screen, region, '领取')
-      screen.recycle()
-      if (results && results.length > 0) {
-        for (let r = 0; r < results.length; r++) {
-          let match = results[r]
-          // 只完全匹配"领取"
-          if (match.label !== '领取') continue
-          let bounds = match.bounds
-          taskLog('OCR找到领取: "' + match.label + '" 点击: (' + bounds.centerX() + ', ' + bounds.centerY() + ')')
-          automator.click(bounds.centerX(), bounds.centerY())
-          sleep(1500)
-          return true
-        }
-      }
-    }
-  }
-  
-  // 降级：通过控件查找
-  let allButtons = widgetUtils.widgetGetAll('领取', 2000)
-  if (!allButtons) return false
-
-  let len = allButtons.length
-  for (let i = 0; i < len; i++) {
-    let btn = allButtons.get(i)
-    if (!btn) continue
-    let btnText = getText(btn)
-    // 只完全匹配"领取"
-    if (btnText !== '领取') continue
-    taskLog('点击领取能量: ' + btnText)
-    automator.clickCenter(btn)
-    sleep(1500)
-    return true
-  }
-  return false
-}
-
-function tryStartPlayGame () {
-  // 方式1: 通过OCR识别"去完成"按钮，完全匹配
-  if (localOcrUtil.enabled) {
-    taskLog('通过OCR识别去完成按钮')
-    commonFunction.requestScreenCaptureOrRestart()
-    sleep(500)
-    let screen = commonFunction.captureScreen()
-    if (screen) {
-      // 在屏幕中间区域查找所有文字
-      let region = [0, parseInt(config.device_height * 0.2), config.device_width, parseInt(config.device_height * 0.6)]
-      let results = localOcrUtil.recognizeWithBounds(screen, region, '去完成|玩一玩')
-      screen.recycle()
-      if (results && results.length > 0) {
-        // 找出所有"去完成"的位置
-        let goButtons = results.filter(function (r) { return r.label === '去完成' })
-        // 找出所有"玩一玩"的位置
-        let playLabels = results.filter(function (r) { return r.label.indexOf('玩一玩') >= 0 || r.label.indexOf('每日签到') >= 0 })
-        
-        for (let r = 0; r < goButtons.length; r++) {
-          let match = goButtons[r]
-          let bounds = match.bounds
-          // 检查这个"去完成"是否与某个"玩一玩"在同一行
-          let hasPlayTag = false
-          for (let c = 0; c < playLabels.length; c++) {
-            if (Math.abs(playLabels[c].bounds.centerY() - bounds.centerY()) < 100) {
-              hasPlayTag = true
-              break
-            }
-          }
-          if (!hasPlayTag) {
-            taskLog('跳过非玩一玩的去完成')
-            continue
-          }
-          taskLog('OCR找到玩一玩的去完成: "' + match.label + '" 点击: (' + bounds.centerX() + ', ' + bounds.centerY() + ')')
-          automator.click(bounds.centerX(), bounds.centerY())
-          sleep(2000)
-          return true
-        }
-      }
-    }
-  }
-  
-  // 方式2: 通过控件查找（只匹配有"玩一玩"前缀的项目）
-  let playItems = widgetUtils.widgetGetAll('玩一玩.*', 2000)
-  if (!playItems) return false
-
-  let len = playItems.length
-  for (let i = 0; i < len; i++) {
-    let item = playItems.get(i)
-    if (!item) continue
-    let itemText = getText(item)
-    taskLog('检查玩一玩项目: ' + itemText)
-    try {
-      // 向上查找5层父容器，找"去完成"按钮
-      let check = item
-      for (let depth = 0; depth < 5; depth++) {
-        let parent = check.parent()
-        if (!parent) break
-        let children = parent.children()
-        for (let c = 0; c < children.size(); c++) {
-          let child = children.get(c)
-          let childText = getText(child)
-          if (childText === '去完成') {
-            taskLog('找到去完成按钮（第' + depth + '层父容器）: ' + childText)
-            automator.clickCenter(child)
-            sleep(2000)
-            return true
-          }
-        }
-        check = parent
-      }
-      taskLog('  未找到去完成按钮')
-    } catch (e) {
-      taskLog('  遍历异常: ' + e)
-      continue
-    }
-  }
-  return false
-}
-
-function waitForGameComplete () {
-  taskLog('进入玩一玩页面，先等待4分20秒，然后每5秒检查一次（最多12次）')
-  sleep(2000)
-
-  // 先等待4分20秒（260秒），让任务有足够时间完成
-  taskLog('等待260秒让任务自动完成...')
-  sleep(260000)
-
-  let maxChecks = 12
-  for (let check = 1; check <= maxChecks; check++) {
-    sleep(5000)
-    taskLog('第' + check + '/' + maxChecks + '次检查玩一玩状态...')
-    let completed = widgetUtils.widgetGetOne('.*已完成.*', 1000)
-    if (completed) {
-      taskLog('检测到已完成，退出玩一玩')
-      exitPlayGame()
-      return true
-    }
-  }
-  taskLog('检查次数已用完（' + maxChecks + '次），退出玩一玩')
-  exitPlayGame()
   return false
 }
 
 /**
- * 退出玩一玩页面并返回乐园/限时福利
- * 先尝试进限时福利，失败则结束脚本
+ * 查找任务并执行：两遍遍历，先记录描述文字的y值，再匹配按钮文字做同行判断
+ * @param {string} descText - 任务描述文字（匹配开头，如"玩一玩"）
+ * @param {string} btnText - 按钮文字（完全匹配，如"去完成"）
+ * @param {function} taskFn - 执行任务的函数
+ * @returns {boolean} 是否找到并执行了任务
  */
-function exitPlayGame () {
-  taskLog('返回桌面并重新进入')
-  // 回到桌面
+function findAndExecuteTask (descText, btnText, taskFn) {
+  let allNodes = widgetInspector.detectAllNodesVisible().nodes
+  if (!allNodes || allNodes.length === 0) return false
+
+  // 第一遍：记录描述文字的y值
+  let descY = -1
+  for (let i = 0; i < allNodes.length; i++) {
+    let text = allNodes[i].text
+    if (text.indexOf(descText) === 0) {
+      descY = allNodes[i].bounds.centerY()
+      break
+    }
+  }
+  if (descY < 0) {
+    taskLog('未找到任务: "' + descText + '"')
+    return false
+  }
+
+  // 第二遍：匹配按钮文字，同行判断
+  for (let i = 0; i < allNodes.length; i++) {
+    let node = allNodes[i]
+    if (node.text === btnText) {
+      let y = node.bounds.centerY()
+      if (y < config.device_height * 0.15) continue
+      if (y > config.device_height * 0.85) continue
+      if (Math.abs(y - descY) < 100) {
+        taskLog('找到任务: "' + descText + '"，对应按钮: ' + btnText)
+        automator.click(node.bounds.centerX(), node.bounds.centerY())
+        sleep(2000)
+        taskFn()
+        return true
+      }
+    }
+  }
+  taskLog('找到任务: "' + descText + '"，未找到对应按钮: ' + btnText + '"，任务可能已完成')
+  return false
+}
+
+/**
+ * 判断当前页面类型
+ * 限时福利页面：包含"每日来森林乐园签到"（开头匹配）
+ * 乐园页面：包含"每日领取上限"或"开宝箱...绿色能量"（开头匹配）
+ * @returns {string} 'limited_benefit' | 'park' | 'unknown'
+ */
+function detectPageType () {
+  let result = widgetUtils.widgetWaiting('每日来森林乐园签到|每日领取上限|开宝箱.*绿色能量', 5000)
+  if (!result) return 'unknown'
+
+  let allNodes = widgetInspector.detectAllNodesVisible().nodes
+  let hasSignIn = false
+  let hasEnergyTask = false
+  for (let node of allNodes) {
+    if (node.text.indexOf('每日来森林乐园签到') === 0) hasSignIn = true
+    if (node.text.indexOf('每日领取上限') === 0 || /^开宝箱.*绿色能量/.test(node.text)) hasEnergyTask = true
+  }
+  if (hasSignIn) return 'limited_benefit'
+  if (hasEnergyTask) return 'park'
+  return 'unknown'
+}
+
+/**
+ * 遍历点击所有"领取"按钮（重复直到找不到）
+ */
+function claimAllEnergy () {
+  while (findAndClickByTextVisible(/^领取$/)) {
+    sleep(1500)
+  }
+}
+
+/**
+ * 等待玩一玩任务完成
+ * 1. 先等待5分钟让任务自动完成
+ * 2. 每5秒检查一次"已完成"（最多6次）
+ * 3. 退出玩一玩页面，根据页面类型重新进入限时福利
+ * @returns {boolean} 是否成功回到限时福利页面
+ */
+function waitForGameComplete () {
+  taskLog('进入玩一玩页面，先等待5分钟，然后每5秒检查一次（最多6次）')
+  sleep(2000)
+
+  // 先等待5分钟（300秒）
+  taskLog('等待300秒让任务自动完成...')
+  sleep(300000)
+
+  let maxChecks = 6
+  for (let check = 1; check <= maxChecks; check++) {
+    sleep(5000)
+    taskLog('第' + check + '/' + maxChecks + '次检查玩一玩状态...')
+    let completed = widgetUtils.widgetGetOne('已完成', 1000)
+    if (completed) {
+      taskLog('检测到已完成')
+      break
+    }
+  }
+
+  // 退出玩一玩页面，最多back 4次
+  taskLog('退出玩一玩页面')
+  for (let i = 0; i < 4; i++) {
+    goBack()
+    sleep(2000)
+    let pageType = detectPageType()
+    if (pageType === 'limited_benefit') {
+      taskLog('已回到限时福利页面')
+      return true
+    }
+    if (pageType === 'park') {
+      taskLog('回到乐园页面，进入限时福利')
+      clickByOcr('限时福利', 5000)
+      widgetUtils.widgetWaiting('每日来森林乐园签到', 5000)
+      return true
+    }
+  }
+
+  // 4次back都没回到，重新进入蚂蚁森林
+  taskLog('未能回到限时福利或乐园，重新进入')
   commonFunction.minimize()
-  sleep(1000)
-  
-  // 重新打开支付宝进入限时福利
+  sleep(500)
   openAntForest()
-  
-  // 进入乐园
-  taskLog('重新进入乐园')
-  if (!clickParkByOcr()) {
+  if (!clickByOcr('乐园', 5000)) {
     taskLog('重新进入乐园失败')
-    return
+    return false
   }
   sleep(3000)
-  
-  // 先检查乐园页面是否有直接任务
-  if (tryClaimEnergy()) return
-  if (tryStartPlayGame()) return
-  
-  // 没有直接任务，尝试进入限时福利
-  taskLog('尝试进入限时福利')
-  if (clickLimitedBenefit()) {
-    sleep(1500)
-  } else {
-    // 限时福利进不去（可能任务已完成或已在限时福利页面），直接结束脚本
-    taskLog('限时福利无法进入，结束乐园任务')
-    commonFunction.minimize()
-    sleep(500)
-    killApps()
-    sleep(1000)
-    runningQueueDispatcher.removeRunningTask()
-    exit()
+  let pageType = detectPageType()
+  if (pageType === 'limited_benefit') {
+    return true
   }
+  if (pageType === 'park') {
+    if (!clickByOcr('限时福利', 5000)) {
+      taskLog('重新进入限时福利失败')
+      return false
+    }
+    widgetUtils.widgetWaiting('每日来森林乐园签到', 5000)
+    return true
+  }
+  // 未知页面，尝试直接进限时福利
+  if (!clickByOcr('限时福利', 5000)) {
+    taskLog('重新进入限时福利失败')
+    return false
+  }
+  widgetUtils.widgetWaiting('每日来森林乐园签到', 5000)
+  return true
 }
 
 // ============ 主流程 ============
@@ -518,7 +293,7 @@ function main () {
 
   // 2. 进入乐园
   taskLog('查找乐园入口')
-  if (!clickParkByOcr()) {
+  if (!clickByOcr('乐园', 5000)) {
     errorInfo('无法定位乐园入口，结束乐园任务')
     commonFunction.minimize()
     sleep(500)
@@ -528,33 +303,15 @@ function main () {
     exit()
   }
 
-  // 3. 进入乐园后先检查是否有可直接操作的任务
+  // 3. 判断当前页面类型
   sleep(3000)
-  taskLog('检查乐园页面是否有可直接操作的任务')
-  
-  // 先尝试领取和去完成（直接在乐园页面操作）
-  let hasDirectTasks = false
-  for (let round = 0; round < 20; round++) {
-    taskLog('=== 乐园页面 第 ' + (round + 1) + ' 轮 ===')
-    
-    if (tryClaimEnergy()) {
-      hasDirectTasks = true
-      continue
-    }
-    
-    if (tryStartPlayGame()) {
-      hasDirectTasks = true
-      waitForGameComplete()
-      continue
-    }
-    
-    break
-  }
-  
-  // 如果没有直接任务，进入限时福利
-  if (!hasDirectTasks) {
-    taskLog('乐园页面无直接任务，进入限时福利')
-    if (!clickLimitedBenefit()) {
+  let pageType = detectPageType()
+  taskLog('当前页面类型: ' + pageType)
+
+  // 如果不是限时福利页面，尝试进入限时福利
+  if (pageType !== 'limited_benefit') {
+    taskLog('当前不在限时福利页面，尝试进入限时福利')
+    if (!clickByOcr('限时福利', 5000)) {
       errorInfo('未找到限时福利入口，结束乐园任务')
       commonFunction.minimize()
       sleep(500)
@@ -563,42 +320,39 @@ function main () {
       runningQueueDispatcher.removeRunningTask()
       exit()
     }
-    sleep(1500)
+    widgetUtils.widgetWaiting('每日来森林乐园签到', 5000)
+  }
+
+  // 4. 限时福利页面：先领所有能量，然后循环做玩一玩任务
+  taskLog('开始执行限时福利任务')
+
+  // 先领能量
+  claimAllEnergy()
+
+  // 循环找玩一玩任务
+  let taskFailed = false
+  while (findAndExecuteTask('玩一玩', '去完成', function () {
+    let result = waitForGameComplete()
+    if (!result) taskFailed = true
+    return result
+  })) {
+    // 每次完成任务后先领能量
+    claimAllEnergy()
+    if (taskFailed) break
+  }
+
+  // 5. 任务完成
+  if (taskFailed) {
+    taskLog('任务异常结束，退出脚本')
   } else {
-    // 有直接任务且完成后，再进入限时福利
-    taskLog('乐园页面任务完成，进入限时福利')
-    if (!clickLimitedBenefit()) {
-      taskLog('未找到限时福利入口，可能已自动打开')
-    }
-    sleep(1500)
+    taskLog('所有任务已完成，返回原页面')
   }
-
-  // 限时福利页面循环执行：领取 → 玩一玩 → 检查完成
-  let maxRounds = 20
-  for (let round = 0; round < maxRounds; round++) {
-    taskLog('=== 限时福利 第 ' + (round + 1) + ' 轮 ===')
-
-    if (tryClaimEnergy()) {
-      continue
-    }
-
-    if (tryStartPlayGame()) {
-      waitForGameComplete()
-      continue
-    }
-
-    taskLog('没有更多可领取的能量和玩一玩任务，结束')
-    break
-  }
-
-  // 返回原页面
-  taskLog('任务完成，返回原页面')
   commonFunction.minimize()
   sleep(500)
   killApps()
   sleep(1000)
   runningQueueDispatcher.removeRunningTask()
-    exit()
+  exit()
 }
 
 main()

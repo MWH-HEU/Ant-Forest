@@ -148,8 +148,6 @@ function findAndExecuteTask (descText, btnText, taskFn) {
     let node = allNodes[i]
     if (node.text === btnText) {
       let y = node.bounds.centerY()
-      if (y < config.device_height * 0.15) continue
-      if (y > config.device_height * 0.85) continue
       if (Math.abs(y - descY) < 100) {
         taskLog('找到任务: "' + descText + '"，对应按钮: ' + btnText)
         automator.click(node.bounds.centerX(), node.bounds.centerY())

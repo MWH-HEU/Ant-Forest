@@ -1,14 +1,14 @@
 /*
  * 自动执行每日任务
  * 1. 打开蚂蚁森林 → 点击"领奖励"
- * 2. 判断是否在领奖励页面（widgetUtils.widgetWaiting 我的活力值 关闭奖励弹窗 10s）
+ * 2. 判断是否在领奖励页面（widgetUtils.widgetWaiting 我的活力值 关闭奖励弹窗 3s）
  *    不在则重新打开蚂蚁森林进入领奖励页面，最多尝试3次，否则失败
  * 3. 领奖励与去抽奖采用 findAndClickByTextVisible 点击，不限制次数，去抽奖有额外抽奖操作
  * 4. 探索任务：widgetInspector.detectAllNodesVisible 匹配所有控件
- *    完全匹配6个关键按钮（必须是按钮），检查排除项同行则跳过
+ *    完全匹配探索任务按钮（必须是按钮），检查排除项同行则跳过
  *    判断是否为特殊任务，走对应分支
  *    普通任务描述固定为"普通任务"
- *    任务完成后类似 waitForGameComplete：先back，检查"我的活力值"关闭奖励弹窗3s，共5次
+ *    任务完成后类似 waitForGameComplete：先检测当前包，不在支付宝则切入，再先检测后back
  *    失败则重新进入蚂蚁森林-领奖励-继续执行任务
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
@@ -25,13 +25,26 @@ let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let FileUtils = require('../lib/prototype/FileUtils.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
 let widgetInspector = require('../lib/WidgetInspector.js')(runtime, global)
+let SwitchToApp = require('../lib/SwitchToApp.js')(runtime, global)
 
 function killApps () {
   try {
-    let killSuccess = killProcessUtil.kill(config.package_name || 'com.eg.android.AlipayGphone')
-    taskLog('支付宝 → ' + (killSuccess ? '✓ 已杀掉' : '✗ 失败'))
+    killProcessUtil.killMultiple([
+      { pkg: config.package_name || 'com.eg.android.AlipayGphone', name: '支付宝' },
+      { pkg: 'com.taobao.taobao', name: '淘宝' },
+      { pkg: 'com.sankuai.meituan', name: '美团' },
+      { pkg: 'com.taobao.idlefish', name: '闲鱼' },
+      { pkg: 'com.taobao.etao', name: '一淘' },
+      { pkg: 'com.taobao.trip', name: '飞猪' },
+      { pkg: 'com.autonavi.minimap', name: '高德地图' },
+      { pkg: 'com.taobao.live', name: '点淘' },
+      { pkg: 'com.baidu.searchbox.lite', name: '百度极速版' },
+      { pkg: 'com.jifen.qukan', name: '趣头条' }
+    ], function(name, success) {
+      taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
+    })
   } catch (e) {
-    taskLog('支付宝 → ✗ 失败: ' + e)
+    taskLog('kill进程失败: ' + e)
   }
 }
 
@@ -93,20 +106,60 @@ function findAndClickByTextVisible (pattern) {
 function clickImmediateLottery () {
   taskLog('查找"立即抽奖"按钮')
   sleep(2000)
+  // OCR优先识别
+  if (localOcrUtil.enabled) {
+    commonFunction.requestScreenCaptureOrRestart()
+    sleep(500)
+    let screen = commonFunction.captureScreen()
+    if (screen) {
+      let results = localOcrUtil.recognizeWithBounds(screen, [0, 0, config.device_width, config.device_height], '立即抽奖')
+      screen.recycle()
+      if (results && results.length > 0) {
+        let match = results[0]
+        taskLog('OCR找到"立即抽奖": 点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
+        automator.click(match.bounds.centerX(), match.bounds.centerY())
+        sleep(1500)
+        return true
+      }
+    }
+  }
+  // 控件兜底
   if (findAndClickByTextVisible(/^立即抽奖$/)) {
     sleep(1500)
     return true
   }
+  // 返回false有两种情况：1.真的没有弹窗（纯领取完成）2.有弹窗但OCR/控件都没识别到（弹窗残留）
+  taskLog('未找到"立即抽奖"，可能无弹窗或识别失败')
   return false
 }
 
 function clickCollectReward () {
   taskLog('查找"收下奖励"按钮')
   sleep(1000)
+  // OCR优先识别
+  if (localOcrUtil.enabled) {
+    commonFunction.requestScreenCaptureOrRestart()
+    sleep(500)
+    let screen = commonFunction.captureScreen()
+    if (screen) {
+      let results = localOcrUtil.recognizeWithBounds(screen, [0, 0, config.device_width, config.device_height], '收下奖励')
+      screen.recycle()
+      if (results && results.length > 0) {
+        let match = results[0]
+        taskLog('OCR找到"收下奖励": 点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
+        automator.click(match.bounds.centerX(), match.bounds.centerY())
+        sleep(1500)
+        return true
+      }
+    }
+  }
+  // 控件兜底
   if (findAndClickByTextVisible(/^收下奖励$/)) {
     sleep(1500)
     return true
   }
+  // 返回false有两种情况：1.真的没有收下奖励 2.有但OCR/控件都没识别到
+  taskLog('未找到"收下奖励"')
   return false
 }
 
@@ -133,7 +186,7 @@ function claimAllLotteries () {
 }
 
 function isOnRewardPage () {
-  let result = widgetUtils.widgetWaiting('我的活力值', 10000)
+  let result = widgetUtils.widgetWaiting('我的活力值', 3000)
   if (!result) {
     taskLog('未检测到"我的活力值"，不在领奖励页面')
     return false
@@ -252,7 +305,7 @@ const SPECIAL_TASKS = [
 
 const SKIP_KEYWORDS = ['玩一场能量雨', '添加1份看病保障', '去淘宝看科普视频', '去蚂蚁阿福健康问答', '添加小荷包能量插件']
 
-const EXPLORE_BUTTONS = ['逛一逛', '去看看', '去参与', '去领取', '去守护', '去完成']
+const EXPLORE_BUTTONS = ['逛一逛', '去看看', '去参与', '去领取', '去守护', '去完成', '去逛逛']
 
 const LONG_WAIT_KEYWORDS = ['玩一玩', '获取更多森林资讯', '看15s直播得能量', '逛一逛飞猪']
 
@@ -322,20 +375,39 @@ function executeSpecialTask (specialTask) {
 
   if (specialTask.action === 'clickTarget' && specialTask.clickTarget) {
     let found = false
-    let result = widgetInspector.detectAllNodesVisible()
-    for (let node of result.nodes) {
-      if (node.text === specialTask.clickTarget) {
-        let bd = node.bounds
-        if (bd) {
-          taskLog('找到"' + specialTask.clickTarget + '": 点击: (' + bd.centerX() + ', ' + bd.centerY() + ')')
-          automator.click(bd.centerX(), bd.centerY())
+    // OCR优先识别
+    if (localOcrUtil.enabled) {
+      commonFunction.requestScreenCaptureOrRestart()
+      sleep(500)
+      let screen = commonFunction.captureScreen()
+      if (screen) {
+        let results = localOcrUtil.recognizeWithBounds(screen, [0, 0, config.device_width, config.device_height], specialTask.clickTarget)
+        screen.recycle()
+        if (results && results.length > 0) {
+          let match = results[0]
+          taskLog('OCR找到"' + specialTask.clickTarget + '": 点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
+          automator.click(match.bounds.centerX(), match.bounds.centerY())
           found = true
-          break
+        }
+      }
+    }
+    // 控件兜底
+    if (!found) {
+      let result = widgetInspector.detectAllNodesVisible()
+      for (let node of result.nodes) {
+        if (node.text === specialTask.clickTarget) {
+          let bd = node.bounds
+          if (bd) {
+            taskLog('找到"' + specialTask.clickTarget + '": 点击: (' + bd.centerX() + ', ' + bd.centerY() + ')')
+            automator.click(bd.centerX(), bd.centerY())
+            found = true
+            break
+          }
         }
       }
     }
     if (!found) {
-      taskLog('控件未找到"' + specialTask.clickTarget + '"')
+      taskLog('未找到"' + specialTask.clickTarget + '"')
     }
   } else if (specialTask.action === 'scroll16') {
     taskLog('执行' + specialTask.keyword + '，检查弹窗')
@@ -381,26 +453,51 @@ function executeSpecialTask (specialTask) {
   }
 }
 
+/**
+ * 等待任务完成并回到领奖励页面
+ * 1. 先检测当前包是否在支付宝，不在则先切入支付宝（参考 lib/SwitchToApp.js）
+ * 2. 走返回逻辑：先检测是否在领奖励页面，不在则back，循环直到回到领奖励页面
+ * @returns {boolean} 是否成功回到领奖励页面
+ */
 function waitForTaskComplete () {
   taskLog('任务完成，退出页面')
   sleep(2000)
 
-  for (let i = 0; i < 5; i++) {
-    goBack()
-    sleep(2000)
+  let pkg = config.package_name || 'com.eg.android.AlipayGphone'
 
-    let result = widgetUtils.widgetWaiting('我的活力值', 3000)
-    if (result) {
-      let closeResult = widgetUtils.widgetWaiting('关闭奖励弹窗', 2000)
-      if (closeResult) {
-        taskLog('检测到"我的活力值"和"关闭奖励弹窗"，已回到领奖励页面')
-        return true
-      }
+  // 1. 检测当前包是否在支付宝，不在则先切入支付宝
+  if (currentPackage() !== pkg) {
+    taskLog('当前不在支付宝，切入支付宝')
+    let switched = SwitchToApp.switchToApp({
+      pkg: pkg,
+      cardText: '支付宝',
+      onLog: taskLog
+    })
+    if (!switched) {
+      taskLog('切入支付宝失败，重新进入')
+      commonFunction.minimize()
+      sleep(500)
+      openAntForest()
+      return enterRewardPage()
     }
-    taskLog('第' + (i + 1) + '次back未回到领奖励页面')
+    sleep(1000)
   }
 
-  taskLog('未能回到领奖励页面，重新进入')
+  // 2. 返回逻辑：先检测后back，循环直到回到领奖励页面
+  let maxBacks = 3
+  for (let i = 0; i < maxBacks; i++) {
+    // 先检测是否已在领奖励页面
+    if (isOnRewardPage()) {
+      taskLog('已回到领奖励页面')
+      return true
+    }
+    // 不在则back
+    taskLog('第' + (i + 1) + '次back')
+    goBack()
+    sleep(1000)
+  }
+
+  taskLog('多次back后仍未回到领奖励页面，重新进入')
   commonFunction.minimize()
   sleep(500)
   openAntForest()

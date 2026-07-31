@@ -113,7 +113,7 @@ function findAndClickByTextVisible (pattern) {
   return false
 }
 
-// OCR查找并点击指定文字（仅步骤1使用）
+// OCR查找并点击指定文字（控件查找不到时使用）
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
   let deadline = new Date().getTime() + (timeout || 3000)
@@ -163,11 +163,74 @@ function openBackpack () {
   return true
 }
 
+// 关闭背包：用detectAllNodesVisible查找可点击的Button类型且文本完全匹配"关闭"的按钮并点击
+function closeBackpack () {
+  sleep(500)
+
+  let allNodes = widgetInspector.detectAllNodesVisible().nodes
+
+  // 查找可点击的Button类型且文本完全匹配"关闭"的按钮
+  for (let n of allNodes) {
+    if (n.text === '关闭' && n.clickable && n.className === 'android.widget.Button' && n.bounds) {
+      taskLog('找到可点击的"关闭"按钮，点击: (' + n.bounds.centerX() + ', ' + n.bounds.centerY() + ')')
+      automator.click(n.bounds.centerX(), n.bounds.centerY())
+      sleep(500)
+      return true
+    }
+  }
+
+  LogFloaty.pushErrorLog('未找到可点击的"关闭"按钮')
+  return false
+}
+
+// 判断是否在蚂蚁森林界面（需同时找到"蚂蚁森林"和"森林广场"）
+function isOnAntForestPage () {
+  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林', 3000)
+  if (!result) {
+    taskLog('未检测到"蚂蚁森林"，不在蚂蚁森林界面')
+    return false
+  }
+  let squareResult = widgetUtils.widgetWaiting('森林广场', '森林广场', 3000)
+  if (!squareResult) {
+    taskLog('未检测到"森林广场"，不在蚂蚁森林界面')
+    return false
+  }
+  taskLog('检测到"蚂蚁森林"和"森林广场"，确认在蚂蚁森林界面')
+  return true
+}
+
+// 判断是否在背包界面（需同时找到"道具 伙伴 套装 皮肤 挂件 背景"）
+function isOnBackpackPage () {
+  let texts = ['道具', '伙伴', '套装', '皮肤', '挂件', '背景']
+  for (let i = 0; i < texts.length; i++) {
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 3000)
+    if (!result) {
+      taskLog('未检测到"' + texts[i] + '"，不在背包界面')
+      return false
+    }
+  }
+  taskLog('检测到"道具 伙伴 套装 皮肤 挂件 背景"，确认在背包界面')
+  return true
+}
+
 // 重新进入背包后点击"活力值积分商店"
 function clickExchangeWithVitality () {
-  // 先重新打开蚂蚁森林并进入背包，确保页面状态干净
-  if (!openBackpack()) {
+  // 关闭当前背包页面
+  if (!closeBackpack()) {
     return false
+  }
+
+  // 判断是否在蚂蚁森林界面，不在则调用openBackpack打开蚂蚁森林并进背包
+  if (!isOnAntForestPage()) {
+    if (!openBackpack()) {
+      return false
+    }
+  } else {
+    // 在蚂蚁森林界面，只通过OCR点击"背包"进入背包
+    if (!clickByOcr('背包', 5000)) {
+      LogFloaty.pushErrorLog('OCR未找到背包入口')
+      return false
+    }
   }
 
   if (!findAndClickByTextVisible(/活力值积分商店/)) {
@@ -223,12 +286,20 @@ function confirmExchange () {
     LogFloaty.pushErrorLog('未找到"立即使用"按钮')
     return false
   }
-  sleep(2000)
+
+  // 判断是否已回到背包界面，不在则调用openBackpack重新进入
+  if (!isOnBackpackPage()) {
+    taskLog('未回到背包界面，调用openBackpack重新进入')
+    if (!openBackpack()) {
+      LogFloaty.pushErrorLog('重新进入背包失败')
+      return false
+    }
+  }
 
   return true
 }
 
-// 在背包中查找匹配正则的卡片，遍历所有匹配卡片找同列的"使用"按钮并点击（检测"没有更多了"停止滑动）
+// 在背包中查找匹配正则的TextView卡片，找同列可点击的"使用"按钮并点击（检测"没有更多了"停止滑动，1分钟超时）
 function findAndUseCard (pattern) {
   sleep(500)
 
@@ -238,14 +309,19 @@ function findAndUseCard (pattern) {
   while (new Date().getTime() - startTime < timeout) {
     let allNodes = widgetInspector.detectAllNodesVisible().nodes
 
-    // 匹配所有符合条件的卡片
-    let cardNodes = allNodes.filter(function (n) { return n.text && pattern.test(n.text) && n.bounds })
+    // 匹配所有符合条件的TextView卡片
+    let cardNodes = allNodes.filter(function (n) {
+      return n.text && n.className === 'android.widget.TextView' && pattern.test(n.text) && n.bounds
+    })
 
-    // 遍历所有匹配的卡片，找同列的"使用"按钮
+    // 遍历所有匹配的卡片，找同列可点击的"使用"按钮（X坐标完全一样，卡片在按钮上方且差值<200）
     for (let ci = 0; ci < cardNodes.length; ci++) {
       let cardNode = cardNodes[ci]
       let useNode = allNodes.find(function (n) {
-        return n.text === '使用' && n.bounds && Math.abs(n.bounds.centerY() - cardNode.bounds.centerY()) < 200
+        return n.text === '使用' && n.clickable && n.bounds &&
+          n.bounds.centerX() === cardNode.bounds.centerX() &&
+          cardNode.bounds.centerY() < n.bounds.centerY() &&
+          Math.abs(n.bounds.centerY() - cardNode.bounds.centerY()) < 200
       })
 
       if (useNode) {
@@ -269,6 +345,7 @@ function findAndUseCard (pattern) {
   LogFloaty.pushErrorLog('未找到卡片，可能已使用完或不存在')
   return false
 }
+
 function smartClosePopup () {
   sleep(800)
 
@@ -315,7 +392,7 @@ function handleExtendPopup () {
   return false
 }
 
-// 在活力值积分商店中遍历保护罩卡片进行兑换（检测"没有更多了"停止滑动）
+// 在活力值积分商店中遍历保护罩卡片进行兑换（检测"没有更多了"停止滑动，1分钟超时）
 function exchangeProtectorCard () {
   sleep(500)
 
@@ -376,7 +453,15 @@ function exchangeProtectorCard () {
           LogFloaty.pushErrorLog('未找到"立即使用"按钮')
           return false
         }
-        sleep(2000)
+
+        // 判断是否已回到背包界面，不在则调用openBackpack重新进入
+        if (!isOnBackpackPage()) {
+          taskLog('保护罩：未回到背包界面，调用openBackpack重新进入')
+          if (!openBackpack()) {
+            LogFloaty.pushErrorLog('保护罩：重新进入背包失败')
+            return false
+          }
+        }
 
         taskLog('=== 在背包中查找并使用保护罩 ===')
         if (!findAndUseCard(/.*保护罩.*共\d+个.*使用/)) {

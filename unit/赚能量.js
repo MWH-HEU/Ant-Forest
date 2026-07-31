@@ -94,7 +94,7 @@ if (executeByTimeTask) {
     // 等待进入蚂蚁森林
     taskLog('等待蚂蚁森林页面加载')
     sleep(2000)
-    widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', 6000)
+    widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', '等待蚂蚁森林页面', 6000)
     sleep(1500)
     // 找「赚能量」入口
     taskLog('查找赚能量入口')
@@ -380,7 +380,7 @@ function openSpeedRacePage () {
     automator.clickCenter(confirm)
   }
   sleep(2000)
-  widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', 6000)
+  widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', '等待蚂蚁森林页面', 6000)
   sleep(1500)
   taskLog('查找赚能量入口')
   let earnEntry = widgetUtils.widgetGetOne('.*赚能量.*', 3000)

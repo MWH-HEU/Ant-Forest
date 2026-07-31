@@ -1,8 +1,9 @@
 /*
  * @Description: 测试小工具 - 悬浮窗工具
- * 两个按钮：测试控件、关闭弹窗
- * 测试控件：调用 lib/WidgetInspector.js 的 3 种检测方法
+ * 按钮：测试控件、关闭弹窗、页面信息、切入支付宝
+ * 测试控件：调用 lib/WidgetInspector.js 的检测方法（仅可见区域）
  * 关闭弹窗：使用森林集市中的checkDialogAndClose函数
+ * 切入支付宝：recents()点卡片，失败则 launchPackage fallback
  * 日志文件：button.log
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
@@ -97,6 +98,10 @@ function checkDialogAndClose () {
   }
 }
 
+// ============ 切入支付宝（调用公共函数库 SwitchToApp） ============
+
+let SwitchToApp = require('../lib/SwitchToApp.js')(runtime, global)
+
 // ============ 悬浮窗 ============
 
 let FloatyButtonSimple = require('../lib/FloatyButtonSimple.js')
@@ -159,6 +164,22 @@ let btns = [
         let msg = '获取当前页面信息失败: ' + e
         taskLog(msg)
       }
+    }
+  },
+
+  {
+    id: 'switchAlipay',
+    text: '切入支付宝',
+    onClick: function () {
+      moveFloatyToEdge()
+
+      openLogFile()
+
+      SwitchToApp.switchToApp({
+        pkg: config.package_name || 'com.eg.android.AlipayGphone',
+        cardText: '支付宝',
+        onLog: taskLog
+      })
     }
   }
 ]

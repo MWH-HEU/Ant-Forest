@@ -236,45 +236,21 @@ function collectOwnEnergy () {
 }
 
 /**
- * 处理"领取并投喂"弹窗：
- * 1. 尝试关闭弹窗
- * 2. 如果"领取并投喂"还存在，点击它后重新进入鱼塘
- * 3. 如果不存在，识别"得能量"：存在则正常退出，不存在则重新进入鱼塘
+ * 处理"领取并投喂"弹窗：如果检测到"领取并投喂"，则重新进入神奇鱼塘
  */
 function handleFeedDialog () {
   taskLog('处理"领取并投喂"弹窗')
 
-  // 第一步：尝试关闭弹窗
-  checkDialogAndClose()
-  sleep(1000)
-
-  // 检查"领取并投喂"是否还存在
   let result = widgetInspector.detectAllNodesVisible()
-  let feedStillExists = false
   for (let node of result.nodes) {
     if (node.text === '领取并投喂') {
-      feedStillExists = true
-      taskLog('"领取并投喂"仍存在，点击后重新进入鱼塘')
-      automator.click(node.bounds.centerX(), node.bounds.centerY())
-      sleep(2000)
+      taskLog('检测到"领取并投喂"，重新进入神奇鱼塘')
       openFishPool()
       return
     }
   }
 
-  // 检查"得能量"是否存在（OCR）
-  taskLog('检查"得能量"入口')
-  sleep(2000)
-  let ocrResult = widgetInspector.detectByOcr()
-  for (let item of ocrResult.results) {
-    if (item.label.indexOf('得能量') >= 0) {
-      taskLog('"得能量"存在，正常退出')
-      return
-    }
-  }
-
-  taskLog('未找到"得能量"，重新进入鱼塘')
-  openFishPool()
+  taskLog('未检测到"领取并投喂"')
 }
 
 function clickGetEnergy () {
@@ -308,7 +284,7 @@ function clickGetEnergy () {
  */
 function waitForTaskPage () {
   taskLog('等待任务页面加载')
-  let checkResult = widgetUtils.widgetWaiting('.*(得更多能量|去浏览|去完成|绿色答题|蚂蚁森林).*', '任务页面', 5000)
+  let checkResult = widgetUtils.widgetWaiting('.*(每天提醒我收绿色打卡能量|点击1个商品进入详情页|参与绿色科普答题|去蚂蚁森林收更多能量).*', '任务页面', 5000)
   if (checkResult) {
     taskLog('任务页面已加载')
     sleep(1000)

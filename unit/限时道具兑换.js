@@ -185,12 +185,12 @@ function closeBackpack () {
 
 // 判断是否在蚂蚁森林界面（需同时找到"蚂蚁森林"和"森林广场"）
 function isOnAntForestPage () {
-  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林', 3000)
+  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 3000)
   if (!result) {
     taskLog('未检测到"蚂蚁森林"，不在蚂蚁森林界面')
     return false
   }
-  let squareResult = widgetUtils.widgetWaiting('森林广场', '森林广场', 3000)
+  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 3000)
   if (!squareResult) {
     taskLog('未检测到"森林广场"，不在蚂蚁森林界面')
     return false
@@ -203,7 +203,7 @@ function isOnAntForestPage () {
 function isOnBackpackPage () {
   let texts = ['道具', '伙伴', '套装', '皮肤', '挂件', '背景']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 3000)
+    let result = widgetUtils.widgetWaiting(texts[i], '背包页面', 3000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在背包界面')
       return false

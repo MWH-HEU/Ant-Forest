@@ -3,12 +3,12 @@
  * @Description: 复活能量子脚本
  * 复活好友能量，每次获得5g
  *
- * 流程（一直循环，直到找不到+5g或进入总榜失败退出）：
+ * 流程（一直循环，直到复活6次、找不到+5g或进入总榜失败退出）：
  *   1. 进入蚂蚁森林 → 收取自己能量
  *   2. 进入总能量榜（下滑找"查看更多好友"，点击后确认在总榜，最多重试5次）
  *   3. findColor查找+5g（橙色#FF8F00），连续2次没找到检查"没有更多了"
  *      找到后取第一个，进入好友森林复活
- *   4. 回到步骤1
+ *   4. 复活满6次则退出，否则回到步骤1
  *
  * 控件查找：findAndClickByTextVisible（WidgetInspector.detectAllNodesVisible）
  * +5g查找：findOrangeMarkers（findColor颜色匹配）
@@ -70,6 +70,15 @@ function taskLog(msg) {
 function goBack() {
   back()
   sleep(800)
+}
+
+function exitScript() {
+  commonFunction.minimize()
+  sleep(500)
+  killApps()
+  sleep(500)
+  runningQueueDispatcher.removeRunningTask()
+  exit()
 }
 
 /**
@@ -197,12 +206,11 @@ function clickEnergyRankTab() {
 function enterEnergyRankFirstTime() {
   taskLog('进入总能量榜')
 
-  if (!clickEnergyRankTab()) {
-    return false
-  }
-
   let retryCount = 0
   while (retryCount < 5) {
+    if (!clickEnergyRankTab()) {
+      return false
+    }
     // 下滑找"查看更多好友"，找到"你每养成一棵树"就停止
     while (true) {
       let h = config.device_height
@@ -222,22 +230,22 @@ function enterEnergyRankFirstTime() {
     }
 
     // 点击"查看更多好友"后，检查是否在总能量榜
-    let result = widgetInspector.detectAllNodesVisible()
-    let hasRankText = result.nodes.some(n => /排行榜/.test(n.text))
-    let hasDayRank = result.nodes.some(n => /日榜/.test(n.text))
-    let hasWeekRank = result.nodes.some(n => /周榜/.test(n.text))
-    let hasTotalRank = result.nodes.some(n => /总榜/.test(n.text))
-    let hasEnergyRank = result.nodes.some(n => /总能量榜/.test(n.text))
-    if (hasRankText && hasDayRank && hasWeekRank && hasTotalRank && hasEnergyRank) {
-      debugInfo('确认已在总能量榜页面')
+    if (checkInEnergyRank()) {
       return true
     }
 
     retryCount++
     if (retryCount < 5) {
-      taskLog('重新进入蚂蚁森林')
-      enterAntForest()
-      sleep(1000)
+      taskLog('返回后重新点击蚂蚁森林')
+      back()
+      sleep(800)
+      if (!findAndClickByTextVisible(/蚂蚁森林/)) {
+        warnInfo('未找到"蚂蚁森林"入口，重新进入蚂蚁森林')
+        if (!enterAntForest()) {
+          exitScript()
+        }
+      }
+      sleep(2000)
       if (!clickEnergyRankTab()) {
         return false
       }
@@ -246,6 +254,24 @@ function enterEnergyRankFirstTime() {
 
   warnInfo('多次尝试未进入总能量榜')
   return false
+}
+
+/**
+ * 检查是否在总能量榜页面
+ * 同时含有"排行榜、日榜、周榜、总榜、总能量榜"文本则视为在总榜
+ * @returns {boolean} 是否在总能量榜
+ */
+function checkInEnergyRank() {
+  let result = widgetInspector.detectAllNodesVisible()
+  // 需要同时包含的文本
+  let rankTexts = [/排行榜/, /日榜/, /周榜/, /总榜/, /总能量榜/]
+  for (let pattern of rankTexts) {
+    if (!result.nodes.some(n => pattern.test(n.text))) {
+      return false
+    }
+  }
+  debugInfo('确认已在总能量榜页面')
+  return true
 }
 
 /**
@@ -268,24 +294,34 @@ function findReviveMarkers() {
       let region = [w * 0.9, 0, w * 0.1, config.device_height]
       let maxFind = 20
       while (maxFind-- > 0) {
-        let point = images.findColor(screen, color, {
+        // 找按钮左上角
+        let topLeft = images.findColor(screen, color, {
           region: region,
           threshold: threshold
         })
-        if (!point) break
+        if (!topLeft) break
 
-        // 计算按钮中心（按钮约30px高，取点+15px为中心）
-        let centerY = point.y + 15
-        let centerX = point.x + 20  // 按钮宽约35px
+        // 在左上角下方区域找右下角
+        let bottomRight = images.findColor(screen, color, {
+          region: [w * 0.9, topLeft.y, w * 0.1, config.device_height - topLeft.y],
+          threshold: threshold
+        })
+        if (!bottomRight) {
+          bottomRight = topLeft
+        }
 
-        debugInfo(['findColor找到橙色点: ({}, {})', point.x, point.y])
+        // 按钮中心 = (左上 + 右下) / 2
+        let centerX = Math.round((topLeft.x + bottomRight.x) / 2)
+        let centerY = Math.round((topLeft.y + bottomRight.y) / 2)
+
+        debugInfo(['findColor找到橙色按钮: 左上({}, {}) 右下({}, {})', topLeft.x, topLeft.y, bottomRight.x, bottomRight.y])
         results.push({
           centerX: centerX,
           centerY: centerY
         })
 
-        // 排除这个点附近区域，继续找下一个
-        region = [w * 0.9, point.y + 30, w * 0.1, config.device_height - (point.y + 30)]
+        // 排除这个按钮区域，继续找下一个
+        region = [w * 0.9, bottomRight.y + 5, w * 0.1, config.device_height - (bottomRight.y + 5)]
         if (region[3] <= 0) break
       }
     }
@@ -325,22 +361,34 @@ function findOrangeMarkers() {
       let region = [w * 0.9, 0, w * 0.1, config.device_height]
       let maxFind = 20
       while (maxFind-- > 0) {
-        let point = images.findColor(screen, color, {
+        // 找按钮左上角
+        let topLeft = images.findColor(screen, color, {
           region: region,
           threshold: threshold
         })
-        if (!point) break
+        if (!topLeft) break
 
-        let centerY = point.y + 15
-        let centerX = point.x + 20
+        // 在左上角下方区域找右下角
+        let bottomRight = images.findColor(screen, color, {
+          region: [w * 0.9, topLeft.y, w * 0.1, config.device_height - topLeft.y],
+          threshold: threshold
+        })
+        if (!bottomRight) {
+          bottomRight = topLeft
+        }
 
-        debugInfo(['findColor找到橙色点: ({}, {})', point.x, point.y])
+        // 按钮中心 = (左上 + 右下) / 2
+        let centerX = Math.round((topLeft.x + bottomRight.x) / 2)
+        let centerY = Math.round((topLeft.y + bottomRight.y) / 2)
+
+        debugInfo(['findColor找到橙色按钮: 左上({}, {}) 右下({}, {})', topLeft.x, topLeft.y, bottomRight.x, bottomRight.y])
         results.push({
           centerX: centerX,
           centerY: centerY
         })
 
-        region = [w * 0.9, point.y + 30, w * 0.1, config.device_height - (point.y + 30)]
+        // 排除这个按钮区域，继续找下一个
+        region = [w * 0.9, bottomRight.y + 5, w * 0.1, config.device_height - (bottomRight.y + 5)]
         if (region[3] <= 0) break
       }
     }
@@ -515,6 +563,10 @@ function main() {
         if (clickConfirmSend()) {
           revivedCount++
           taskLog('成功复活，累计' + revivedCount + '次)')
+          if (revivedCount >= 6) {
+            taskLog('已复活6次，结束流程')
+            break
+          }
         } else {
           warnInfo('确认发送失败')
         }

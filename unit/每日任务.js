@@ -186,12 +186,12 @@ function claimAllLotteries () {
 }
 
 function isOnRewardPage () {
-  let result = widgetUtils.widgetWaiting('我的活力值', 3000)
+  let result = widgetUtils.widgetWaiting('我的活力值', '我的活力值', 3000)
   if (!result) {
     taskLog('未检测到"我的活力值"，不在领奖励页面')
     return false
   }
-  let closeResult = widgetUtils.widgetWaiting('关闭奖励弹窗', 3000)
+  let closeResult = widgetUtils.widgetWaiting('关闭奖励弹窗', '关闭奖励弹窗', 3000)
   if (!closeResult) {
     taskLog('未检测到"关闭奖励弹窗"，不在领奖励页面')
     return false

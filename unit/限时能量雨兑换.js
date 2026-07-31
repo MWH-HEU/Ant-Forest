@@ -141,7 +141,7 @@ function step1_openBackpack () {
     automator.clickCenter(confirm)
   }
   sleep(1000)
-  widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', 3000)
+  widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', '蚂蚁森林页面', 3000)
   sleep(3000)
   taskLog('蚂蚁森林已打开')
   

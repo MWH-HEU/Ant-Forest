@@ -2,7 +2,7 @@
  * @Author: Auto-generated for Ant-Forest
  * @Description: 收自己能量子脚本
  * 进入蚂蚁森林 → 等待2s → 循环30次（每次间隔5s）收集自己能量
- * 第6/11/16/21/26次：返回桌面 → 杀掉支付宝 → 重新进入，防止页面卡死
+ * 第6/11/16/21/26次：返回上一页 → 点击"蚂蚁森林"重新进入，防止页面卡死
  * 退出：音量上键 / 进入失败 / 循环结束 → 返回桌面 → 杀掉支付宝 → 移除任务
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
@@ -16,6 +16,7 @@ let widgetUtils = sRequire('WidgetUtils')
 let LogFloaty = sRequire('LogFloaty')
 let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
+let widgetInspector = require('../lib/WidgetInspector.js')(runtime, global)
 
 function killApps() {
   try {
@@ -56,6 +57,24 @@ commonFunction.registerOnEngineRemoved(function () {
 
 function taskLog(msg) {
   LogFloaty.pushLog(msg)
+}
+
+/**
+ * 遍历可见控件，正则匹配文本并点击
+ */
+function findAndClickByTextVisible(pattern) {
+  let result = widgetInspector.detectAllNodesVisible()
+  for (let node of result.nodes) {
+    if (pattern.test(node.text)) {
+      let bd = node.bounds
+      if (bd) {
+        taskLog('找到"' + node.text + '"，点击: (' + bd.centerX() + ', ' + bd.centerY() + ')')
+        automator.click(bd.centerX(), bd.centerY())
+        return true
+      }
+    }
+  }
+  return false
 }
 
 /**
@@ -135,14 +154,15 @@ function main() {
   sleep(2000)
 
   for (let i = 1; i <= 30; i++) {
-    // 第6/11/16/21/26次：返回桌面 → 杀掉支付宝 → 重新进入
+    // 第6/11/16/21/26次：返回上一页 → 点击"蚂蚁森林"重新进入
     if ((i - 1) % 5 === 0 && i > 5) {
-      commonFunction.minimize()
-      sleep(500)
-      killApps()
-      sleep(500)
-      if (!enterAntForest()) {
-        exitScript()
+      back()
+      sleep(800)
+      if (!findAndClickByTextVisible(/蚂蚁森林/)) {
+        warnInfo('未找到"蚂蚁森林"入口，重新进入蚂蚁森林')
+        if (!enterAntForest()) {
+          exitScript()
+        }
       }
       sleep(2000)
     }

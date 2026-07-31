@@ -170,7 +170,7 @@ function findAndExecuteTask (descText, btnText, taskFn) {
  * @returns {string} 'limited_benefit' | 'park' | 'unknown'
  */
 function detectPageType () {
-  let result = widgetUtils.widgetWaiting('每日来森林乐园签到|每日领取上限|开宝箱.*绿色能量', 5000)
+  let result = widgetUtils.widgetWaiting('每日来森林乐园签到|每日领取上限|开宝箱.*绿色能量', '限时福利/乐园页面', 5000)
   if (!result) return 'unknown'
 
   let allNodes = widgetInspector.detectAllNodesVisible().nodes
@@ -190,7 +190,7 @@ function detectPageType () {
  * @returns {boolean}
  */
 function isOnLimitedBenefitPage () {
-  let result = widgetUtils.widgetWaiting('每日来森林乐园签到', 3000)
+  let result = widgetUtils.widgetWaiting('每日来森林乐园签到', '限时福利页面', 3000)
   if (!result) {
     taskLog('未检测到"每日来森林乐园签到"，不在限时福利页面')
     return false

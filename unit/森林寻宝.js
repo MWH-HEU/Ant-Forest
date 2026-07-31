@@ -373,7 +373,7 @@ function getCodeAndOpen (category) {
     })
     let isValid = widgetUtils.widgetWaiting('去看看')
     if (!isValid) {
-      if (widgetUtils.widgetWaiting('吱口令已失效', 1000)) {
+      if (widgetUtils.widgetWaiting('吱口令已失效', '互助码失效检测', 1000)) {
         taskLog('互助码已失效')
         markTextInvalid(result.text)
       }
@@ -392,7 +392,7 @@ function getCodeAndOpen (category) {
       if (target) {
         automator.clickCenter(target)
         sleep(1000)
-        if (widgetUtils.widgetWaiting('^助力成功$', 2000)) {
+        if (widgetUtils.widgetWaiting('^助力成功$', '助力成功检测', 2000)) {
           taskLog('准备获取下一个互助码')
           markUsed(result.text)
           return getCodeAndOpen(category)
@@ -425,7 +425,7 @@ function openForestHuntPage () {
     automator.clickCenter(confirm)
   }
   sleep(1000)
-  widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', 3000)
+  widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', '等待蚂蚁森林页面', 3000)
   sleep(3000)
   taskLog('蚂蚁森林已打开')
   

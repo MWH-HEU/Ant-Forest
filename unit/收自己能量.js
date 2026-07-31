@@ -1,8 +1,8 @@
 /*
  * @Author: Auto-generated for Ant-Forest
  * @Description: 收自己能量子脚本
- * 进入蚂蚁森林 → 等待2s → 循环30次（每次间隔5s）收集自己能量
- * 第6/11/16/21/26次：返回上一页 → 点击"蚂蚁森林"重新进入，防止页面卡死
+ * 进入蚂蚁森林 → 等待2s → 循环40次（每次间隔5s）收集自己能量
+ * 第6/11/16/21/26/31/36次：返回上一页 → 点击"蚂蚁森林"重新进入，防止页面卡死
  * 退出：音量上键 / 进入失败 / 循环结束 → 返回桌面 → 杀掉支付宝 → 移除任务
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
@@ -153,8 +153,8 @@ function main() {
   }
   sleep(2000)
 
-  for (let i = 1; i <= 30; i++) {
-    // 第6/11/16/21/26次：返回上一页 → 点击"蚂蚁森林"重新进入
+  for (let i = 1; i <= 40; i++) {
+    // 第6/11/16/21/26/31/36次：返回上一页 → 点击"蚂蚁森林"重新进入
     if ((i - 1) % 5 === 0 && i > 5) {
       back()
       sleep(800)
@@ -167,9 +167,9 @@ function main() {
       sleep(2000)
     }
 
-    taskLog('第' + i + '/30次收能量')
+    taskLog('第' + i + '/40次收能量')
     collectOwnEnergy()
-    if (i < 30) sleep(5000)
+    if (i < 40) sleep(5000)
   }
 
   exitScript()

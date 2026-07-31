@@ -214,7 +214,7 @@ function openFishPool () {
 function waitForFishPoolPage () {
   taskLog("等待神奇鱼塘页面加载")
   sleep(3000)
-  let checkResult = widgetUtils.widgetWaiting(".*(神奇鱼塘|得能量|鱼塘绿色度|投喂).*", 5000)
+  let checkResult = widgetUtils.widgetWaiting(".*(神奇鱼塘|得能量|鱼塘绿色度|投喂).*", "神奇鱼塘页面", 5000)
   if (checkResult) {
     taskLog("神奇鱼塘页面已加载")
     return true
@@ -308,7 +308,7 @@ function clickGetEnergy () {
  */
 function waitForTaskPage () {
   taskLog('等待任务页面加载')
-  let checkResult = widgetUtils.widgetWaiting('.*(得更多能量|去浏览|去完成|绿色答题|蚂蚁森林).*', 5000)
+  let checkResult = widgetUtils.widgetWaiting('.*(得更多能量|去浏览|去完成|绿色答题|蚂蚁森林).*', '任务页面', 5000)
   if (checkResult) {
     taskLog('任务页面已加载')
     sleep(1000)
@@ -407,7 +407,7 @@ function doQuizTask () {
   taskLog('执行答题任务')
 
   taskLog('等待答题弹窗加载')
-  let quizPage = widgetUtils.widgetWaiting('.*(绿色答题|提交答案).*', 1000)
+  let quizPage = widgetUtils.widgetWaiting('.*(绿色答题|提交答案).*', '答题弹窗', 1000)
   sleep(1000)
 
   // 点击第一个选项 A.
@@ -439,7 +439,7 @@ function doAntForestTask () {
   taskLog('执行蚂蚁森林任务')
 
   taskLog('等待进入蚂蚁森林')
-  let entered = widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', 5000)
+  let entered = widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', '蚂蚁森林页面', 5000)
   if (!entered) {
     taskLog('未检测到蚂蚁森林页面，直接返回')
     return false

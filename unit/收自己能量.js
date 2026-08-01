@@ -182,25 +182,29 @@ function main() {
     // 第6/11/16/21/26/31/36次：返回上一页 → 点击"蚂蚁森林"重新进入
     if ((i - 1) % 5 === 0 && i > 5) {
       back()
-      sleep(800)
+      // 等待支付宝首页加载完成
+      sleep(2000)
       // 判断是否回到支付宝首页，不在则重新进入
       if (!isOnAlipayHomePage()) {
         warnInfo('未回到支付宝首页，重新进入蚂蚁森林')
         if (!enterAntForest()) {
           exitScript()
         }
-      } else if (!findAndClickByTextVisible(/蚂蚁森林/)) {
-        // 在支付宝首页但找不到"蚂蚁森林"入口，重新进入
-        warnInfo('未找到"蚂蚁森林"入口，重新进入蚂蚁森林')
-        if (!enterAntForest()) {
-          exitScript()
-        }
       } else {
-        // 点击"蚂蚁森林"后判断是否进入蚂蚁森林首页
-        if (!isOnAntForestPage()) {
-          warnInfo('未进入蚂蚁森林首页，重新进入蚂蚁森林')
+        // 在支付宝首页，点击"蚂蚁森林"入口
+        if (!findAndClickByTextVisible(/蚂蚁森林/)) {
+          // 找不到"蚂蚁森林"入口，重新进入
+          warnInfo('未找到"蚂蚁森林"入口，重新进入蚂蚁森林')
           if (!enterAntForest()) {
             exitScript()
+          }
+        } else {
+          // 点击"蚂蚁森林"后判断是否进入蚂蚁森林首页
+          if (!isOnAntForestPage()) {
+            warnInfo('未进入蚂蚁森林首页，重新进入蚂蚁森林')
+            if (!enterAntForest()) {
+              exitScript()
+            }
           }
         }
       }

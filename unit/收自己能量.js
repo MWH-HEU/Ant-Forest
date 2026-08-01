@@ -166,6 +166,7 @@ function main() {
       if (keyCode === 24) {
         toastLog('用户按音量上键，退出脚本')
         killApps()
+        runningQueueDispatcher.removeRunningTask()
         exit()
       }
     })

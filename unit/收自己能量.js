@@ -4,8 +4,7 @@
  * 进入蚂蚁森林 → 等待2s → 循环40次（每次间隔5s）收集自己能量
  * 第6/11/16/21/26/31/36次：返回上一页 → 点击"蚂蚁森林"重新进入，防止页面卡死
  * 退出：音量上键 / 进入失败 / 循环结束 → 返回桌面 → 杀掉支付宝 → 移除任务
- */
-let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
+ */let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
 let sRequire = require('../lib/SingletonRequirer.js')(runtime, global)
 singletonRequire = sRequire
@@ -78,6 +77,40 @@ function findAndClickByTextVisible(pattern) {
 }
 
 /**
+ * 判断是否在支付宝首页（需同时找到"扫一扫 收付款 出行 卡包 蚂蚁森林"）
+ */
+function isOnAlipayHomePage() {
+  let texts = ['扫一扫', '收付款', '出行', '卡包', '蚂蚁森林']
+  for (let i = 0; i < texts.length; i++) {
+    let result = widgetUtils.widgetWaiting(texts[i], '支付宝首页', 3000)
+    if (!result) {
+      taskLog('未检测到"' + texts[i] + '"，不在支付宝首页')
+      return false
+    }
+  }
+  taskLog('检测到"扫一扫 收付款 出行 卡包 蚂蚁森林"，确认在支付宝首页')
+  return true
+}
+
+/**
+ * 判断是否在蚂蚁森林首页（需同时找到"蚂蚁森林"和"森林广场"）
+ */
+function isOnAntForestPage() {
+  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 3000)
+  if (!result) {
+    taskLog('未检测到"蚂蚁森林"，不在蚂蚁森林界面')
+    return false
+  }
+  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 3000)
+  if (!squareResult) {
+    taskLog('未检测到"森林广场"，不在蚂蚁森林界面')
+    return false
+  }
+  taskLog('检测到"蚂蚁森林"和"森林广场"，确认在蚂蚁森林界面')
+  return true
+}
+
+/**
  * 进入蚂蚁森林
  */
 function enterAntForest() {
@@ -103,7 +136,8 @@ function enterAntForest() {
     sleep(1000)
   }
 
-  if (!widgetUtils.homePageWaiting()) {
+  // while 退出后，waitCount >= 10 说明超时未进入首页
+  if (waitCount >= 10) {
     errorInfo('进入蚂蚁森林失败')
     return false
   }
@@ -112,19 +146,9 @@ function enterAntForest() {
 }
 
 /**
- * 收取自己的能量
+ * 收取自己的能量（调用前需确保已在蚂蚁森林首页）
  */
 function collectOwnEnergy() {
-  if (config.not_collect_self) {
-    debugInfo('配置为不收取自己能量，跳过')
-    return
-  }
-
-  if (!widgetUtils.homePageWaiting()) {
-    warnInfo('不在首页，重新进入蚂蚁森林')
-    enterAntForest()
-  }
-
   let ReviveBaseScanner = require('../core/BaseScanner.js')
   let scanner = new ReviveBaseScanner()
   scanner.collectEnergy(true)
@@ -158,10 +182,25 @@ function main() {
     if ((i - 1) % 5 === 0 && i > 5) {
       back()
       sleep(800)
-      if (!findAndClickByTextVisible(/蚂蚁森林/)) {
+      // 判断是否回到支付宝首页，不在则重新进入
+      if (!isOnAlipayHomePage()) {
+        warnInfo('未回到支付宝首页，重新进入蚂蚁森林')
+        if (!enterAntForest()) {
+          exitScript()
+        }
+      } else if (!findAndClickByTextVisible(/蚂蚁森林/)) {
+        // 在支付宝首页但找不到"蚂蚁森林"入口，重新进入
         warnInfo('未找到"蚂蚁森林"入口，重新进入蚂蚁森林')
         if (!enterAntForest()) {
           exitScript()
+        }
+      } else {
+        // 点击"蚂蚁森林"后判断是否进入蚂蚁森林首页
+        if (!isOnAntForestPage()) {
+          warnInfo('未进入蚂蚁森林首页，重新进入蚂蚁森林')
+          if (!enterAntForest()) {
+            exitScript()
+          }
         }
       }
       sleep(2000)

@@ -82,7 +82,7 @@ function findAndClickByTextVisible(pattern) {
 function isOnAlipayHomePage() {
   let texts = ['扫一扫', '收付款', '出行', '卡包', '蚂蚁森林']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], '支付宝首页', 3000)
+    let result = widgetUtils.widgetWaiting(texts[i], '支付宝首页', 5000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在支付宝首页')
       return false
@@ -96,12 +96,12 @@ function isOnAlipayHomePage() {
  * 判断是否在蚂蚁森林首页（需同时找到"蚂蚁森林"和"森林广场"）
  */
 function isOnAntForestPage() {
-  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 3000)
+  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 5000)
   if (!result) {
     taskLog('未检测到"蚂蚁森林"，不在蚂蚁森林界面')
     return false
   }
-  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 3000)
+  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 5000)
   if (!squareResult) {
     taskLog('未检测到"森林广场"，不在蚂蚁森林界面')
     return false

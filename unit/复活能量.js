@@ -11,8 +11,9 @@
  *   4. 复活满6次则退出，否则回到步骤1
  *
  * 控件查找：findAndClickByTextVisible（WidgetInspector.detectAllNodesVisible）
- * +5g查找：findOrangeMarkers（findColor颜色匹配）
+ * +5g查找：findOrangeMarkers（findColors一次取所有橙色点，按y坐标聚类分组，每组一个按钮）
  * 帮TA复活能量：clickReviveEnergy（OCR模糊匹配"复活/能量/立得"，限制屏幕上半部）
+ * 总榜确认：checkInEnergyRank（widgetWaiting逐个检查"排行榜/日榜/周榜/总榜/总能量榜"，每个等5s）
  *
  * 退出前：再收一次能量 → minimize → killApps（仅退出时） → removeRunningTask → exit
  */
@@ -162,11 +163,11 @@ function enterAntForest() {
     sleep(1000)
   }
 
-  if (!widgetUtils.homePageWaiting()) {
+  // while 退出后，waitCount >= 10 说明超时未进入首页
+  if (waitCount >= 10) {
     errorInfo('进入蚂蚁森林失败')
     return false
   }
-  // taskLog('进入蚂蚁森林成功')
   sleep(2000)
   return true
 }
@@ -200,7 +201,8 @@ function clickEnergyRankTab() {
 }
 
 /**
- * 进入总能量榜：点击tab + 下滑找"查看更多好友"
+ * 进入总能量榜：点击tab + 下滑找"查看更多好友"，确认在总榜，最多重试5次
+ * 重试时返回后重新进入蚂蚁森林（back → 判断支付宝首页 → 点击蚂蚁森林入口）
  * @returns {boolean} 是否成功进入完整排行榜
  */
 function enterEnergyRankFirstTime() {
@@ -239,15 +241,26 @@ function enterEnergyRankFirstTime() {
       taskLog('返回后重新点击蚂蚁森林')
       back()
       sleep(800)
-      if (!findAndClickByTextVisible(/蚂蚁森林/)) {
+      // 判断是否回到支付宝首页，不在则重新进入
+      if (!isOnAlipayHomePage()) {
+        warnInfo('未回到支付宝首页，重新进入蚂蚁森林')
+        if (!enterAntForest()) {
+          return false
+        }
+      } else if (!findAndClickByTextVisible(/蚂蚁森林/)) {
+        // 在支付宝首页但找不到"蚂蚁森林"入口，重新进入
         warnInfo('未找到"蚂蚁森林"入口，重新进入蚂蚁森林')
         if (!enterAntForest()) {
-          exitScript()
+          return false
         }
-      }
-      sleep(2000)
-      if (!clickEnergyRankTab()) {
-        return false
+      } else {
+        // 点击"蚂蚁森林"后判断是否进入蚂蚁森林首页
+        if (!isOnAntForestPage()) {
+          warnInfo('未进入蚂蚁森林首页，重新进入蚂蚁森林')
+          if (!enterAntForest()) {
+            return false
+          }
+        }
       }
     }
   }
@@ -262,90 +275,55 @@ function enterEnergyRankFirstTime() {
  * @returns {boolean} 是否在总能量榜
  */
 function checkInEnergyRank() {
-  let result = widgetInspector.detectAllNodesVisible()
-  // 需要同时包含的文本
-  let rankTexts = [/排行榜/, /日榜/, /周榜/, /总榜/, /总能量榜/]
-  for (let pattern of rankTexts) {
-    if (!result.nodes.some(n => pattern.test(n.text))) {
+  let texts = ['排行榜', '日榜', '周榜', '总榜', '总能量榜']
+  for (let i = 0; i < texts.length; i++) {
+    let result = widgetUtils.widgetWaiting(texts[i], '总能量榜页面', 5000)
+    if (!result) {
+      taskLog('未检测到"' + texts[i] + '"，不在总能量榜页面')
       return false
     }
   }
-  debugInfo('确认已在总能量榜页面')
+  taskLog('检测到"排行榜 日榜 周榜 总榜 总能量榜"，确认在总能量榜页面')
   return true
 }
 
 /**
- * 查找+5g复活标志（使用findColor找橙色按钮，保留兼容）
+ * 判断是否在支付宝首页（需同时找到"扫一扫 收付款 出行 卡包 蚂蚁森林"）
  */
-function findReviveMarkers() {
-  // taskLog('查找+5g复活标志')
-
-  let results = []
-
-  // 用findColor找橙色按钮（+5g是橙底白字）
-  debugInfo('使用findColor查找橙色按钮')
-  try {
-    let screen = commonFunction.captureScreen()
-    if (screen) {
-      // 橙色 #FF8F00 附近，阈值50，只扫描右侧10%宽度区域
-      let color = '#FF8F00'
-      let threshold = 50
-      let w = config.device_width
-      let region = [w * 0.9, 0, w * 0.1, config.device_height]
-      let maxFind = 20
-      while (maxFind-- > 0) {
-        // 找按钮左上角
-        let topLeft = images.findColor(screen, color, {
-          region: region,
-          threshold: threshold
-        })
-        if (!topLeft) break
-
-        // 在左上角下方区域找右下角
-        let bottomRight = images.findColor(screen, color, {
-          region: [w * 0.9, topLeft.y, w * 0.1, config.device_height - topLeft.y],
-          threshold: threshold
-        })
-        if (!bottomRight) {
-          bottomRight = topLeft
-        }
-
-        // 按钮中心 = (左上 + 右下) / 2
-        let centerX = Math.round((topLeft.x + bottomRight.x) / 2)
-        let centerY = Math.round((topLeft.y + bottomRight.y) / 2)
-
-        debugInfo(['findColor找到橙色按钮: 左上({}, {}) 右下({}, {})', topLeft.x, topLeft.y, bottomRight.x, bottomRight.y])
-        results.push({
-          centerX: centerX,
-          centerY: centerY
-        })
-
-        // 排除这个按钮区域，继续找下一个
-        region = [w * 0.9, bottomRight.y + 5, w * 0.1, config.device_height - (bottomRight.y + 5)]
-        if (region[3] <= 0) break
-      }
+function isOnAlipayHomePage() {
+  let texts = ['扫一扫', '收付款', '出行', '卡包', '蚂蚁森林']
+  for (let i = 0; i < texts.length; i++) {
+    let result = widgetUtils.widgetWaiting(texts[i], '支付宝首页', 5000)
+    if (!result) {
+      taskLog('未检测到"' + texts[i] + '"，不在支付宝首页')
+      return false
     }
-  } catch (e) {
-    warnInfo('findColor异常: ' + e)
   }
+  taskLog('检测到"扫一扫 收付款 出行 卡包 蚂蚁森林"，确认在支付宝首页')
+  return true
+}
 
-  // 去重（按y坐标去重，同一按钮上下边缘各有一个点）
-  let uniqueResults = []
-  results.forEach(r => {
-    let isDuplicate = uniqueResults.some(u =>
-      Math.abs(u.centerY - r.centerY) < 40
-    )
-    if (!isDuplicate) {
-      uniqueResults.push(r)
-    }
-  })
-
-  // taskLog('找到 ' + uniqueResults.length + ' 个+5g标志')
-  return uniqueResults
+/**
+ * 判断是否在蚂蚁森林首页（需同时找到"蚂蚁森林"和"森林广场"）
+ */
+function isOnAntForestPage() {
+  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 5000)
+  if (!result) {
+    taskLog('未检测到"蚂蚁森林"，不在蚂蚁森林界面')
+    return false
+  }
+  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 5000)
+  if (!squareResult) {
+    taskLog('未检测到"森林广场"，不在蚂蚁森林界面')
+    return false
+  }
+  taskLog('检测到"蚂蚁森林"和"森林广场"，确认在蚂蚁森林界面')
+  return true
 }
 
 /**
  * 使用findColor查找橙色按钮（+5g按钮）
+ * 一次findColors拿所有橙色点，按y坐标聚类分组，每组一个按钮
  * @returns {Array} 橙色按钮位置列表
  */
 function findOrangeMarkers() {
@@ -358,55 +336,55 @@ function findOrangeMarkers() {
       let color = '#FF8F00'
       let threshold = 50
       let w = config.device_width
+      // 只扫描右侧10%宽度区域
       let region = [w * 0.9, 0, w * 0.1, config.device_height]
-      let maxFind = 20
-      while (maxFind-- > 0) {
-        // 找按钮左上角
-        let topLeft = images.findColor(screen, color, {
-          region: region,
-          threshold: threshold
-        })
-        if (!topLeft) break
 
-        // 在左上角下方区域找右下角
-        let bottomRight = images.findColor(screen, color, {
-          region: [w * 0.9, topLeft.y, w * 0.1, config.device_height - topLeft.y],
-          threshold: threshold
-        })
-        if (!bottomRight) {
-          bottomRight = topLeft
+      // 一次拿区域内所有橙色点
+      let allPoints = images.findColors(screen, color, {
+        region: region,
+        threshold: threshold
+      })
+
+      if (allPoints && allPoints.length > 0) {
+        // 按y坐标排序
+        allPoints.sort((a, b) => a.y - b.y)
+
+        // 按y坐标聚类：相邻点y差<30px归为同一按钮
+        let groups = []
+        let currentGroup = [allPoints[0]]
+        for (let i = 1; i < allPoints.length; i++) {
+          if (Math.abs(allPoints[i].y - allPoints[i - 1].y) < 30) {
+            currentGroup.push(allPoints[i])
+          } else {
+            groups.push(currentGroup)
+            currentGroup = [allPoints[i]]
+          }
         }
+        groups.push(currentGroup)
 
-        // 按钮中心 = (左上 + 右下) / 2
-        let centerX = Math.round((topLeft.x + bottomRight.x) / 2)
-        let centerY = Math.round((topLeft.y + bottomRight.y) / 2)
+        // 每组一个按钮：取x+y最小为左上角，x+y最大为右下角，算中心
+        for (let group of groups) {
+          let topLeft = group.reduce((min, p) =>
+            (p.x + p.y < min.x + min.y) ? p : min, group[0])
+          let bottomRight = group.reduce((max, p) =>
+            (p.x + p.y > max.x + max.y) ? p : max, group[0])
 
-        debugInfo(['findColor找到橙色按钮: 左上({}, {}) 右下({}, {})', topLeft.x, topLeft.y, bottomRight.x, bottomRight.y])
-        results.push({
-          centerX: centerX,
-          centerY: centerY
-        })
+          let centerX = Math.round((topLeft.x + bottomRight.x) / 2)
+          let centerY = Math.round((topLeft.y + bottomRight.y) / 2)
 
-        // 排除这个按钮区域，继续找下一个
-        region = [w * 0.9, bottomRight.y + 5, w * 0.1, config.device_height - (bottomRight.y + 5)]
-        if (region[3] <= 0) break
+          debugInfo(['findColor找到橙色按钮: 左上({}, {}) 右下({}, {})', topLeft.x, topLeft.y, bottomRight.x, bottomRight.y])
+          results.push({
+            centerX: centerX,
+            centerY: centerY
+          })
+        }
       }
     }
   } catch (e) {
     warnInfo('findColor异常: ' + e)
   }
 
-  let uniqueResults = []
-  results.forEach(r => {
-    let isDuplicate = uniqueResults.some(u =>
-      Math.abs(u.centerY - r.centerY) < 40
-    )
-    if (!isDuplicate) {
-      uniqueResults.push(r)
-    }
-  })
-
-  return uniqueResults
+  return results
 }
 
 /**

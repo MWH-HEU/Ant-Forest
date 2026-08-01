@@ -247,18 +247,22 @@ function enterEnergyRankFirstTime() {
         if (!enterAntForest()) {
           return false
         }
-      } else if (!findAndClickByTextVisible(/蚂蚁森林/)) {
-        // 在支付宝首页但找不到"蚂蚁森林"入口，重新进入
-        warnInfo('未找到"蚂蚁森林"入口，重新进入蚂蚁森林')
-        if (!enterAntForest()) {
-          return false
-        }
       } else {
-        // 点击"蚂蚁森林"后判断是否进入蚂蚁森林首页
-        if (!isOnAntForestPage()) {
-          warnInfo('未进入蚂蚁森林首页，重新进入蚂蚁森林')
+        // 在支付宝首页，等待页面完全加载后再点击"蚂蚁森林"
+        sleep(2000)
+        if (!findAndClickByTextVisible(/蚂蚁森林/)) {
+          // 找不到"蚂蚁森林"入口，重新进入
+          warnInfo('未找到"蚂蚁森林"入口，重新进入蚂蚁森林')
           if (!enterAntForest()) {
             return false
+          }
+        } else {
+          // 点击"蚂蚁森林"后判断是否进入蚂蚁森林首页
+          if (!isOnAntForestPage()) {
+            warnInfo('未进入蚂蚁森林首页，重新进入蚂蚁森林')
+            if (!enterAntForest()) {
+              return false
+            }
           }
         }
       }

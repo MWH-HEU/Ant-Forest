@@ -183,18 +183,15 @@ function clickEnergyRankTab() {
     sleep(1000)
     return true
   }
-  if (findAndClickByTextVisible(/总能量榜/)) {
-    sleep(1000)
-    return true
-  }
   let limit = 5
   do {
-    let h = config.device_height
-    automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
+    // 先查找点击，找不到再滑动
     if (findAndClickByTextVisible(/总能量榜/)) {
       sleep(1000)
       return true
     }
+    let h = config.device_height
+    automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
   } while (--limit > 0)
   warnInfo('切换到总能量榜tab失败')
   return false
@@ -215,9 +212,7 @@ function enterEnergyRankFirstTime() {
     }
     // 下滑找"查看更多好友"，找到"你每养成一棵树"就停止
     while (true) {
-      let h = config.device_height
-      automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
-      sleep(500)
+      // 先查找点击，找不到再滑动
       if (findAndClickByTextVisible(/查看更多好友/)) {
         sleep(1000)
         break
@@ -229,6 +224,9 @@ function enterEnergyRankFirstTime() {
         warnInfo('已滑到底部未找到"查看更多好友"')
         break
       }
+      let h = config.device_height
+      automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
+      sleep(500)
     }
 
     // 点击"查看更多好友"后，检查是否在总能量榜
@@ -240,7 +238,8 @@ function enterEnergyRankFirstTime() {
     if (retryCount < 5) {
       taskLog('返回后重新点击蚂蚁森林')
       back()
-      sleep(800)
+      // 等待页面完全加载
+      sleep(2000)
       // 判断是否回到支付宝首页，不在则重新进入
       if (!isOnAlipayHomePage()) {
         warnInfo('未回到支付宝首页，重新进入蚂蚁森林')
@@ -248,8 +247,7 @@ function enterEnergyRankFirstTime() {
           return false
         }
       } else {
-        // 在支付宝首页，等待页面完全加载后再点击"蚂蚁森林"
-        sleep(2000)
+        // 在支付宝首页，点击"蚂蚁森林"入口
         if (!findAndClickByTextVisible(/蚂蚁森林/)) {
           // 找不到"蚂蚁森林"入口，重新进入
           warnInfo('未找到"蚂蚁森林"入口，重新进入蚂蚁森林')
@@ -266,6 +264,8 @@ function enterEnergyRankFirstTime() {
           }
         }
       }
+      // 等待页面完全加载
+      sleep(2000)
     }
   }
 

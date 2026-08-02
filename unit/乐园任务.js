@@ -1,9 +1,8 @@
 /*
  * 自动执行乐园任务
- * 1. 打开蚂蚁森林，判断在蚂蚁森林首页后OCR进入乐园
- * 2. 判断在乐园页面后OCR进入限时福利
- * 3. 限时福利页面：循环领取所有能量 → 循环找玩一玩任务
- * 4. 玩一玩任务完成后退出页面（检测包名切入支付宝 → back循环），失败则重新进入限时福利继续
+ * 1. enterLimitedBenefitPage进入限时福利页面（打开蚂蚁森林 → 进入乐园 → 进入限时福利）
+ * 2. 限时福利页面：循环领取所有能量 → 循环找玩一玩任务
+ * 3. 玩一玩任务完成后退出页面（直接切入支付宝 → 切入失败或不在限时福利页面则重新打开限时福利继续）
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
@@ -85,11 +84,6 @@ function openAntForest () {
   }
   sleep(2000)
   return true
-}
-
-function goBack () {
-  back()
-  sleep(800)
 }
 
 /**
@@ -208,7 +202,8 @@ function isOnAntForestPage () {
 function isOnParkPage () {
   // 限时福利浮层打开时，乐园控件仍存在，先排除
   if (isOnLimitedBenefitPage()) return false
-  let result = widgetUtils.widgetWaiting('每日领取上限|开宝箱.*绿色能量', '乐园页面', 3000)
+  // textMatches为全文匹配，需用.*通配匹配包含关键字的完整文本
+  let result = widgetUtils.widgetWaiting('.*每日领取上限.*|.*开宝箱.*绿色能量.*', '乐园页面', 3000)
   if (!result) {
     taskLog('未检测到乐园页面特征控件，不在乐园页面')
     return false
@@ -218,73 +213,76 @@ function isOnParkPage () {
 }
 
 /**
- * 判断是否在限时福利页面（检测"每日来森林乐园签到"）
+ * 判断是否在限时福利页面（完全匹配"每日签到"或"开10个乐园宝箱"）
  * @returns {boolean}
  */
 function isOnLimitedBenefitPage () {
-  let result = widgetUtils.widgetWaiting('每日来森林乐园签到', '限时福利页面', 3000)
-  if (!result) {
-    taskLog('未检测到"每日来森林乐园签到"，不在限时福利页面')
-    return false
+  // 限时福利是浮层，widgetWaiting的findOne可能找不到浮层控件，改用detectAllNodesVisible
+  // 先等待页面加载完成
+  sleep(3000)
+  let allNodes = widgetInspector.detectAllNodesVisible().nodes
+  for (let node of allNodes) {
+    // 完全匹配"每日签到"或"开10个乐园宝箱"
+    if (node.text === '每日签到' || node.text === '开10个乐园宝箱') {
+      taskLog('检测到"每日签到/开10个乐园宝箱"，确认在限时福利页面')
+      return true
+    }
   }
-  taskLog('检测到"每日来森林乐园签到"，确认在限时福利页面')
-  return true
+  taskLog('未检测到"每日签到/开10个乐园宝箱"，不在限时福利页面')
+  return false
+}
+
+/**
+ * 确保在限时福利页面
+ * 1. 已在限时福利页面 → 返回true
+ * 2. 不在乐园页面 → 返回false
+ * 3. 在乐园页面 → OCR进入限时福利 → 再检测一次
+ * @returns {boolean} 是否成功确保在限时福利页面
+ */
+function ensureOnLimitedBenefitPage () {
+  // 1. 已在限时福利页面
+  if (isOnLimitedBenefitPage()) return true
+  // 2. 不在乐园页面 → 失败
+  if (!isOnParkPage()) return false
+  // 3. 在乐园页面，OCR进入限时福利
+  taskLog('在乐园页面，进入限时福利')
+  if (!clickByOcr('限时福利', 5000)) return false
+  sleep(2000)
+  return isOnLimitedBenefitPage()
 }
 
 /**
  * 重新进入限时福利页面
  * 打开蚂蚁森林 → OCR进入乐园 → 进入限时福利
- * 最多尝试3次
+ * 单次执行，失败返回false
  * @returns {boolean} 是否成功进入限时福利页面
  */
 function enterLimitedBenefitPage () {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    taskLog('尝试进入限时福利页面，第' + (attempt + 1) + '次')
-    if (!openAntForest()) {
-      taskLog('进入蚂蚁森林失败')
-      continue
-    }
-    // 调用乐园界面之前，判断是否在蚂蚁森林首页
-    if (!isOnAntForestPage()) {
-      taskLog('不在蚂蚁森林首页')
-      continue
-    }
-    sleep(2000)
-
-    taskLog('查找乐园入口')
-    if (!clickByOcr('乐园', 5000)) {
-      taskLog('OCR未找到乐园入口')
-      continue
-    }
-    sleep(2000)
-
-    // 乐园页面操作前，判断是否在乐园页面
-    if (isOnLimitedBenefitPage()) {
-      taskLog('已在限时福利页面')
-      return true
-    }
-    if (!isOnParkPage()) {
-      taskLog('不在乐园页面')
-      continue
-    }
-    sleep(2000)
-
-    // 在乐园页面，进入限时福利
-    taskLog('查找限时福利入口')
-    if (!clickByOcr('限时福利', 5000)) {
-      taskLog('OCR未找到限时福利入口')
-      continue
-    }
-    sleep(2000)
-
-    // 限时福利操作前，判断是否在限时福利页面
-    if (isOnLimitedBenefitPage()) {
-      taskLog('成功进入限时福利页面')
-      return true
-    }
-    taskLog('未进入限时福利页面，准备重试')
+  taskLog('尝试进入限时福利页面')
+  if (!openAntForest()) {
+    taskLog('进入蚂蚁森林失败')
+    return false
   }
-  errorInfo('无法进入限时福利页面，已尝试3次')
+  // 调用乐园界面之前，判断是否在蚂蚁森林首页
+  if (!isOnAntForestPage()) {
+    taskLog('不在蚂蚁森林首页')
+    return false
+  }
+  sleep(2000)
+
+  taskLog('查找乐园入口')
+  if (!clickByOcr('乐园', 5000)) {
+    taskLog('OCR未找到乐园入口')
+    return false
+  }
+  sleep(2000)
+
+  // 确保在限时福利页面（已在则直接成功，在乐园则OCR进入，否则失败）
+  if (ensureOnLimitedBenefitPage()) {
+    taskLog('成功进入限时福利页面')
+    return true
+  }
+  taskLog('未进入限时福利页面')
   return false
 }
 
@@ -301,7 +299,7 @@ function claimAllEnergy () {
  * 等待玩一玩任务完成
  * 1. 先等待5分钟让任务自动完成
  * 2. 每5秒检查一次"已完成"（最多6次）
- * 3. 退出玩一玩页面：先检测包名切入支付宝，再back循环回到限时福利，失败则重新进入
+ * 3. 退出玩一玩页面：直接切入支付宝 → 切入失败或不在限时福利页面则重新打开限时福利页面
  * @returns {boolean} 是否成功回到限时福利页面
  */
 function waitForGameComplete () {
@@ -324,47 +322,26 @@ function waitForGameComplete () {
 
   // 退出玩一玩页面，与每日任务waitForTaskComplete一致
   taskLog('任务完成，退出页面')
-  sleep(2000)
+  sleep(500)
 
   let pkg = config.package_name || 'com.eg.android.AlipayGphone'
 
-  // 1. 检测当前包是否在支付宝，不在则先切入支付宝
-  if (currentPackage() !== pkg) {
-    taskLog('当前不在支付宝，切入支付宝')
-    let switched = SwitchToApp.switchToApp({
-      pkg: pkg,
-      cardText: '支付宝',
-      onLog: taskLog
-    })
-    if (!switched) {
-      taskLog('切入支付宝失败，重新进入')
-      commonFunction.minimize()
-      sleep(500)
-      openAntForest()
-      return enterLimitedBenefitPage()
-    }
-    sleep(1000)
-  }
+  // 1. 直接切入支付宝（不做包名检查）
+  taskLog('切入支付宝')
+  let switched = SwitchToApp.switchToApp({
+    pkg: pkg,
+    cardText: '支付宝',
+    onLog: taskLog
+  })
+  sleep(1000)
 
-  // 2. 返回逻辑：先检测后back，循环直到回到限时福利页面
-  let maxBacks = 3
-  for (let i = 0; i < maxBacks; i++) {
-    // 先检测是否已在限时福利页面
-    if (isOnLimitedBenefitPage()) {
-      taskLog('已回到限时福利页面')
-      return true
-    }
-    // 不在则back
-    taskLog('第' + (i + 1) + '次back')
-    goBack()
-    sleep(3000)
+  // 2. 切入失败或切入后不在限时福利页面，重新打开限时福利页面
+  if (!switched || !isOnLimitedBenefitPage()) {
+    taskLog('切入失败或不在限时福利页面，重新打开限时福利页面')
+    return enterLimitedBenefitPage()
   }
-
-  taskLog('多次back后仍未回到限时福利页面，重新进入')
-  commonFunction.minimize()
-  sleep(500)
-  openAntForest()
-  return enterLimitedBenefitPage()
+  taskLog('已回到限时福利页面')
+  return true
 }
 
 // ============ 主流程 ============
@@ -382,54 +359,13 @@ function main () {
     })
   })
 
-  // 1. 打开蚂蚁森林
-  if (!openAntForest()) {
-    errorInfo('进入蚂蚁森林失败，结束乐园任务')
+  // 1. 进入限时福利页面（打开蚂蚁森林 → 进入乐园 → 进入限时福利，单次执行，失败则退出）
+  if (!enterLimitedBenefitPage()) {
+    errorInfo('进入限时福利页面失败，结束乐园任务')
     exitScript()
   }
-  // 调用乐园界面之前，判断是否在蚂蚁森林首页
-  if (!isOnAntForestPage()) {
-    errorInfo('不在蚂蚁森林首页，结束乐园任务')
-    exitScript()
-  }
-  sleep(2000)
 
-  // 2. 进入乐园
-  taskLog('查找乐园入口')
-  if (!clickByOcr('乐园', 5000)) {
-    errorInfo('无法定位乐园入口，结束乐园任务')
-    exitScript()
-  }
-  sleep(2000)
-
-  // 3. 判断当前页面：可能在限时福利页面或乐园页面
-  if (isOnLimitedBenefitPage()) {
-    taskLog('已在限时福利页面')
-  } else {
-    // 乐园页面操作前，判断是否在乐园页面
-    if (!isOnParkPage()) {
-      errorInfo('不在乐园页面，结束乐园任务')
-      exitScript()
-    }
-    sleep(2000)
-
-    // 在乐园页面，进入限时福利
-    taskLog('查找限时福利入口')
-    if (!clickByOcr('限时福利', 5000)) {
-      errorInfo('未找到限时福利入口，结束乐园任务')
-      exitScript()
-    }
-    sleep(2000)
-
-    // 限时福利操作前，判断是否在限时福利页面
-    if (!isOnLimitedBenefitPage()) {
-      errorInfo('进入限时福利页面失败，结束乐园任务')
-      exitScript()
-    }
-    sleep(2000)
-  }
-
-  // 4. 限时福利页面：先领所有能量，然后循环做玩一玩任务
+  // 2. 限时福利页面：先领所有能量，然后循环做玩一玩任务
   taskLog('开始执行限时福利任务')
 
   // 先领能量
@@ -447,7 +383,7 @@ function main () {
     if (taskFailed) break
   }
 
-  // 5. 任务完成
+  // 3. 任务完成
   if (taskFailed) {
     taskLog('任务异常结束，退出脚本')
   } else {

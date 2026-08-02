@@ -9,7 +9,6 @@
  *
  * 注意：config_data/<key>.data 文件本身不会被删除，只作为数据源
  */
-"ui";
 
 let { config } = require('../config.js')(runtime, global)
 

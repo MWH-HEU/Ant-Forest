@@ -1,16 +1,15 @@
 /*
  * 神奇鱼塘任务脚本
  * 功能：
- * 1. 打开闲鱼主Activity，通过控件点击"神奇鱼塘"进入
- * 2. 处理"领取并投喂"弹窗
- * 3. 收取自己的能量
- * 4. 通过OCR识别"得能量"并点击进入任务页面
- * 5. 通过控件查找任务按钮，完成3个任务：
+ * 1. 打开闲鱼主Activity，通过控件点击"神奇鱼塘"进入，并处理"领取并投喂"弹窗
+ * 2. 收取自己的能量
+ * 3. 通过OCR识别"得能量"并点击进入任务页面
+ * 4. 通过控件循环查找并完成3个任务：
  *    - 浏览商品：进入商品列表后下滑查找"抵后价"并点击
  *    - 绿色答题：依次点击A.选项→提交答案→立即收能量
  *    - 去蚂蚁森林：进入后等待3秒返回，杀掉支付宝进程
- * 6. 每执行完一个任务后重进鱼塘→收能量→点得能量→等任务页面
- * 7. 所有任务完成后再次收能量，杀掉进程退出
+ * 5. 每完成一个任务后重进鱼塘→收能量→点得能量→等任务页面，直至3个任务全部完成
+ * 6. 所有任务完成后再次收能量，杀掉进程退出
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
@@ -53,9 +52,21 @@ function killAlipayGphone () {
   }
 }
 
+/**
+ * 退出脚本：最小化、杀掉后台进程、移除运行中任务并退出
+ */
+function exitScript () {
+  commonFunction.minimize()
+  sleep(500)
+  killApps()
+  sleep(500)
+  runningQueueDispatcher.removeRunningTask()
+  exit()
+}
+
 runningQueueDispatcher.addRunningTask()
 
-// 日志文件
+// 日志文件（writeLog 为预留调试功能，当前 taskLog 未启用文件写入）
 let _logFile = null
 let _logFilePath = FileUtils.getRealMainScriptPath(true) + '/logs/yutang.log'
 function writeLog (msg) {
@@ -71,7 +82,7 @@ function writeLog (msg) {
   } catch (e) {}
 }
 
-// 调试日志（悬浮窗显示 + 写入日志文件）
+// 调试日志（仅悬浮窗显示）
 function taskLog (msg) {
   LogFloaty.pushLog(msg)
   // writeLog(msg)
@@ -92,9 +103,12 @@ commonFunction.registerOnEngineRemoved(function () {
 
 // ============ 工具函数 ============
 
+/**
+ * 返回上一页
+ */
 function goBack () {
   back()
-  sleep(800)
+  sleep(2000)
 }
 
 /**
@@ -157,13 +171,14 @@ function findAndExecuteTask (descText, btnText, taskFn) {
       }
     }
   }
-  taskLog('找到任务: "' + descText + '"，未找到对应按钮: ' + btnText + '"，任务可能已完成')
+  taskLog('找到任务: "' + descText + '"，未找到对应按钮: ' + btnText + '，任务可能已完成')
   return false
 }
 // ============ 神奇鱼塘操作 ============
 
 /**
  * 打开闲鱼神奇鱼塘（旧版，通过intent直达）
+ * 注意：当前主流程未使用，保留备用
  */
 function openFishPoolByIntent () {
   taskLog("准备打开闲鱼神奇鱼塘（intent方式）")
@@ -184,7 +199,8 @@ function openFishPoolByIntent () {
 }
 
 /**
- * 打开闲鱼神奇鱼塘：打开闲鱼主Activity，再通过控件点击"神奇鱼塘"进入
+ * 打开闲鱼神奇鱼塘：打开闲鱼主Activity，再通过控件点击"神奇鱼塘"进入，
+ * 进入后处理"领取并投喂"弹窗，最后等待鱼塘页面加载
  */
 function openFishPool () {
   taskLog("准备打开闲鱼神奇鱼塘")
@@ -203,11 +219,14 @@ function openFishPool () {
   findAndClickByTextVisible(/神奇鱼塘/)
   sleep(2000)
 
+  // 进入鱼塘后处理"领取并投喂"弹窗（原步骤2已移入此处）
+  handleFeedDialog()
+
   return waitForFishPoolPage()
 }
 
 /**
- * 等待神奇鱼塘页面加载（供collectOwnEnergy使用）
+ * 等待神奇鱼塘页面加载
  */
 function waitForFishPoolPage () {
   taskLog("等待神奇鱼塘页面加载")
@@ -234,23 +253,29 @@ function collectOwnEnergy () {
 }
 
 /**
- * 处理"领取并投喂"弹窗：如果检测到"领取并投喂"，则重新进入神奇鱼塘
+ * 处理"领取并投喂"弹窗：通过控件查找"领取并投喂"并点击领取投喂，
+ * 点击后返回上一页，再点击"神奇鱼塘"重新进入
  */
 function handleFeedDialog () {
   taskLog('处理"领取并投喂"弹窗')
 
-  let result = widgetInspector.detectAllNodesVisible()
-  for (let node of result.nodes) {
-    if (node.text === '领取并投喂') {
-      taskLog('检测到"领取并投喂"，重新进入神奇鱼塘')
-      openFishPool()
-      return
-    }
+  if (findAndClickByTextVisible(/领取并投喂/)) {
+    taskLog('已点击"领取并投喂"，返回上一页')
+    sleep(1000)
+    goBack()
+    sleep(1000)
+    findAndClickByTextVisible(/神奇鱼塘/)
+    return true
   }
 
   taskLog('未检测到"领取并投喂"')
+  return false
 }
 
+/**
+ * 通过OCR识别"得能量"并点击进入任务页面
+ * @returns {boolean} 是否找到并点击了"得能量"
+ */
 function clickGetEnergy () {
   taskLog('通过OCR识别"得能量"')
   sleep(2000)
@@ -278,7 +303,7 @@ function clickGetEnergy () {
 }
 
 /**
- * 等待任务页面加载（检测"浏览商品详情页"或"绿色答题"）
+ * 等待任务页面加载（检测任务描述文字：每天提醒我收绿色打卡能量 / 点击1个商品进入详情页 / 参与绿色科普答题 / 去蚂蚁森林收更多能量）
  */
 function waitForTaskPage () {
   taskLog('等待任务页面加载')
@@ -295,6 +320,7 @@ function waitForTaskPage () {
 /**
  * 检查并关闭"领取并投喂"浮层
  * 先找"领取并投喂"按钮，再在其正下方找X按钮（宽高比接近1:1的正方形）
+ * 注意：当前主流程未使用（弹窗由 handleFeedDialog 直接点击领取），保留备用
  */
 function checkDialogAndClose () {
   taskLog('检查是否存在"领取并投喂"弹窗')
@@ -381,7 +407,7 @@ function doQuizTask () {
   taskLog('执行答题任务')
 
   taskLog('等待答题弹窗加载')
-  let quizPage = widgetUtils.widgetWaiting('.*(绿色答题|提交答案).*', '答题弹窗', 1000)
+  widgetUtils.widgetWaiting('.*(绿色答题|提交答案).*', '答题弹窗', 1000)
   sleep(1000)
 
   // 点击第一个选项 A.
@@ -409,6 +435,9 @@ function doQuizTask () {
   return true
 }
 
+/**
+ * 执行蚂蚁森林任务：等待进入蚂蚁森林，停留3秒后杀掉支付宝进程返回
+ */
 function doAntForestTask () {
   taskLog('执行蚂蚁森林任务')
 
@@ -428,6 +457,10 @@ function doAntForestTask () {
   return true
 }
 
+/**
+ * 依次尝试三个任务（浏览商品 / 绿色答题 / 去蚂蚁森林），找到并执行一个即返回
+ * @returns {boolean} 是否执行了某个任务
+ */
 function findAndExecuteTasks () {
   taskLog('通过控件查找任务按钮')
 
@@ -442,6 +475,7 @@ function findAndExecuteTasks () {
 
 /**
  * 执行鱼塘主页面任务：两遍遍历，先找目标文字记录x坐标，再找同列数字+g格式控件
+ * 注意：当前主流程未使用，保留备用
  */
 function doMainPageTasks () {
   taskLog('执行鱼塘主页面任务')
@@ -504,7 +538,7 @@ function main () {
       if (keyCode === 24) {
         toastLog('用户按音量上键，退出脚本')
         killApps()
-        sleep(500)
+        runningQueueDispatcher.removeRunningTask()
         exit()
       }
     })
@@ -513,44 +547,25 @@ function main () {
   taskLog('=== 步骤1: 打开神奇鱼塘 ===')
   if (!openFishPool()) {
     errorInfo('打开神奇鱼塘失败')
-    commonFunction.minimize()
-    sleep(500)
-    // 杀掉后台进程
-    killApps()
-    sleep(500)
-    runningQueueDispatcher.removeRunningTask()
-    exit()
+    exitScript()
   }
 
-  taskLog('=== 步骤2: 处理弹窗 ===')
-  handleFeedDialog()
-
-  taskLog('=== 步骤3: 先收一次能量 ===')
+  taskLog('=== 步骤2: 先收一次能量 ===')
   collectOwnEnergy()
 
-  taskLog('=== 步骤4: 点击"得能量" ===')
+  taskLog('=== 步骤3: 点击"得能量" ===')
   if (!clickGetEnergy()) {
     errorInfo('无法找到"得能量"入口')
-    commonFunction.minimize()
-    sleep(500)
-    killApps()
-    sleep(500)
-    runningQueueDispatcher.removeRunningTask()
-    exit()
+    exitScript()
   }
 
-  taskLog('=== 步骤5: 等待任务页面 ===')
+  taskLog('=== 步骤4: 等待任务页面 ===')
   if (!waitForTaskPage()) {
     errorInfo('任务页面加载失败')
-    commonFunction.minimize()
-    sleep(500)
-    killApps()
-    sleep(500)
-    runningQueueDispatcher.removeRunningTask()
-    exit()
+    exitScript()
   }
 
-  taskLog('=== 步骤6: 执行任务 ===')
+  taskLog('=== 步骤5: 执行任务 ===')
   for (let round = 0; round < 10; round++) {
     taskLog('第 ' + (round + 1) + ' 轮执行')
     let tasksDone = 0
@@ -579,12 +594,7 @@ function main () {
   sleep(2000)
   collectOwnEnergy()
   sleep(1000)
-  commonFunction.minimize()
-  sleep(500)
-  killApps()
-  sleep(500)
-  runningQueueDispatcher.removeRunningTask()
-  exit()
+  exitScript()
 }
 
 main()

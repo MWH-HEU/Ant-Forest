@@ -258,7 +258,7 @@ function BrowserExecutor () {
 }
 
 /**
- * 点击商品任务：点击"到手价|入会价|优惠后|补贴后|天猫加补后|绿色制造|绿色家电|绿色有机"商品 → 返回 → 判断任务是否完成（while循环，无次数限制）
+ * 点击商品任务：点击"到手价|入会价|优惠后|补贴后|天猫加补后|绿色制造|绿色运输|绿色有机"商品 → 返回 → 判断任务是否完成（while循环，无次数限制）
  */
 function ClickExecutor () {
   taskLog('点击商品进行浏览')
@@ -311,11 +311,11 @@ function isClickTaskSameLine () {
 }
 
 /**
- * 点击一个商品详情（到手价|入会价|优惠后|补贴后|天猫加补后|绿色制造|绿色家电|绿色有机）并返回
+ * 点击一个商品详情（到手价|入会价|优惠后|补贴后|天猫加补后|绿色制造|绿色运输|绿色有机）并返回
  * @returns {boolean} 是否成功点击商品
  */
 function clickGoodDetail () {
-  let clickBtn = widgetUtils.widgetGetOne('到手价|入会价|优惠后|补贴后|天猫加补后|绿色制造|绿色家电|绿色有机')
+  let clickBtn = widgetUtils.widgetGetOne('到手价|入会价|优惠后|补贴后|天猫加补后|绿色制造|绿色运输|绿色有机')
   if (clickBtn) {
     taskLog('随机点击一个商品')
     clickBtn.click()

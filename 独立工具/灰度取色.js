@@ -54,6 +54,7 @@ setInterval(() => {
 var captureImage, drawImage, originalImg, grayImg
 var previewImage = null
 var displayPositions = ''
+var lastClipBase64 = null   // 最近一次框选生成的 base64（供保存DATA使用）
 threads.start(function () {
   if (!requestScreenCapture()) {
     toast("请求截图失败")
@@ -79,6 +80,7 @@ var canvasWindow = floaty.rawWindow(
     <vertical id="vertical" bg="#aaaaaa" w="{{Math.floor(device_width*0.8)}}px" h="{{Math.floor(device_height*0.5)}}px" gravity="center">
       <horizontal id="horizontal" margin="5dp" w="*" gravity="center">
         <button id="cutOrPoint" layout_weight="1" text="裁切小图" />
+        <button id="btnSaveData" layout_weight="1" text="保存DATA" />
         <button id="recognizeText" layout_weight="1" text="识别文字" />
         <button id="openFile" layout_weight="1" text="选择图片文件" />
         <button id="toggleOcr" layout_weight="1" text="切换为Paddle" />
@@ -227,16 +229,13 @@ canvasWindow.cutOrPoint.on('click', () => {
           return
         }
         let base64Str = images.toBase64(clipImg)
+        lastClipBase64 = base64Str   // 存全局，供保存DATA使用
         setClip(base64Str)
         log('base64:' + base64Str)
-        let filePath = 'logs/base64/' + formatDate(new Date(), 'yyyyMMdd/HHmmss.log')
-        let savePath = currentPath + '/' + filePath
-        files.ensureDir(savePath)
-        files.write( savePath, base64Str)
-        toastLog('小图base64已复制并保存到：' + savePath)
+        toastLog('小图base64已复制到剪贴板')
         previewImage = null
         ui.post(() => {
-          canvasWindow.tip_text.text('数据已保存到：' + filePath)
+          canvasWindow.tip_text.text('base64已复制，可点【保存DATA】保存为模板')
         })
       } else {
         toastLog('未框选小图')
@@ -262,6 +261,55 @@ canvasWindow.cutOrPoint.on('click', () => {
     })
   })
 })
+
+// ===== 新增：保存DATA按钮 - 直接用框选生成的 base64 写入文件 =====
+// 框选后 cutOrPoint 已生成 base64 并存到 lastClipBase64，这里直接转灰度写入 config_data/<name>.data
+canvasWindow.btnSaveData.on('click', () => {
+  threads.start(function () {
+    try {
+      if (!lastClipBase64) {
+        toastLog('请先框选并点【复制Base64】')
+        return
+      }
+      let name = dialogs.rawInput('输入模板名称', '').trim()
+      if (!name) {
+        toastLog('未输入名称，取消')
+        return
+      }
+      // base64 解码回图片，统一转灰度（与项目现有模板一致）
+      let clipImg = images.fromBase64(lastClipBase64)
+      if (!clipImg) {
+        toastLog('base64 解码失败')
+        return
+      }
+      let grayClip = images.cvtColor(images.grayscale(clipImg), 'GRAY2BGRA')
+      clipImg.recycle()
+      let b64 = images.toBase64(grayClip)
+      grayClip.recycle()
+      // 写入 config_data/<name>.data（不带换行）
+      let dataPath = currentPath + '/config_data/' + name + '.data'
+      files.ensureDir(dataPath)
+      files.write(dataPath, b64)
+      // 同步更新存储，让可视化配置立即读到新值（否则读的是存储里的旧值/空值）
+      try {
+        let imgStorage = storages.create('ant_forest_config_fork_version_image')
+        imgStorage.put(name, b64)
+      } catch (e) {
+        log('更新图片存储失败：' + e)
+      }
+      toastLog('模板已保存：' + dataPath)
+      let tip = '模板已保存到 config_data/' + name + '.data\n\n' +
+        '请手动在 config.js 的 prepareImageConfig 列表中加入: \'' + name + '\'\n' +
+        '然后重启脚本生效。\n\n' +
+        '调用方式：\n' +
+        'OpenCvUtil.findByGrayBase64(screen, _config.image_config.' + name + ')'
+      dialogs.alert('保存成功', tip)
+    } catch (e) {
+      toastLog('保存模板异常：' + e)
+    }
+  })
+})
+
 canvasWindow.toggleOcr.on('click', () => {
   usePaddle = !usePaddle
   ui.run(function () {
@@ -598,8 +646,14 @@ canvasWindow.canvas.setOnTouchListener(function (view, event) {
             cutEndX = event.getX(0)
             cutEndY = event.getY(0)
             positions = [cutStartX, cutStartY, cutEndX, cutEndY]
-            resourceMonitor.delayRecycle(previewImage)
-            previewImage = images.copy(convertAndClip(positions, data, drawImage), true)
+            // 修复：convertAndClip 在宽高为0时返回null，避免 images.copy(null) 空指针
+            let _clip = convertAndClip(positions, data, drawImage)
+            if (_clip) {
+              resourceMonitor.delayRecycle(previewImage)
+              previewImage = images.copy(_clip, true)
+              // 自动更新 base64（框变化即最新，供保存DATA直接使用）
+              lastClipBase64 = images.toBase64(_clip)
+            }
           } else {
             var id = event.getPointerId(0)
             var X = event.getX(0)
@@ -613,12 +667,24 @@ canvasWindow.canvas.setOnTouchListener(function (view, event) {
             data.scale = TouchData.scale * scaleRate
             data.translate.x = X - Touch[id].X * scaleRate
             data.translate.y = Y - Touch[id].Y * scaleRate
-            resourceMonitor.delayRecycle(previewImage)
-            previewImage = images.copy(convertAndClip(positions, data, drawImage), true)
+            // 修复：convertAndClip 在宽高为0时返回null，避免 images.copy(null) 空指针
+            let _clip = convertAndClip(positions, data, drawImage)
+            if (_clip) {
+              resourceMonitor.delayRecycle(previewImage)
+              previewImage = images.copy(_clip, true)
+              // 自动更新 base64（框变化即最新，供保存DATA直接使用）
+              lastClipBase64 = images.toBase64(_clip)
+            }
           }
           break
         case event.ACTION_UP:
-
+          // 手指抬起时确保 base64 为最终框位置
+          if (positions && positions.length === 4) {
+            let _clip = convertAndClip(positions, data, drawImage)
+            if (_clip) {
+              lastClipBase64 = images.toBase64(_clip)
+            }
+          }
           break
       }
     } else {

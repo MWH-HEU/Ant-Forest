@@ -262,6 +262,9 @@ function collectOwnEnergy () {
 function handleFeedDialog () {
   taskLog('处理"领取并投喂"弹窗')
 
+  // 等待"领取并投喂"弹窗出现
+  widgetUtils.widgetWaiting('领取并投喂', '领取并投喂弹窗', 5000)
+
   if (findAndClickByTextVisible(/领取并投喂/)) {
     taskLog('已点击"领取并投喂"，返回上一页')
     sleep(1000)

@@ -215,6 +215,9 @@ function openFishPool () {
   })
   sleep(3000)
 
+  // 等待"神奇鱼塘"入口出现
+  widgetUtils.widgetWaiting('神奇鱼塘', '神奇鱼塘入口', 5000)
+
   // 通过控件点击"神奇鱼塘"进入
   findAndClickByTextVisible(/神奇鱼塘/)
   sleep(2000)

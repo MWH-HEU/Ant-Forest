@@ -263,7 +263,7 @@ function handleFeedDialog () {
   taskLog('处理"领取并投喂"弹窗')
 
   // 等待"领取并投喂"弹窗出现
-  widgetUtils.widgetWaiting('领取并投喂', '领取并投喂弹窗', 5000)
+  widgetUtils.widgetWaiting('领取并投喂', '领取并投喂弹窗', 2000)
 
   if (findAndClickByTextVisible(/领取并投喂/)) {
     taskLog('已点击"领取并投喂"，返回上一页')
@@ -373,7 +373,7 @@ function checkDialogAndClose () {
 }
 
 /**
- * 执行浏览商品任务：进入商品列表后下滑查找"抵后价"并点击
+ * 执行浏览商品任务：进入商品列表后下滑查找"抵"（完全匹配）或"抵后价..."商品并点击
  */
 function doBrowseTask () {
   taskLog('执行浏览商品任务')
@@ -389,7 +389,11 @@ function doBrowseTask () {
     automator.randomScrollDown(0.6 * h, 0.7 * h, 0.2 * h, 0.3 * h)
     sleep(1500)
 
-    if (findAndClickByTextVisible(/抵后价/)) {
+    // 优先匹配"抵"（完全匹配），其次匹配"抵后价..."
+    let clickBtn = widgetUtils.widgetGetOne('^抵$|抵后价.*')
+    if (clickBtn) {
+      taskLog('找到商品，点击')
+      clickBtn.click()
       sleep(1500)
       taskLog('已点击商品，等待详情页加载后返回')
       goBack()
@@ -399,10 +403,10 @@ function doBrowseTask () {
       return true
     }
 
-    taskLog('未找到"抵后价"，继续下滑')
+    taskLog('未找到商品，继续下滑')
   }
 
-  taskLog('浏览任务失败：未找到"抵后价"')
+  taskLog('浏览任务失败：未找到商品')
   return false
 }
 

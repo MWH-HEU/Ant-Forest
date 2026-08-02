@@ -3,12 +3,13 @@
  * @Description: 复活能量子脚本
  * 复活好友能量，每次获得5g
  *
- * 流程（一直循环，直到复活6次、找不到+5g或进入总榜失败退出）：
- *   1. 进入蚂蚁森林 → 收取自己能量
- *   2. 进入总能量榜（下滑找"查看更多好友"，点击后确认在总榜，最多重试5次）
- *   3. 查找+5g（优先模板图片匹配 rebirth_5g.data，失败回退findColor找橙色#FF8F00），连续2次没找到检查"没有更多了"
- *      找到后取第一个，进入好友森林复活
- *   4. 复活满6次则退出，否则回到步骤1
+ * 流程：
+ *   首次：进入蚂蚁森林 → 收取自己能量 → 进入总能量榜
+ *   循环（直到复活6次、找不到+5g或进入总榜失败退出）：
+ *     1. 查找+5g（优先模板图片匹配 rebirth_5g.data，失败回退findColor找橙色#FF8F00），连续2次没找到检查"没有更多了"
+ *        找到后取第一个，进入好友森林复活
+ *     2. 进入好友森林后无论复活成功失败，goBack返回，检查是否在总榜（只检查"排行榜"），在则直接继续下一轮；不在则重新进入蚂蚁森林进总榜
+ *     3. 复活满6次则退出
  *
  * 控件查找：findAndClickByTextVisible（WidgetInspector.detectAllNodesVisible）
  * +5g查找：findOrangeMarkers（优先模板图片匹配 rebirth_5g.data，失败回退findColor找按钮内第一个橙色点，再从右下(x+1,y+1)找相邻点算中心）
@@ -71,7 +72,7 @@ function taskLog(msg) {
 
 function goBack() {
   back()
-  sleep(800)
+  sleep(2000)
 }
 
 function exitScript() {
@@ -200,7 +201,7 @@ function clickEnergyRankTab() {
 
 /**
  * 进入总能量榜：点击tab + 下滑找"查看更多好友"，确认在总榜，最多重试5次
- * 重试时返回后重新进入蚂蚁森林（back → 判断支付宝首页 → 点击蚂蚁森林入口）
+ * 重试时返回后重新进入蚂蚁森林（goBack → 判断支付宝首页 → 点击蚂蚁森林入口）
  * @returns {boolean} 是否成功进入完整排行榜
  */
 function enterEnergyRankFirstTime() {
@@ -238,9 +239,7 @@ function enterEnergyRankFirstTime() {
     retryCount++
     if (retryCount < 5) {
       taskLog('返回后重新点击蚂蚁森林')
-      back()
-      // 等待页面完全加载
-      sleep(2000)
+      goBack()
       // 判断是否回到支付宝首页，不在则重新进入
       if (!isOnAlipayHomePage()) {
         warnInfo('未回到支付宝首页，重新进入蚂蚁森林')
@@ -511,25 +510,23 @@ function main() {
   let revivedCount = 0
   let roundCount = 0
 
+  // 首次进入：进入蚂蚁森林 → 收取自己的能量 → 进入总能量榜（仅执行一次）
+  if (!enterAntForest()) {
+    errorInfo('进入蚂蚁森林失败，结束脚本')
+    exitScript()
+  }
+  collectOwnEnergy()
+  sleep(1000)
+  if (!enterEnergyRankFirstTime()) {
+    errorInfo('进入总能量榜失败，结束脚本')
+    exitScript()
+  }
+
   while (true) {
     roundCount++
     taskLog('第' + roundCount + '轮（已复活' + revivedCount + '次)')
 
-    // 步骤1: 进入蚂蚁森林并收取自己的能量
-    if (!enterAntForest()) {
-      errorInfo('进入蚂蚁森林失败，结束脚本')
-      break
-    }
-    collectOwnEnergy()
-    sleep(1000)
-
-    // 步骤2: 进入总能量榜
-    if (!enterEnergyRankFirstTime()) {
-      errorInfo('进入总能量榜失败，结束脚本')
-      break
-    }
-
-    // 步骤3: 查找+5g，连续2次没找到检查"没有更多了"
+    // 查找+5g，连续2次没找到检查"没有更多了"
     let markers = []
     findcolor:
     while (markers.length === 0) {
@@ -571,6 +568,26 @@ function main() {
       } else {
         warnInfo('未找到"帮TA复活能量"')
       }
+      // 无论成功失败，此时都在好友页面，goBack返回总榜
+      goBack()
+      // 检查是否回到总榜（只检查"排行榜"）
+      let inRank = widgetUtils.widgetWaiting('排行榜', '总能量榜页面', 1000)
+      if (!inRank) {
+        // 不在总榜，重新进入蚂蚁森林进总榜
+        taskLog('goBack后不在总榜，重新进入蚂蚁森林')
+        if (!isOnAntForestPage()) {
+          if (!enterAntForest()) {
+            errorInfo('重新进入蚂蚁森林失败，结束脚本')
+            break
+          }
+        }
+        if (!enterEnergyRankFirstTime()) {
+          errorInfo('进入总能量榜失败，结束脚本')
+          break
+        }
+      }
+      // 在总榜或已重新进入总榜，继续下一轮
+      continue
     } else {
       warnInfo('进入好友森林失败')
     }

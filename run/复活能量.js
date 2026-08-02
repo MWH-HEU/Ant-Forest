@@ -11,7 +11,7 @@
  *   4. 复活满6次则退出，否则回到步骤1
  *
  * 控件查找：findAndClickByTextVisible（WidgetInspector.detectAllNodesVisible）
- * +5g查找：findOrangeMarkers（findColors一次取所有橙色点，按y坐标聚类分组，每组一个按钮）
+ * +5g查找：findOrangeMarkers（findColor找按钮内第一个橙色点，再从右下(x+1,y+1)找相邻点算中心）
  * 帮TA复活能量：clickReviveEnergy（OCR模糊匹配"复活/能量/立得"，限制屏幕上半部）
  * 总榜确认：checkInEnergyRank（widgetWaiting逐个检查"排行榜/日榜/周榜/总榜/总能量榜"，每个等5s）
  *
@@ -327,8 +327,8 @@ function isOnAntForestPage() {
 
 /**
  * 使用findColor查找橙色按钮（+5g按钮）
- * 一次findColors拿所有橙色点，按y坐标聚类分组，每组一个按钮
- * @returns {Array} 橙色按钮位置列表
+ * 找按钮内第一个橙色点，再从其右下(x+1,y+1)找相邻点，算中心后直接返回
+ * @returns {Array} 橙色按钮位置列表（只含第一个按钮）
  */
 function findOrangeMarkers() {
   let results = []
@@ -343,45 +343,30 @@ function findOrangeMarkers() {
       // 只扫描右侧10%宽度区域
       let region = [w * 0.9, 0, w * 0.1, config.device_height]
 
-      // 一次拿区域内所有橙色点
-      let allPoints = images.findColors(screen, color, {
+      // 找按钮内第一个橙色点
+      let firstPoint = images.findColor(screen, color, {
         region: region,
         threshold: threshold
       })
-
-      if (allPoints && allPoints.length > 0) {
-        // 按y坐标排序
-        allPoints.sort((a, b) => a.y - b.y)
-
-        // 按y坐标聚类：相邻点y差<30px归为同一按钮
-        let groups = []
-        let currentGroup = [allPoints[0]]
-        for (let i = 1; i < allPoints.length; i++) {
-          if (Math.abs(allPoints[i].y - allPoints[i - 1].y) < 30) {
-            currentGroup.push(allPoints[i])
-          } else {
-            groups.push(currentGroup)
-            currentGroup = [allPoints[i]]
-          }
+      if (firstPoint) {
+        // 从第一个点右下(x+1, y+1)开始找相邻橙色点，保证是不同像素点
+        let secondPoint = images.findColor(screen, color, {
+          region: [firstPoint.x + 1, firstPoint.y + 1, w - (firstPoint.x + 1), config.device_height - (firstPoint.y + 1)],
+          threshold: threshold
+        })
+        if (!secondPoint) {
+          secondPoint = firstPoint
         }
-        groups.push(currentGroup)
 
-        // 每组一个按钮：取x+y最小为左上角，x+y最大为右下角，算中心
-        for (let group of groups) {
-          let topLeft = group.reduce((min, p) =>
-            (p.x + p.y < min.x + min.y) ? p : min, group[0])
-          let bottomRight = group.reduce((max, p) =>
-            (p.x + p.y > max.x + max.y) ? p : max, group[0])
+        // 按钮中心 = (第一个点 + 第二个点) / 2
+        let centerX = Math.round((firstPoint.x + secondPoint.x) / 2)
+        let centerY = Math.round((firstPoint.y + secondPoint.y) / 2)
 
-          let centerX = Math.round((topLeft.x + bottomRight.x) / 2)
-          let centerY = Math.round((topLeft.y + bottomRight.y) / 2)
-
-          debugInfo(['findColor找到橙色按钮: 左上({}, {}) 右下({}, {})', topLeft.x, topLeft.y, bottomRight.x, bottomRight.y])
-          results.push({
-            centerX: centerX,
-            centerY: centerY
-          })
-        }
+        debugInfo(['findColor找到橙色按钮: 点1({}, {}) 点2({}, {}) 中心({}, {})', firstPoint.x, firstPoint.y, secondPoint.x, secondPoint.y, centerX, centerY])
+        results.push({
+          centerX: centerX,
+          centerY: centerY
+        })
       }
     }
   } catch (e) {

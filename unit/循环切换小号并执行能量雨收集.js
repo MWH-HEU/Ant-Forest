@@ -58,7 +58,7 @@ if (config.accounts && config.accounts.length > 1) {
     LogFloaty.pushLog('切换完毕')
     sleep(500)
     LogFloaty.pushLog('开始执行能量雨')
-    let source = fileUtils.getCurrentWorkPath() + '/unit/能量雨.js'
+    let source = fileUtils.getCurrentWorkPath() + '/run/能量雨.js'
     runningQueueDispatcher.doAddRunningTask({ source: source })
     let targetSendName = config.accounts[(idx + 1) % config.accounts.length].accountName
     logUtils.debugInfo(['赠送对象昵称为：{}', targetSendName])
@@ -92,7 +92,7 @@ if (config.accounts && config.accounts.length > 1) {
   sleep(1000)
   ensureMainAccount()
   LogFloaty.pushLog('主账号再次校验能量雨机会')
-  let source = fileUtils.getCurrentWorkPath() + '/unit/能量雨.js'
+  let source = fileUtils.getCurrentWorkPath() + '/run/能量雨.js'
   runningQueueDispatcher.doAddRunningTask({ source: source })
   // 隐藏日志悬浮窗，降低性能消耗
   LogFloaty.hide()

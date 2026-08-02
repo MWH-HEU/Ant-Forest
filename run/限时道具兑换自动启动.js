@@ -17,10 +17,10 @@ unlocker.exec()
 configStorage.put("auto_start_rain", true)
 toastLog("配置完毕done")
 // 显示5秒倒计时弹窗
-commonFunctions.showCommonDialogAndWait('能量雨')
+commonFunctions.showCommonDialogAndWait('限时道具兑换')
 let mainScriptPath = FileUtils.getRealMainScriptPath(true)
-let childScriptPath = mainScriptPath + "/unit/能量雨.js"
-engines.execScriptFile(childScriptPath, { path: mainScriptPath + "/unit/", arguments: { executeByTimeTask: true } })
+let childScriptPath = mainScriptPath + "/run/限时道具兑换.js"
+engines.execScriptFile(childScriptPath, { path: mainScriptPath + "/run/", arguments: { executeByTimeTask: true } })
 sleep(1000)
 let all = engines.all()
 for (let i = 0; i < all.length; i++) {

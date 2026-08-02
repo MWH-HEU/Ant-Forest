@@ -338,7 +338,7 @@ StrollScanner.prototype.checkAndCollectRain = function () {
       WarningFloaty.clearAll()
       automator.clickCenter(target.target)
       sleep(1000)
-      let source = fileUtils.getCurrentWorkPath() + '/unit/能量雨.js'
+      let source = fileUtils.getCurrentWorkPath() + '/run/能量雨.js'
       runningQueueDispatcher.doAddRunningTask({ source: source })
       engines.execScriptFile(source, { path: source.substring(0, source.lastIndexOf('/')), arguments: { executeByStroll: true, executorSource: engines.myEngine().getSource() + '' } })
       _commonFunctions.commonDelay(2.5, '执行能量雨[', true, true)

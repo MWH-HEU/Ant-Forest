@@ -14,13 +14,13 @@ if (!commonFunctions.ensureAccessibilityEnabled()) {
 config.mute_exec = true
 let unlocker = require('../lib/Unlock.js')
 unlocker.exec()
-configStorage.put("auto_start_rain", true)
+configStorage.put("auto_start_fish_pool", true)
 toastLog("配置完毕done")
 // 显示5秒倒计时弹窗
-commonFunctions.showCommonDialogAndWait('每日任务')
+commonFunctions.showCommonDialogAndWait('神奇鱼塘')
 let mainScriptPath = FileUtils.getRealMainScriptPath(true)
-let childScriptPath = mainScriptPath + "/unit/每日任务.js"
-engines.execScriptFile(childScriptPath, { path: mainScriptPath + "/unit/", arguments: { executeByTimeTask: true } })
+let childScriptPath = mainScriptPath + "/run/神奇鱼塘.js"
+engines.execScriptFile(childScriptPath, { path: mainScriptPath + "/run/", arguments: { executeByTimeTask: true } })
 sleep(1000)
 let all = engines.all()
 for (let i = 0; i < all.length; i++) {

@@ -1,3 +1,9 @@
+/*
+ * @Author: Auto-generated for Ant-Forest
+ * @Description: 复活能量父脚本 - 自动启动复活能量子脚本
+ * 每天8:00-22:00运行，复活好友能量，每次获得5g
+ * 大循环2次，每次内小循环7次
+ */
 var { default_config, config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let singletonRequire = require('../lib/SingletonRequirer.js')(runtime, global)
 var configStorage = storages.create(_storage_name)
@@ -14,13 +20,13 @@ if (!commonFunctions.ensureAccessibilityEnabled()) {
 config.mute_exec = true
 let unlocker = require('../lib/Unlock.js')
 unlocker.exec()
-configStorage.put("auto_start_rain", true)
+configStorage.put("auto_start_revive_energy", true)
 toastLog("配置完毕done")
 // 显示5秒倒计时弹窗
-commonFunctions.showCommonDialogAndWait('限时道具兑换')
+commonFunctions.showCommonDialogAndWait('复活能量')
 let mainScriptPath = FileUtils.getRealMainScriptPath(true)
-let childScriptPath = mainScriptPath + "/unit/限时道具兑换.js"
-engines.execScriptFile(childScriptPath, { path: mainScriptPath + "/unit/", arguments: { executeByTimeTask: true } })
+let childScriptPath = mainScriptPath + "/run/复活能量.js"
+engines.execScriptFile(childScriptPath, { path: mainScriptPath + "/run/", arguments: { executeByTimeTask: true } })
 sleep(1000)
 let all = engines.all()
 for (let i = 0; i < all.length; i++) {

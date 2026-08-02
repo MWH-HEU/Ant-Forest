@@ -5,9 +5,10 @@
  *    不在则重新打开蚂蚁森林进入领奖励页面，最多尝试3次，否则失败
  * 3. 领奖励与去抽奖采用 findAndClickByTextVisible 点击，不限制次数，去抽奖有额外抽奖操作
  * 4. 探索任务：widgetInspector.detectAllNodesVisible 匹配所有控件
- *    完全匹配探索任务按钮（必须是按钮），检查排除项同行则跳过
+ *    完全匹配探索任务按钮（EXPLORE_BUTTONS，含"一键浇水"等特殊任务按钮），检查排除项同行则跳过
  *    判断是否为特殊任务，走对应分支；否则走普通任务分支
  *    特殊任务按 waitTime 等待，普通任务按同行关键词等待（默认2s，长等待15s）
+ *    特殊任务 clickTarget 分支：控件优先识别，OCR 兜底
  *    任务完成后类似 waitForTaskComplete：先检测当前包，不在支付宝则切入，再先检测后back
  *    失败则重新进入蚂蚁森林-领奖励-继续执行任务
  */
@@ -324,15 +325,16 @@ function handlePopupDialog () {
 }
 
 const SPECIAL_TASKS = [
-  { keyword: '逛一逛点淘得红包', waitTime: 15000, action: 'clickTarget', clickTarget: '点击领元宝' },
+  { keyword: '逛一逛点淘得红包', waitTime: 15000, action: 'clickTarget', clickTarget: '打开APP' },
   { keyword: '每日浇水领真绿植', waitTime: 0, action: 'scroll16' },
   { keyword: '逛惊喜市集领红包', waitTime: 15000, action: 'scroll8' },
-  { keyword: '逛一逛芝麻树兑绿植', waitTime: 15000, action: 'scroll8' }
+  { keyword: '逛一逛芝麻树兑绿植', waitTime: 15000, action: 'scroll8' },
+  { keyword: '给随机好友一键浇水', waitTime: 0, action: 'clickTarget', clickTarget: '送给TA' }
 ]
 
 const SKIP_KEYWORDS = ['玩一场能量雨', '添加1份看病保障', '去淘宝看科普视频', '去蚂蚁阿福健康问答', '添加小荷包能量插件']
 
-const EXPLORE_BUTTONS = ['逛一逛', '去看看', '去参与', '去领取', '去守护', '去完成', '去逛逛']
+const EXPLORE_BUTTONS = ['逛一逛', '去看看', '去参与', '去领取', '去守护', '去完成', '去逛逛', '一键浇水']
 
 const LONG_WAIT_KEYWORDS = ['玩一玩', '获取更多森林资讯', '看15s直播得能量', '逛一逛飞猪']
 
@@ -398,13 +400,13 @@ function executeSpecialTask (specialTask) {
 
   if (specialTask.action === 'clickTarget' && specialTask.clickTarget) {
     let found = false
-    // OCR优先识别（复用clickByOcr，带重试）
-    if (clickByOcr(specialTask.clickTarget, 3000)) {
+    // 控件优先识别
+    if (findAndClickByTextVisible(new RegExp('^' + specialTask.clickTarget + '$'))) {
       found = true
     }
-    // 控件兜底
+    // OCR兜底（复用clickByOcr，带重试）
     if (!found) {
-      if (findAndClickByTextVisible(new RegExp('^' + specialTask.clickTarget + '$'))) {
+      if (clickByOcr(specialTask.clickTarget, 3000)) {
         found = true
       }
     }

@@ -271,7 +271,10 @@ canvasWindow.btnSaveData.on('click', () => {
         toastLog('请先框选并点【复制Base64】')
         return
       }
-      let name = dialogs.rawInput('输入模板名称', '').trim()
+      // 用 dialogs.rawInput 输入名称（保存成功过，最可靠）
+      // rawInput 点击外部取消时返回 null，先判空再 trim，避免报错
+      let nameInput = dialogs.rawInput('输入模板名称', '')
+      let name = nameInput ? nameInput.trim() : ''
       if (!name) {
         toastLog('未输入名称，取消')
         return

@@ -273,7 +273,8 @@ config.exportIfNeeded(module, (key, value) => {
 config.prepareImageConfig([
   'reward_for_plant', 'backpack_icon', 'sign_reward_icon', 'water_icon',
   'stroll_icon', 'watering_cooperation', 'magic_species_icon', 'use_item', 'one_key_collect',
-  'main_account_avatar', 'rebirth_5g'
+  'main_account_avatar', 'rebirth_5g',
+  'paradise_icon', 'get_energy_icon', 'ocean_reward_icon', 'ai_fish_icon', 'ai_fish_reward_icon'
 ])
 
 // 重置配置

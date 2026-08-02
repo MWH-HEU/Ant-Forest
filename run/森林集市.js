@@ -360,7 +360,7 @@ function findAndExecuteTasks () {
   // 2.1 检测到"浏览商品\d+s得能量" → BrowserExecutor
   for (let node of allNodes) {
     if (/浏览商品\d+s得能量/.test(node.text)) {
-      taskLog('检测到"浏览商品\d+s得能量"，执行浏览任务')
+      taskLog('检测到浏览商品任务，执行浏览任务')
       BrowserExecutor()
       // checkAndClickIfTaskEnd 为真（已点击"任务已完成"）后等待2s继续循环
       if (checkAndClickIfTaskEnd()) {

@@ -6,12 +6,12 @@
  * 流程（一直循环，直到复活6次、找不到+5g或进入总榜失败退出）：
  *   1. 进入蚂蚁森林 → 收取自己能量
  *   2. 进入总能量榜（下滑找"查看更多好友"，点击后确认在总榜，最多重试5次）
- *   3. findColor查找+5g（橙色#FF8F00），连续2次没找到检查"没有更多了"
+ *   3. 查找+5g（优先模板图片匹配 rebirth_5g.data，失败回退findColor找橙色#FF8F00），连续2次没找到检查"没有更多了"
  *      找到后取第一个，进入好友森林复活
  *   4. 复活满6次则退出，否则回到步骤1
  *
  * 控件查找：findAndClickByTextVisible（WidgetInspector.detectAllNodesVisible）
- * +5g查找：findOrangeMarkers（findColor找按钮内第一个橙色点，再从右下(x+1,y+1)找相邻点算中心）
+ * +5g查找：findOrangeMarkers（优先模板图片匹配 rebirth_5g.data，失败回退findColor找按钮内第一个橙色点，再从右下(x+1,y+1)找相邻点算中心）
  * 帮TA复活能量：clickReviveEnergy（OCR模糊匹配"复活/能量/立得"，限制屏幕上半部）
  * 总榜确认：checkInEnergyRank（widgetWaiting逐个检查"排行榜/日榜/周榜/总榜/总能量榜"，每个等5s）
  *
@@ -31,6 +31,7 @@ let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
 let widgetInspector = require('../lib/WidgetInspector.js')(runtime, global)
+let OpenCvUtil = require('../lib/OpenCvUtil.js')
 
 function killApps () {
   try {
@@ -326,51 +327,80 @@ function isOnAntForestPage() {
 }
 
 /**
- * 使用findColor查找橙色按钮（+5g按钮）
- * 找按钮内第一个橙色点，再从其右下(x+1,y+1)找相邻点，算中心后直接返回
+ * 查找+5g橙色按钮（复活能量入口）
+ * 优先使用模板图片匹配（rebirth_5g.data），返回真实边界框中心，精确可靠；
+ * 模板不存在或匹配失败时，回退到findColor两次匹配方案（找按钮内第一个橙色点，再从右下(x+1,y+1)找相邻点算中心）
  * @returns {Array} 橙色按钮位置列表（只含第一个按钮）
  */
 function findOrangeMarkers() {
   let results = []
 
-  debugInfo('使用findColor查找橙色按钮')
   try {
     let screen = commonFunction.captureScreen()
-    if (screen) {
-      let color = '#FF8F00'
-      let threshold = 50
-      let w = config.device_width
-      // 只扫描右侧10%宽度区域
-      let region = [w * 0.9, 0, w * 0.1, config.device_height]
+    if (!screen) {
+      return results
+    }
 
-      // 找按钮内第一个橙色点
-      let firstPoint = images.findColor(screen, color, {
-        region: region,
-        threshold: threshold
-      })
-      if (firstPoint) {
-        // 从第一个点右下(x+1, y+1)开始找相邻橙色点，保证是不同像素点
-        let secondPoint = images.findColor(screen, color, {
-          region: [firstPoint.x + 1, firstPoint.y + 1, w - (firstPoint.x + 1), config.device_height - (firstPoint.y + 1)],
-          threshold: threshold
-        })
-        if (!secondPoint) {
-          secondPoint = firstPoint
+    // 方案1：模板图片匹配（优先）
+    if (config.image_config && config.image_config.rebirth_5g) {
+      try {
+        let w = config.device_width
+        // 只扫描右侧10%宽度区域，加快匹配并减少误匹配
+        let region = [w * 0.9, 0, w * 0.1, config.device_height]
+        let match = OpenCvUtil.findByGrayBase64(screen, config.image_config.rebirth_5g, false, region)
+        if (match) {
+          let centerX = Math.round(match.centerX())
+          let centerY = Math.round(match.centerY())
+          debugInfo(['模板匹配找到+5g按钮: 左上({}, {}) 右下({}, {}) 中心({}, {})', match.left, match.top, match.right, match.bottom, centerX, centerY])
+          results.push({ centerX: centerX, centerY: centerY })
+          return results
         }
-
-        // 按钮中心 = (第一个点 + 第二个点) / 2
-        let centerX = Math.round((firstPoint.x + secondPoint.x) / 2)
-        let centerY = Math.round((firstPoint.y + secondPoint.y) / 2)
-
-        debugInfo(['findColor找到橙色按钮: 点1({}, {}) 点2({}, {}) 中心({}, {})', firstPoint.x, firstPoint.y, secondPoint.x, secondPoint.y, centerX, centerY])
-        results.push({
-          centerX: centerX,
-          centerY: centerY
-        })
+        warnInfo('模板匹配未找到+5g按钮，回退到findColor')
+      } catch (e) {
+        warnInfo('模板匹配异常: ' + e + '，回退到findColor')
+      }
+      // findByGrayBase64内部已recycle screen，需重新截屏供findColor使用
+      screen = commonFunction.captureScreen()
+      if (!screen) {
+        return results
       }
     }
+
+    // 方案2：findColor两次匹配（兜底）
+    debugInfo('使用findColor查找橙色按钮')
+    let color = '#FF8F00'
+    let threshold = 50
+    let w = config.device_width
+    // 只扫描右侧10%宽度区域
+    let region = [w * 0.9, 0, w * 0.1, config.device_height]
+
+    // 找按钮内第一个橙色点
+    let firstPoint = images.findColor(screen, color, {
+      region: region,
+      threshold: threshold
+    })
+    if (firstPoint) {
+      // 从第一个点右下(x+1, y+1)开始找相邻橙色点，保证是不同像素点
+      let secondPoint = images.findColor(screen, color, {
+        region: [firstPoint.x + 1, firstPoint.y + 1, w - (firstPoint.x + 1), config.device_height - (firstPoint.y + 1)],
+        threshold: threshold
+      })
+      if (!secondPoint) {
+        secondPoint = firstPoint
+      }
+
+      // 按钮中心 = (第一个点 + 第二个点) / 2
+      let centerX = Math.round((firstPoint.x + secondPoint.x) / 2)
+      let centerY = Math.round((firstPoint.y + secondPoint.y) / 2)
+
+      debugInfo(['findColor找到橙色按钮: 点1({}, {}) 点2({}, {}) 中心({}, {})', firstPoint.x, firstPoint.y, secondPoint.x, secondPoint.y, centerX, centerY])
+      results.push({
+        centerX: centerX,
+        centerY: centerY
+      })
+    }
   } catch (e) {
-    warnInfo('findColor异常: ' + e)
+    warnInfo('findOrangeMarkers异常: ' + e)
   }
 
   return results

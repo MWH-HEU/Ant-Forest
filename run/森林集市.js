@@ -63,7 +63,7 @@ function taskLog (msg) {
 
 function goBack () {
   back()
-  sleep(800)
+  sleep(2000)
 }
 
 /**
@@ -319,9 +319,8 @@ function clickGoodDetail () {
   if (clickBtn) {
     taskLog('随机点击一个商品')
     clickBtn.click()
-    sleep(500)
-    back()
-    sleep(500)
+    sleep(2000)
+    goBack()
     return true
   } else {
     LogFloaty.pushErrorLog('未找到可点击商品')

@@ -15,6 +15,7 @@ let FloatyInstance = sRequire('FloatyUtil')
 let LogFloaty = sRequire('LogFloaty')
 let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
+let OpenCvUtil = require('../lib/OpenCvUtil.js')
 let FileUtils = require('../lib/prototype/FileUtils.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
 let widgetInspector = require('../lib/WidgetInspector.js')(runtime, global)
@@ -113,6 +114,45 @@ function clickByOcr (keyword, timeout) {
 }
 
 /**
+ * 通用点击指定入口：优先模板图片匹配（templateKey），失败回退到OCR识别
+ * 参考神奇鱼塘 clickGetEnergy 的模板优先+OCR兜底策略（均只执行一次，不带超时重试）
+ * @param {string} keyword - OCR识别用的关键字
+ * @param {string} templateKey - config.image_config 中的模板图片key
+ * @returns {boolean} 是否成功点击
+ */
+function clickByTemplateFirst (keyword, templateKey) {
+  // 方案1：模板图片匹配（优先）
+  if (config.image_config && config.image_config[templateKey]) {
+    try {
+      let screen = commonFunction.captureScreen()
+      if (screen) {
+        let match = OpenCvUtil.findByGrayBase64(screen, config.image_config[templateKey], false)
+        screen.recycle()
+        if (match) {
+          let centerX = Math.round(match.centerX())
+          let centerY = Math.round(match.centerY())
+          taskLog('模板匹配找到"' + keyword + '": 点击: (' + centerX + ', ' + centerY + ')')
+          automator.click(centerX, centerY)
+          sleep(500)
+          return true
+        }
+        taskLog('模板匹配未找到"' + keyword + '"，回退到OCR')
+      } else {
+        taskLog('截屏失败，回退到OCR')
+      }
+    } catch (e) {
+      taskLog('模板匹配异常: ' + e + '，回退到OCR')
+    }
+  } else {
+    taskLog('未配置' + templateKey + '模板，使用OCR')
+  }
+
+  // 方案2：OCR识别（兜底，只执行一次）
+  if (clickByOcr(keyword, 3000)) return true
+  return false
+}
+
+/**
  * 遍历可见控件，匹配文本并点击
  * @param {RegExp} pattern - 匹配文本的正则（如 /^领取$/）
  * @returns {boolean} 是否找到并点击成功
@@ -171,7 +211,7 @@ function findAndExecuteTask (descText, btnText, taskFn) {
       }
     }
   }
-  taskLog('找到任务: "' + descText + '"，未找到对应按钮: ' + btnText + '"，任务可能已完成')
+  taskLog('找到任务: "' + descText + '"，未找到对应按钮: ' + btnText + '，任务可能已完成')
   return false
 }
 
@@ -236,7 +276,7 @@ function isOnLimitedBenefitPage () {
  * 确保在限时福利页面
  * 1. 已在限时福利页面 → 返回true
  * 2. 不在乐园页面 → 返回false
- * 3. 在乐园页面 → OCR进入限时福利 → 再检测一次
+ * 3. 在乐园页面 → 模板优先/OCR兜底进入限时福利 → 再检测一次
  * @returns {boolean} 是否成功确保在限时福利页面
  */
 function ensureOnLimitedBenefitPage () {
@@ -244,16 +284,16 @@ function ensureOnLimitedBenefitPage () {
   if (isOnLimitedBenefitPage()) return true
   // 2. 不在乐园页面 → 失败
   if (!isOnParkPage()) return false
-  // 3. 在乐园页面，OCR进入限时福利
+  // 3. 在乐园页面，模板优先/OCR兜底进入限时福利
   taskLog('在乐园页面，进入限时福利')
-  if (!clickByOcr('限时福利', 5000)) return false
+  if (!clickByTemplateFirst('限时福利', 'limited_time_welfare')) return false
   sleep(2000)
   return isOnLimitedBenefitPage()
 }
 
 /**
  * 重新进入限时福利页面
- * 打开蚂蚁森林 → OCR进入乐园 → 进入限时福利
+ * 打开蚂蚁森林 → 模板优先/OCR兜底进入乐园 → 进入限时福利
  * 单次执行，失败返回false
  * @returns {boolean} 是否成功进入限时福利页面
  */
@@ -271,13 +311,13 @@ function enterLimitedBenefitPage () {
   sleep(2000)
 
   taskLog('查找乐园入口')
-  if (!clickByOcr('乐园', 5000)) {
-    taskLog('OCR未找到乐园入口')
+  if (!clickByTemplateFirst('乐园', 'paradise_icon')) {
+    taskLog('未找到乐园入口')
     return false
   }
   sleep(2000)
 
-  // 确保在限时福利页面（已在则直接成功，在乐园则OCR进入，否则失败）
+  // 确保在限时福利页面（已在则直接成功，在乐园则模板优先/OCR兜底进入，否则失败）
   if (ensureOnLimitedBenefitPage()) {
     taskLog('成功进入限时福利页面')
     return true

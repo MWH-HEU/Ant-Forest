@@ -3,7 +3,7 @@
  * 功能：
  * 1. 打开闲鱼主Activity，通过控件点击"神奇鱼塘"进入，并处理"领取并投喂"弹窗
  * 2. 收取自己的能量
- * 3. 通过OCR识别"得能量"并点击进入任务页面
+ * 3. 点击"得能量"进入任务页面（优先模板匹配get_energy_icon，OCR兜底）
  * 4. 通过控件循环查找并完成3个任务：
  *    - 浏览商品：进入商品列表后下滑查找"抵后价"并点击
  *    - 绿色答题：依次点击A.选项→提交答案→立即收能量
@@ -26,6 +26,7 @@ let runningQueueDispatcher = sRequire('RunningQueueDispatcher')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let widgetInspector = require('../lib/WidgetInspector.js')(runtime, global)
+let OpenCvUtil = require('../lib/OpenCvUtil.js')
 let FileUtils = require('../lib/prototype/FileUtils.js')
 
 function killApps () {
@@ -279,20 +280,42 @@ function handleFeedDialog () {
 }
 
 /**
- * 通过OCR识别"得能量"并点击进入任务页面
- * @returns {boolean} 是否找到并点击了"得能量"
+ * 点击"得能量"进入任务页面
+ * 优先使用模板图片匹配（get_energy_icon），模板未配置或匹配失败时回退到OCR识别
+ * @returns {boolean} 是否成功点击了"得能量"
  */
 function clickGetEnergy () {
-  taskLog('通过OCR识别"得能量"')
+  taskLog('点击"得能量"')
   sleep(2000)
 
-  let ocrResult = widgetInspector.detectByOcr()
+  // 方案1：模板图片匹配（优先）
+  if (config.image_config && config.image_config.get_energy_icon) {
+    try {
+      let screen = commonFunction.captureScreen()
+      if (screen) {
+        let match = OpenCvUtil.findByGrayBase64(screen, config.image_config.get_energy_icon, false)
+        if (match) {
+          let centerX = Math.round(match.centerX())
+          let centerY = Math.round(match.centerY())
+          taskLog('模板匹配找到"得能量": 点击: (' + centerX + ', ' + centerY + ')')
+          automator.click(centerX, centerY)
+          sleep(2000)
+          return true
+        }
+        taskLog('模板匹配未找到"得能量"，回退到OCR')
+      } else {
+        taskLog('截屏失败，回退到OCR')
+      }
+    } catch (e) {
+      taskLog('模板匹配异常: ' + e + '，回退到OCR')
+    }
+  } else {
+    taskLog('未配置get_energy_icon模板，使用OCR')
+  }
 
-  // 把所有识别结果写入日志文件（调试用）
-  // for (let item of ocrResult.results) {
-  //   writeLog('OCR识别: text="' + item.label + '" bounds=(' + item.bounds.left + ',' + item.bounds.top + ',' + item.bounds.right + ',' + item.bounds.bottom + ')')
-  // }
-  // writeLog('OCR共识别到 ' + ocrResult.results.length + ' 个文字区域')
+  // 方案2：OCR识别（兜底）
+  taskLog('通过OCR识别"得能量"')
+  let ocrResult = widgetInspector.detectByOcr()
 
   for (let item of ocrResult.results) {
     if (item.label.indexOf('得能量') >= 0) {

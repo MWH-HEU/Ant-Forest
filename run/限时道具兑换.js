@@ -10,6 +10,7 @@ let FloatyInstance = sRequire('FloatyUtil')
 let NotificationHelper = sRequire('Notification')
 let LogFloaty = sRequire('LogFloaty')
 let localOcrUtil = require('../lib/LocalOcrUtil.js')
+let OpenCvUtil = require('../lib/OpenCvUtil.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
 let widgetInspector = require('../lib/WidgetInspector.js')(runtime, global)
 
@@ -113,7 +114,13 @@ function findAndClickByTextVisible (pattern) {
   return false
 }
 
-// OCR查找并点击指定文字（控件查找不到时使用）
+// 返回上一页
+function goBack () {
+  back()
+  sleep(2000)
+}
+
+// OCR查找并点击指定文字（在指定超时内循环截图识别，找到即点击）
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
   let deadline = new Date().getTime() + (timeout || 3000)
@@ -170,8 +177,38 @@ function enterAntForest () {
   return true
 }
 
-// 通过OCR点击"背包"进入背包（需确保已在蚂蚁森林首页）
-function enterBackpackByOcr () {
+// 进入背包：优先模板匹配backpack_icon，失败时OCR兜底（需确保已在蚂蚁森林首页）
+function enterBackpack () {
+  taskLog('点击"背包"进入背包')
+  sleep(1000)
+
+  // 方案1：模板图片匹配（优先）
+  if (config.image_config && config.image_config.backpack_icon) {
+    try {
+      let screen = commonFunction.captureScreen()
+      if (screen) {
+        let match = OpenCvUtil.findByGrayBase64(screen, config.image_config.backpack_icon, false)
+        screen.recycle()
+        if (match) {
+          let centerX = Math.round(match.centerX())
+          let centerY = Math.round(match.centerY())
+          taskLog('模板匹配找到"背包": 点击: (' + centerX + ', ' + centerY + ')')
+          automator.click(centerX, centerY)
+          sleep(1000)
+          return true
+        }
+        taskLog('模板匹配未找到"背包"，回退到OCR')
+      } else {
+        taskLog('截屏失败，回退到OCR')
+      }
+    } catch (e) {
+      taskLog('模板匹配异常: ' + e + '，回退到OCR')
+    }
+  } else {
+    taskLog('未配置backpack_icon模板，使用OCR')
+  }
+
+  // 方案2：OCR识别（兜底）
   if (!clickByOcr('背包', 5000)) {
     LogFloaty.pushErrorLog('OCR未找到背包入口')
     return false
@@ -244,8 +281,8 @@ function clickExchangeWithVitality () {
   }
   sleep(2000)
 
-  // 通过OCR点击"背包"进入背包
-  if (!enterBackpackByOcr()) {
+  // 通过模板匹配/OCR点击"背包"进入背包
+  if (!enterBackpack()) {
     return false
   }
 
@@ -321,7 +358,7 @@ function confirmExchange () {
       return false
     }
     sleep(2000)
-    if (!enterBackpackByOcr()) {
+    if (!enterBackpack()) {
       LogFloaty.pushErrorLog('重新进入背包失败')
       return false
     }
@@ -380,7 +417,7 @@ function findAndUseCard (pattern) {
   return false
 }
 
-// 智能关闭弹窗：先找同列的关闭按钮，OCR识别"X"兜底
+// 智能关闭弹窗：先找同列的关闭按钮；找不到时用OCR识别"X"；OCR仍失败则返回键退出弹窗并重新检测背包界面（在则进活力值积分商店）；关闭失败或未找到活力值积分商店时返回false，由调用处决定是否退出脚本
 function smartClosePopup () {
   sleep(1000)
 
@@ -409,11 +446,32 @@ function smartClosePopup () {
     }
   }
 
-  // 兜底：OCR识别"X"
+  // 兜底：OCR识别"X"；识别不到则返回键退出弹窗，再重新检测背包界面
   taskLog('未找到关闭按钮，尝试OCR识别X')
-  clickByOcr('X', 2000)
-  sleep(1000)
-  return true
+  if (clickByOcr('X', 2000)) {
+    sleep(1000)
+    return true
+  }
+
+  // OCR未识别到X，改用返回键退出弹窗
+  taskLog('OCR未识别到X，改用返回键退出弹窗')
+  goBack()
+
+  // 重新检测是否在背包界面
+  if (isOnBackpackPage()) {
+    taskLog('返回后仍在背包界面，进入活力值积分商店')
+    if (findAndClickByTextVisible(/活力值积分商店/)) {
+      sleep(2000)
+      return true
+    }
+    LogFloaty.pushErrorLog('返回后未找到"活力值积分商店"')
+    return false
+  }
+
+  // 不在背包界面，返回false（由调用处决定是否退出脚本）
+  taskLog('返回后不在背包界面，关闭弹窗失败')
+  LogFloaty.pushErrorLog('关闭弹窗失败且不在背包界面')
+  return false
 }
 
 // 点击使用后处理"确认延长"弹窗（保护罩特有）
@@ -455,20 +513,26 @@ function exchangeProtectorCard () {
 
         if (hasOutOfStock) {
           taskLog('"' + cardNode.text + '"库存不足，尝试下一个')
-          smartClosePopup()
+          if (!smartClosePopup()) {
+            exitScript()
+          }
           continue
         }
 
         if (hasAlreadyExchanged) {
           taskLog('已达上限，跳过兑换')
-          smartClosePopup()
+          if (!smartClosePopup()) {
+            exitScript()
+          }
           return 'already_exchanged'
         }
 
         // 点击"立即兑换"
         if (!findAndClickByTextVisible(/立即兑换/)) {
           taskLog('未找到"立即兑换"，尝试下一个保护罩')
-          smartClosePopup()
+          if (!smartClosePopup()) {
+            exitScript()
+          }
           continue
         }
         sleep(2000)
@@ -497,7 +561,7 @@ function exchangeProtectorCard () {
             return false
           }
           sleep(2000)
-          if (!enterBackpackByOcr()) {
+          if (!enterBackpack()) {
             LogFloaty.pushErrorLog('保护罩：重新进入背包失败')
             return false
           }
@@ -568,7 +632,7 @@ function doEnergyRainExchange () {
     return false
   }
   sleep(2000)
-  if (!enterBackpackByOcr()) {
+  if (!enterBackpack()) {
     LogFloaty.pushErrorLog('能量雨：无法进入背包页面')
     return false
   }
@@ -642,7 +706,7 @@ function doProtectorExchange () {
     return false
   }
   sleep(2000)
-  if (!enterBackpackByOcr()) {
+  if (!enterBackpack()) {
     LogFloaty.pushErrorLog('保护罩：无法进入背包页面')
     return false
   }
@@ -707,13 +771,13 @@ function main () {
   return true
 }
 
-// 退出：返回桌面
-function cleanUpAndExit () {
-  taskLog('任务完成，返回桌面')
+// 退出脚本：返回桌面并清理运行状态
+function exitScript () {
   commonFunction.minimize()
-  sleep(1000)
-  // 杀掉后台进程
+  sleep(500)
   killApps()
+  sleep(500)
+  runningQueueDispatcher.removeRunningTask()
   exit()
 }
 
@@ -726,7 +790,7 @@ if (executeByTimeTask) {
   taskLog('自动模式：开始限时道具兑换')
   main()
   taskLog('任务完成')
-  cleanUpAndExit()
+  exitScript()
 } else {
   // 手动模式：直接执行
   commonFunction.registerOnEngineRemoved(function () {
@@ -734,5 +798,5 @@ if (executeByTimeTask) {
   })
   main()
   taskLog('任务完成')
-  cleanUpAndExit()
+  exitScript()
 }

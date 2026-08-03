@@ -1,6 +1,6 @@
 /*
  * 自动执行每日任务
- * 1. 打开蚂蚁森林 → 点击"领奖励"
+ * 1. 打开蚂蚁森林 → 点击"领奖励"（优先模板匹配 sign_reward_icon，OCR 兜底）
  * 2. 判断是否在领奖励页面（widgetUtils.widgetWaiting 我的活力值 关闭奖励弹窗 3s）
  *    不在则重新打开蚂蚁森林进入领奖励页面，最多尝试3次，否则失败
  * 3. 领奖励与去抽奖采用 findAndClickByTextVisible 点击，不限制次数，去抽奖有额外抽奖操作
@@ -27,6 +27,7 @@ let FileUtils = require('../lib/prototype/FileUtils.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
 let widgetInspector = require('../lib/WidgetInspector.js')(runtime, global)
 let SwitchToApp = require('../lib/SwitchToApp.js')(runtime, global)
+let OpenCvUtil = require('../lib/OpenCvUtil.js')
 
 function killApps () {
   try {
@@ -236,8 +237,8 @@ function enterRewardPage () {
     }
     sleep(2000)
     taskLog('查找领奖励入口')
-    if (!clickByOcr('领奖励', 5000)) {
-      taskLog('OCR未找到领奖励入口')
+    if (!clickSignReward()) {
+      taskLog('未找到领奖励入口')
       continue
     }
     sleep(2000)
@@ -275,6 +276,50 @@ function clickByOcr (keyword, timeout) {
     }
     sleep(500)
   }
+  return false
+}
+
+/**
+ * 点击"领奖励"入口
+ * 优先使用模板图片匹配（sign_reward_icon），模板未配置或匹配失败时回退到OCR识别
+ * @returns {boolean} 是否成功点击了"领奖励"
+ */
+function clickSignReward () {
+  taskLog('点击"领奖励"')
+  sleep(2000)
+
+  // 方案1：模板图片匹配（优先）
+  if (config.image_config && config.image_config.sign_reward_icon) {
+    try {
+      let screen = commonFunction.captureScreen()
+      if (screen) {
+        let match = OpenCvUtil.findByGrayBase64(screen, config.image_config.sign_reward_icon, false)
+        if (match) {
+          let centerX = Math.round(match.centerX())
+          let centerY = Math.round(match.centerY())
+          taskLog('模板匹配找到"领奖励": 点击: (' + centerX + ', ' + centerY + ')')
+          automator.click(centerX, centerY)
+          sleep(2000)
+          return true
+        }
+        taskLog('模板匹配未找到"领奖励"，回退到OCR')
+      } else {
+        taskLog('截屏失败，回退到OCR')
+      }
+    } catch (e) {
+      taskLog('模板匹配异常: ' + e + '，回退到OCR')
+    }
+  } else {
+    taskLog('未配置sign_reward_icon模板，使用OCR')
+  }
+
+  // 方案2：OCR识别（兜底）
+  taskLog('通过OCR识别"领奖励"')
+  if (clickByOcr('领奖励', 5000)) {
+    return true
+  }
+
+  taskLog('未找到"领奖励"入口')
   return false
 }
 

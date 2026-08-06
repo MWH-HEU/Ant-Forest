@@ -193,7 +193,8 @@ function clickEnergyRankTab() {
       return true
     }
     let h = config.device_height
-    automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
+    automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.70), 300)
+    sleep(1000)
   } while (--limit > 0)
   warnInfo('切换到总能量榜tab失败')
   return false
@@ -227,8 +228,8 @@ function enterEnergyRankFirstTime() {
         break
       }
       let h = config.device_height
-      automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
-      sleep(500)
+      automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.70), 300)
+      sleep(1000)
     }
 
     // 点击"查看更多好友"后，检查是否在总能量榜
@@ -542,8 +543,8 @@ function main() {
         break
       }
       let h = config.device_height
-      automator.randomScrollDown(h * 0.72, h * 0.73, h * 0.42, h * 0.43)
-      sleep(600)
+      automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.70), 300)
+      sleep(1000)
     }
 
     if (markers.length === 0) {

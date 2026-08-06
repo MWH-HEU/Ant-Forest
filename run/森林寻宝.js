@@ -269,11 +269,11 @@ function handlePopupDialog () {
 
 /**
  * 判断是否在森林寻宝界面
- * 需同时完全匹配"抽奖明细"与"一键连抽"两个文本
+ * 需同时匹配"抽奖明细"与"一键连抽"（含具体次数，用正则一键连抽.*）
  * @returns {boolean}
  */
 function isOnForestHuntPage () {
-  let texts = ['抽奖明细', '一键连抽']
+  let texts = ['抽奖明细', '一键连抽.*']
   for (let i = 0; i < texts.length; i++) {
     let result = widgetUtils.widgetWaiting(texts[i], '森林寻宝页面', 3000)
     if (!result) {
@@ -527,7 +527,6 @@ function findAndExecuteExploreTask () {
     // 只处理"抽奖明细"下方的按钮/文本，在其上方则跳过
     let centerY = node.bounds.centerY()
     if (centerY < detailY) {
-      taskLog('按钮在"抽奖明细"上方，跳过: "' + text + '"')
       continue
     }
 
@@ -546,7 +545,6 @@ function findAndExecuteExploreTask () {
     // 排除项：同行含"玩游戏"则跳过（逐节点判断，阈值100）
     let skipText = findSkipInSameRow(allNodes, centerY, SKIP_KEYWORDS)
     if (skipText) {
-      taskLog('同行含排除项，跳过按钮: "' + text + '"（排除项: ' + skipText + '）')
       continue
     }
 
@@ -686,6 +684,16 @@ function scrollUntilEnd () {
   }
 }
 
+// 多次上滑到屏幕最上端（用于切换到第二个Tab前回到顶部）
+function scrollToTop () {
+  taskLog('上滑回到屏幕最上端')
+  let h = config.device_height
+  for (let i = 0; i < 10; i++) {
+    automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
+    sleep(500)
+  }
+}
+
 // 执行当前Tab的完整流程（任务 + 抽奖）
 // 返回是否有抽奖机会
 function executeTab () {
@@ -695,69 +703,59 @@ function executeTab () {
 }
 
 // 执行所有Tab
-// 返回是否有抽奖机会
+// 通过"返回"按钮推算坐标，依次点击两个Tab并执行任务
 function executeAllTabs () {
-  // 检测双Tab并切换到Tab 0（默认界面），最多重试3次
-  let eventTabs = null
-  for (let retry = 0; retry < 3; retry++) {
-    eventTabs = checkHasEvent()
-    if (eventTabs && eventTabs.length > 1) {
-      taskLog('检测到双Tab，共 ' + eventTabs.length + ' 个')
-      // 先切换到Tab 0
-      eventTabs[0].click()
-      taskLog('切换到Tab 0（默认界面）')
-      sleep(1000)
-      break
-    }
-    if (retry < 2) {
-      taskLog('未检测到双Tab，等待3秒后重试')
-      sleep(3000)
-    }
+  // 通过"返回"按钮推算两个Tab的点击坐标
+  let tabs = getTabClickPoints()
+  if (!tabs) {
+    taskLog('无法定位Tab，直接执行当前Tab')
+    scrollUntilEnd()
+    executeTab()
+    return false
   }
 
-  // 当前Tab循环下滑到任务列表底部（不依赖双Tab检测，检测到"每日24点更新任务列表"停止）
+  // 点击第1个点（25%）切换到第一个Tab
+  taskLog('点击Tab1（25%处）: (' + tabs.point1.x + ',' + tabs.point1.y + ')')
+  automator.click(tabs.point1.x, tabs.point1.y)
+  sleep(1000)
+  // 循环下滑到任务列表底部（检测到"每日24点更新任务列表"停止）
   scrollUntilEnd()
+  executeTab()
 
-  let hasChance = executeTab()
-  if (!hasChance) {
-    // Tab0执行完毕（任务+抽奖），切换到Tab1
-    for (let retry = 0; retry < 3; retry++) {
-      let eventTabs2 = checkHasEvent()
-      if (eventTabs2 && eventTabs2.length > 1) {
-        eventTabs2[1].click()
-        taskLog('切换到Tab 1（活动界面）')
-        sleep(1000)
-        // 循环下滑到任务列表底部（检测到"每日24点更新任务列表"停止）
-        scrollUntilEnd()
-        hasChance = executeTab()
-        break
-      }
-      if (retry < 2) {
-        taskLog('未检测到Tab1，等待3秒后重试')
-        sleep(3000)
-      }
-    }
-  }
-  return hasChance
+  // 上滑回到屏幕最上端（第一个Tab执行完界面在底部，先回顶部再切Tab）
+  scrollToTop()
+  // 点击第2个点（75%）切换到第二个Tab
+  taskLog('点击Tab2（75%处）: (' + tabs.point2.x + ',' + tabs.point2.y + ')')
+  automator.click(tabs.point2.x, tabs.point2.y)
+  sleep(1000)
+  // 循环下滑到任务列表底部（检测到"每日24点更新任务列表"停止）
+  scrollUntilEnd()
+  executeTab()
+
+  return false
 }
 
-function checkHasEvent () {
-  let appContainer = widgetUtils.widgetGetById('app')
-  if (appContainer) {
-    let subContainer = appContainer.child(0)
-    if (subContainer) {
-      try {
-        let eventTabContainer = subContainer.child(1).child(0)
-        if (eventTabContainer && eventTabContainer.childCount() > 1) {
-          taskLog('检测到双Tab，Tab数量: ' + eventTabContainer.childCount())
-          return [eventTabContainer.child(0), eventTabContainer.child(1)]
-        }
-      } catch (e) {
-        console.error(e)
-      }
+// 完全匹配"返回"，获取其x中心与高度，推算两个Tab的点击坐标
+// 点1：x=屏幕宽度25%，y=返回.centerY + 0.8*高度
+// 点2：x=屏幕宽度75%，y=返回.centerY + 0.8*高度
+// @returns {{point1:{x:number,y:number}, point2:{x:number,y:number}}|null}
+function getTabClickPoints () {
+  let result = widgetInspector.detectAllNodesVisible()
+  for (let node of result.nodes) {
+    if (node.text === '返回' && node.bounds) {
+      let bd = node.bounds
+      let centerY = bd.centerY()
+      let height = bd.bottom - bd.top
+      let deltaY = 0.8 * height
+      let point1 = { x: Math.round(config.device_width * 0.25), y: centerY + deltaY }
+      let point2 = { x: Math.round(config.device_width * 0.75), y: centerY + deltaY }
+      taskLog('找到"返回"，bounds=(' + bd.left + ',' + bd.top + ',' + bd.right + ',' + bd.bottom + ') center=(' + bd.centerX() + ',' + centerY + ') 高度=' + height)
+      taskLog('推算Tab点击点: 点1(' + point1.x + ',' + point1.y + ') 点2(' + point2.x + ',' + point2.y + ')')
+      return { point1: point1, point2: point2 }
     }
   }
-  return false
+  taskLog('未找到"返回"按钮')
+  return null
 }
 
 // ============ 主函数 ============

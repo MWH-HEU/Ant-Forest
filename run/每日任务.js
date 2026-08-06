@@ -445,8 +445,8 @@ function executeSpecialTask (specialTask) {
 
   if (specialTask.action === 'clickTarget' && specialTask.clickTarget) {
     let found = false
-    // 控件优先识别
-    if (findAndClickByTextVisible(new RegExp('^' + specialTask.clickTarget + '$'))) {
+    // 控件优先识别（包含匹配，兼容"下载/打开APP"等带前缀的按钮文字）
+    if (findAndClickByTextVisible(new RegExp(specialTask.clickTarget))) {
       found = true
     }
     // OCR兜底（复用clickByOcr，带重试）

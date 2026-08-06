@@ -408,12 +408,12 @@ function findAndUseCard (pattern) {
       return n.text && n.className === 'android.widget.TextView' && pattern.test(n.text) && n.bounds
     })
 
-    // 遍历所有匹配的卡片，找同列可点击的"使用"按钮（X坐标完全一样，卡片在按钮上方且差值<200）
+    // 遍历所有匹配的卡片，找同列可点击的"使用"按钮（X坐标差值<50，卡片在按钮上方且y差值<200）
     for (let ci = 0; ci < cardNodes.length; ci++) {
       let cardNode = cardNodes[ci]
       let useNode = allNodes.find(function (n) {
         return n.text === '使用' && n.clickable && n.bounds &&
-          n.bounds.centerX() === cardNode.bounds.centerX() &&
+          Math.abs(n.bounds.centerX() - cardNode.bounds.centerX()) < 50 &&
           cardNode.bounds.centerY() < n.bounds.centerY() &&
           Math.abs(n.bounds.centerY() - cardNode.bounds.centerY()) < 200
       })

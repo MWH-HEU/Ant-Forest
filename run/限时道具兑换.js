@@ -367,6 +367,9 @@ function confirmExchange () {
     return false
   }
 
+  // 点击立即使用后等待3s，再判断是否已回到背包界面
+  sleep(3000)
+
   // 判断是否已回到背包界面，不在则重新进入蚂蚁森林并进背包
   if (!isOnBackpackPage()) {
     taskLog('未回到背包界面，重新进入蚂蚁森林并进背包')
@@ -570,6 +573,9 @@ function exchangeProtectorCard () {
           LogFloaty.pushErrorLog('未找到"立即使用"按钮')
           return false
         }
+
+        // 点击立即使用后等待3s，再判断是否已回到背包界面
+        sleep(3000)
 
         // 判断是否已回到背包界面，不在则重新进入蚂蚁森林并进背包
         if (!isOnBackpackPage()) {

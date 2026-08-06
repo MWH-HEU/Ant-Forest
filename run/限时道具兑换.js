@@ -266,6 +266,20 @@ function isOnBackpackPage () {
   return true
 }
 
+// 判断是否在活力值积分商店（需同时找到"活力值兑换""获取更多活力值""推荐"，完全匹配）
+function isOnVitalityShopPage () {
+  let texts = ['活力值兑换', '获取更多活力值', '推荐']
+  for (let i = 0; i < texts.length; i++) {
+    let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 3000)
+    if (!result) {
+      taskLog('未检测到"' + texts[i] + '"，不在活力值积分商店')
+      return false
+    }
+  }
+  taskLog('检测到"活力值兑换 获取更多活力值 推荐"，确认在活力值积分商店')
+  return true
+}
+
 // 关闭背包后重新进入背包，并点击"活力值积分商店"
 function clickExchangeWithVitality () {
   // 关闭当前背包页面
@@ -297,7 +311,13 @@ function clickExchangeWithVitality () {
     LogFloaty.pushErrorLog('未找到"活力值积分商店"')
     return false
   }
+  sleep(2000)
 
+  // 判断是否已进入活力值积分商店
+  if (!isOnVitalityShopPage()) {
+    LogFloaty.pushErrorLog('未进入活力值积分商店')
+    return false
+  }
   sleep(2000)
   return true
 }
@@ -408,7 +428,7 @@ function findAndUseCard (pattern) {
       break
     }
 
-    automator.randomScrollDown()
+    automator.gestureDown(Math.round(config.device_height * 0.90), Math.round(config.device_height * 0.70), 300)
     sleep(1000)
   }
 
@@ -462,7 +482,8 @@ function smartClosePopup () {
     taskLog('返回后仍在背包界面，进入活力值积分商店')
     if (findAndClickByTextVisible(/活力值积分商店/)) {
       sleep(2000)
-      return true
+      // 判断是否已进入活力值积分商店
+      return isOnVitalityShopPage()
     }
     LogFloaty.pushErrorLog('返回后未找到"活力值积分商店"')
     return false
@@ -597,7 +618,7 @@ function exchangeProtectorCard () {
       break
     }
 
-    automator.randomScrollDown()
+    automator.gestureDown(Math.round(config.device_height * 0.90), Math.round(config.device_height * 0.70), 300)
     sleep(1000)
   }
 
@@ -618,9 +639,112 @@ function clickUseNow () {
   return true
 }
 
+// 判断当天是否已使用指定道具（通过森林动态时间线判断）：已使用返回true（退出主函数），未使用返回false
+// usedPattern: 匹配道具使用记录的正则对象，如能量雨/使用了.*能量雨机会/、保护罩/使用了.*保护罩/
+// 逻辑：进入森林动态后下滑搜索，找到"昨天"则判断匹配项是否在昨天上方（在则已使用）；没找到"昨天"时当前页有匹配项即视为已使用；找到"昨天"即停止搜索
+function hasUsedItemToday (usedPattern) {
+  taskLog('=== 检查当天是否已使用道具: ' + usedPattern + ' ===')
+
+  // 进入蚂蚁森林并确认在首页
+  if (!enterAntForest()) {
+    LogFloaty.pushErrorLog('检查已使用：无法进入蚂蚁森林')
+    return false
+  }
+  if (!isOnAntForestPage()) {
+    LogFloaty.pushErrorLog('检查已使用：不在蚂蚁森林界面')
+    return false
+  }
+  sleep(2000)
+
+  // 最多下滑3次，寻找"森林动态"和"去看全部"（完全匹配）；每次下滑20%屏幕高度（用像素坐标精确控制）
+  let foundEntry = false
+  let h = config.device_height
+  for (let i = 0; i < 3; i++) {
+    automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.70), 300)
+    sleep(1000)
+
+    let hasForest = widgetUtils.widgetWaiting('^森林动态$', '森林动态', 2000)
+    let hasSeeAll = widgetUtils.widgetWaiting('^去看全部$', '去看全部', 2000)
+    if (hasForest && hasSeeAll) {
+      foundEntry = true
+      break
+    }
+  }
+
+  if (!foundEntry) {
+    taskLog('未找到"森林动态/去看全部"入口，视为未使用，继续执行')
+    return false
+  }
+
+  // 点击"去看全部"
+  if (!findAndClickByTextVisible(/^去看全部$/)) {
+    taskLog('未找到可点击的"去看全部"，视为未使用')
+    return false
+  }
+  sleep(2000)
+
+  // 判断是否在森林动态界面：等待"动态"和"今天"（完全匹配，循环判断；"昨天"非必须）
+  let dongtaiTexts = ['动态', '今天']
+  for (let i = 0; i < dongtaiTexts.length; i++) {
+    let result = widgetUtils.widgetWaiting('^' + dongtaiTexts[i] + '$', dongtaiTexts[i], 2000)
+    if (!result) {
+      taskLog('未检测到"' + dongtaiTexts[i] + '"，不在森林动态界面')
+      return false
+    }
+  }
+  taskLog('检测到"动态 今天"，确认在森林动态界面')
+
+  // 循环下滑搜索：查找匹配项与"昨天"（找到"昨天"即停止，类似findAndUseCard的hasEnd退出）
+  // 找到"昨天"则判断匹配项y是否在其上方；没找到"昨天"时，当前页有匹配项即视为已使用
+  while (true) {
+    let nodes = widgetInspector.detectAllNodesVisible().nodes
+
+    // 收集当前页所有匹配usedPattern的节点（可能有多个）
+    let usedNodes = nodes.filter(function (n) { return n.text && usedPattern.test(n.text) && n.bounds })
+
+    // 找"昨天"节点
+    let yesterdayNode = null
+    for (let n of nodes) {
+      if (n.text === '昨天' && n.bounds) {
+        yesterdayNode = n
+        break
+      }
+    }
+
+    if (yesterdayNode) {
+      // 找到"昨天"：判断任一匹配项y是否在昨天上方（不需要判断今天），满足即已使用；然后停止搜索
+      let yesterdayY = yesterdayNode.bounds.centerY()
+      for (let un of usedNodes) {
+        if (un.bounds.centerY() < yesterdayY) {
+          taskLog('检测到"' + usedPattern + '"位于昨天上方，当天已使用该道具')
+          return true
+        }
+      }
+      taskLog('找到"昨天"但未在昨天上方检测到"' + usedPattern + '"，视为未使用')
+      return false
+    }
+
+    if (usedNodes.length > 0) {
+      // 没找到"昨天"但当前页有匹配项，视为已使用
+      taskLog('未找到"昨天"但检测到"' + usedPattern + '"，当天已使用该道具')
+      return true
+    }
+
+    // 都没找到，下滑继续搜索
+    automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.70), 300)
+    sleep(1000)
+  }
+}
+
 // 能量雨次卡流程
 function doEnergyRainExchange () {
   taskLog('========== 能量雨次卡 开始 ==========')
+
+  // 判断当天是否已使用能量雨机会，已使用则退出当前主函数
+  if (hasUsedItemToday(/使用了.*能量雨机会/)) {
+    taskLog('能量雨：当天已使用，跳过兑换')
+    return true
+  }
 
   taskLog('=== 进入蚂蚁森林并进入背包 ===')
   if (!enterAntForest()) {
@@ -695,6 +819,12 @@ function doEnergyRainExchange () {
 // 能量保护罩流程
 function doProtectorExchange () {
   taskLog('========== 能量保护罩 开始 ==========')
+
+  // 判断当天是否已使用保护罩，已使用则退出当前主函数
+  if (hasUsedItemToday(/使用了.*保护罩/)) {
+    taskLog('保护罩：当天已使用，跳过兑换')
+    return true
+  }
 
   taskLog('=== 进入蚂蚁森林并进入背包 ===')
   if (!enterAntForest()) {

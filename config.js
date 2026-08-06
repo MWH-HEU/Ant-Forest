@@ -90,7 +90,7 @@ let default_config = {
   rain_end_content: '.*去蚂蚁森林看看.*',
   send_chance_to_friend: '',
   timeout_rain_find_friend: 3000,
-  rain_click_top: 400,
+  rain_click_top: 450,
   rain_click_gap: null,
   rain_press_duration: 7,
   // 验证时是否暂停脚本

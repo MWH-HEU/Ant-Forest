@@ -275,7 +275,7 @@ config.prepareImageConfig([
   'stroll_icon', 'watering_cooperation', 'magic_species_icon', 'use_item', 'one_key_collect',
   'main_account_avatar', 'rebirth_5g',
   'paradise_icon', 'get_energy_icon', 'ocean_reward_icon', 'ai_fish_icon', 'ai_fish_reward_icon',
-  'limited_time_welfare'
+  'limited_time_welfare', 'rescue_fish'
 ])
 
 // 重置配置

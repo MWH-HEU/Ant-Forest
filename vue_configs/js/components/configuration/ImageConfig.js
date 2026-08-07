@@ -21,6 +21,7 @@ const ImageConfig = {
         ai_fish_icon: '',
         ai_fish_reward_icon: '',
         limited_time_welfare: '',
+        rescue_fish: '',
       },
     }
   },
@@ -61,5 +62,6 @@ const ImageConfig = {
     <base64-image-viewer title="校验‘AI摸鱼’按钮" v-model="configs.ai_fish_icon"/>
     <base64-image-viewer title="校验‘奖励(AI摸鱼)’按钮" v-model="configs.ai_fish_reward_icon"/>
     <base64-image-viewer title="校验‘限时福利’按钮" v-model="configs.limited_time_welfare"/>
+    <base64-image-viewer title="校验‘解救鱼’按钮" v-model="configs.rescue_fish"/>
   </div>`
 }

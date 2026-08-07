@@ -120,6 +120,10 @@ function openMagicSpecies () {
 
   commonFunction.backHomeIfInVideoPackage()
 
+  // 先杀掉支付宝进程，强制冷启动进入神奇物种主页面（避免停留在好友的卡等子页面）
+  killApps()
+  sleep(1000)
+
   app.startActivity({
     action: 'VIEW',
     data: 'alipays://platformapi/startapp?appId=68687886',
@@ -144,58 +148,114 @@ function openMagicSpecies () {
   return true
 }
 
-// 判断是否在神奇物种的函数（参考 isOnBackpackPage，检查文本是"奖励 当前图鉴 抽好友卡片"）
+// 判断是否在神奇物种的函数（参考 isOnBackpackPage，任一文本匹配即视为成功："奖励 当前图鉴 抽好友卡片"）
 function isOnMagicSpeciesPage () {
   let texts = ['奖励', '当前图鉴', '抽好友卡片']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 3000)
-    if (!result) {
-      taskLog('未检测到"' + texts[i] + '"，不在神奇物种界面')
-      return false
+    let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 3000)
+    if (result) {
+      taskLog('检测到"' + texts[i] + '"，确认在神奇物种界面')
+      sleep(2000) // 等待界面加载完成
+      return true
     }
   }
-  taskLog('检测到"奖励 当前图鉴 抽好友卡片"，确认在神奇物种界面')
-  sleep(2000) // 等待界面加载完成
-  return true
+  taskLog('未检测到"奖励 当前图鉴 抽好友卡片"任一文本，不在神奇物种界面')
+  return false
 }
 
-// 判断是否在好友的卡页面（判断文本是"好友的卡" "点击抽卡"）
+// 判断是否在好友的卡页面（任一文本匹配即视为成功："好友的卡" "点击抽卡"）
 function isOnFriendCardPage () {
   let texts = ['好友的卡', '点击抽卡']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 3000)
-    if (!result) {
-      taskLog('未检测到"' + texts[i] + '"，不在好友的卡页面')
-      return false
+    let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 3000)
+    if (result) {
+      taskLog('检测到"' + texts[i] + '"，确认在好友的卡页面')
+      sleep(2000) // 等待界面加载完成
+      return true
     }
   }
-  taskLog('检测到"好友的卡 点击抽卡"，确认在好友的卡页面')
-  sleep(2000) // 等待界面加载完成
-  return true
+  taskLog('未检测到"好友的卡 点击抽卡"任一文本，不在好友的卡页面')
+  return false
 }
 
-// 判断是否在交换页面（文本是"你将获得" "你将换出"）
+// 判断是否在交换页面（任一文本匹配即视为成功："你将获得" "你将换出"）
 function isOnExchangePage () {
   let texts = ['你将获得', '你将换出']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 3000)
-    if (!result) {
-      taskLog('未检测到"' + texts[i] + '"，不在交换页面')
-      return false
+    let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 3000)
+    if (result) {
+      taskLog('检测到"' + texts[i] + '"，确认在交换页面')
+      sleep(2000) // 等待界面加载完成
+      return true
     }
   }
-  taskLog('检测到"你将获得 你将换出"，确认在交换页面')
-  sleep(2000) // 等待界面加载完成
-  return true
+  taskLog('未检测到"你将获得 你将换出"任一文本，不在交换页面')
+  return false
 }
 
-// 循环尝试点击多个关键词：命中任意一个即返回 true（用于“通知好友|获得交换机会”“普通|稀有|神奇”等多选一场景）
+// 循环尝试点击多个关键词：命中任意一个即返回 true（用于“通知好友|获得交换机会”等多选一场景）
 function findAndClickAny (patterns) {
   for (let i = 0; i < patterns.length; i++) {
     if (findAndClickByTextVisible(patterns[i])) {
       return true
     }
   }
+  return false
+}
+
+// 方案一：点击屏幕宽度20%、高度70%处（用于选择交换卡片）
+function clickExchangeCardByPosition () {
+  let x = parseInt(config.device_width * 0.2)
+  let y = parseInt(config.device_height * 0.7)
+  taskLog('方案一：点击屏幕(' + x + ', ' + y + ')')
+  automator.click(x, y)
+  sleep(2000)
+  return true
+}
+
+// 方案二：在完全匹配"点击选择你要交换的卡片"的下方识别所有纯数字，点击最大的数字
+function clickExchangeCardByMaxNumber () {
+  let result = widgetInspector.detectAllNodesVisible()
+  let anchorCenterY = null
+
+  // 找到完全匹配"点击选择你要交换的卡片"的节点，记录其中心Y坐标
+  for (let n of result.nodes) {
+    if (n.text && /^点击选择你要交换的卡片$/.test(n.text) && n.bounds) {
+      anchorCenterY = n.bounds.centerY()
+      taskLog('找到"点击选择你要交换的卡片"，中心Y：' + anchorCenterY)
+      break
+    }
+  }
+
+  if (anchorCenterY === null) {
+    LogFloaty.pushErrorLog('未找到"点击选择你要交换的卡片"')
+    return false
+  }
+
+  // 在锚点下方找所有纯数字控件，记录数字最大的
+  let maxNum = -1
+  let maxNode = null
+  for (let n of result.nodes) {
+    if (!n.text || !n.bounds) continue
+    if (n.bounds.centerY() < anchorCenterY) continue // 只取锚点下方的
+    let m = n.text.match(/^\d+$/)
+    if (m) {
+      let num = parseInt(m[0], 10)
+      if (num > maxNum) {
+        maxNum = num
+        maxNode = n
+      }
+    }
+  }
+
+  if (maxNode) {
+    taskLog('方案二：点击最大数字 ' + maxNum + '，位置：(' + maxNode.bounds.centerX() + ', ' + maxNode.bounds.centerY() + ')')
+    automator.click(maxNode.bounds.centerX(), maxNode.bounds.centerY())
+    sleep(2000)
+    return true
+  }
+
+  LogFloaty.pushErrorLog('未在"点击选择你要交换的卡片"下方找到纯数字控件')
   return false
 }
 
@@ -223,12 +283,14 @@ function doExchangeFlow () {
     return false
   }
 
-  // 点击"普通 稀有 神奇"任何一个
-  if (!findAndClickAny([/^普通$/, /^稀有$/, /^神奇$/])) {
-    LogFloaty.pushErrorLog('未找到"普通/稀有/神奇"')
-    return false
+  // 选择交换卡片（优先方案二：点击"点击选择你要交换的卡片"下方最大数字；失败则用方案一：点击屏幕固定位置）
+  if (!clickExchangeCardByMaxNumber()) {
+    taskLog('方案二失败，改用方案一兜底')
+    if (!clickExchangeCardByPosition()) {
+      LogFloaty.pushErrorLog('方案一兜底点击交换卡片失败')
+      return false
+    }
   }
-  sleep(2000)
 
   // 点击"交换"
   if (!findAndClickByTextVisible(/^交换$/)) {
@@ -242,6 +304,7 @@ function doExchangeFlow () {
     LogFloaty.pushErrorLog('未找到"确认交换"')
     return false
   }
+  widgetUtils.widgetWaiting('^继续抽卡$', '交换完成', 5000) // 等待"继续抽卡"出现（完全匹配），总延时5s
   sleep(2000)
 
   // 点击"继续抽卡"
@@ -264,9 +327,9 @@ function doGiveUpFlow () {
   }
   sleep(2000)
 
-  // 点击"确认放弃"
-  if (!findAndClickByTextVisible(/^确认放弃$/)) {
-    LogFloaty.pushErrorLog('未找到"确认放弃"')
+  // 点击"确定放弃"
+  if (!findAndClickByTextVisible(/^确定放弃$/)) {
+    LogFloaty.pushErrorLog('未找到"确定放弃"')
     return false
   }
   sleep(2000)
@@ -288,6 +351,100 @@ function isTodayCountZero () {
   return false
 }
 
+// 检测并合成勋章：返回 true=已合成勋章任务完成应退出；false=无需合成继续后续流程；点击失败则异常退出
+function synthesizeMedal () {
+  let result = widgetInspector.detectAllNodesVisible()
+  let hasSynthesize = result.nodes.some(function (n) {
+    return n.text && (/你已经集齐.*/.test(n.text) || /^去合成$/.test(n.text))
+  })
+
+  if (!hasSynthesize) {
+    taskLog('未检测到"你已经集齐"或"去合成"，继续后续流程')
+    return false
+  }
+
+  taskLog('检测到需要合成勋章，点击"去合成"')
+  if (!findAndClickByTextVisible(/^去合成$/)) {
+    LogFloaty.pushErrorLog('未找到"去合成"，异常退出')
+    exitScript()
+    return false
+  }
+
+  // 等待"点击合成勋章"出现，超时2s
+  widgetUtils.widgetWaiting('^点击合成勋章$', '点击合成勋章', 2000)
+  sleep(2000)
+
+  if (!findAndClickByTextVisible(/^点击合成勋章$/)) {
+    LogFloaty.pushErrorLog('未找到"点击合成勋章"，异常退出')
+    exitScript()
+    return false
+  }
+
+  // 点击"确认"
+  if (!findAndClickByTextVisible(/^确认$/)) {
+    LogFloaty.pushErrorLog('未找到"确认"，异常退出')
+    exitScript()
+    return false
+  }
+
+  // 等待"关闭"出现（合成完成），超时5s，完全匹配
+  widgetUtils.widgetWaiting('^关闭$', '关闭', 5000)
+  sleep(2000)
+
+  if (!findAndClickByTextVisible(/^关闭$/)) {
+    LogFloaty.pushErrorLog('未找到"关闭"，异常退出')
+    exitScript()
+    return false
+  }
+
+  sleep(2000)
+  taskLog('合成勋章完成，任务结束')
+  return true
+}
+
+// 判断是否已集齐卡片：在"更多"与"抽卡截止日期.*"之间存在"数字/数字"且两数相等则已集齐
+function checkCardCollected () {
+  let result = widgetInspector.detectAllNodesVisible()
+  let topAnchorY = null   // "更多" 的 centerY（上方锚点）
+  let bottomAnchorY = null // "抽卡截止日期.*" 的 centerY（下方锚点）
+
+  for (let n of result.nodes) {
+    if (!n.text || !n.bounds) continue
+    if (/^更多$/.test(n.text)) {
+      topAnchorY = n.bounds.centerY()
+    } else if (/抽卡截止日期.*/.test(n.text)) {
+      bottomAnchorY = n.bounds.centerY()
+    }
+  }
+
+  if (topAnchorY === null || bottomAnchorY === null) {
+    taskLog('未找到"更多"或"抽卡截止日期.*"锚点，无法判断是否集齐')
+    return false
+  }
+
+  taskLog('上方锚点Y=' + topAnchorY + '，下方锚点Y=' + bottomAnchorY)
+
+  // 在两个锚点之间找"数字/数字"文本，且两数相等
+  for (let n of result.nodes) {
+    if (!n.text || !n.bounds) continue
+    let y = n.bounds.centerY()
+    if (y <= topAnchorY || y >= bottomAnchorY) continue // 只取两锚点之间
+    let m = n.text.match(/^(\d+)\/(\d+)$/)
+    if (m) {
+      let a = parseInt(m[1], 10)
+      let b = parseInt(m[2], 10)
+      taskLog('检测到"' + n.text + '"（Y=' + y + '）')
+      if (a === b) {
+        taskLog('已集齐卡片（' + a + '/' + b + '），任务完成')
+        return true
+      }
+    }
+  }
+
+  taskLog('未检测到已集齐（两数相等的"数字/数字"）')
+  return false
+}
+
 // 主流程
 function main () {
   taskLog('========== 神奇物种 开始 ==========')
@@ -296,6 +453,18 @@ function main () {
   if (!openMagicSpecies()) {
     LogFloaty.pushErrorLog('无法进入神奇物种')
     return false
+  }
+
+  // 检测并合成勋章；返回 true 表示已合成勋章，任务完成直接退出，不再执行后续交换流程
+  if (synthesizeMedal()) {
+    exitScript()
+  }
+  // 返回 false 表示无需合成，继续正常抽卡交换流程
+
+  // 判断是否已集齐卡片；已集齐则直接退出，不再执行后续任务
+  if (checkCardCollected()) {
+    taskLog('已集齐卡片，任务完成')
+    exitScript()
   }
 
   // 第一次进入：点击"抽好友卡片"进入好友的卡页面（openMagicSpecies 内部已确认在神奇物种页面）
@@ -340,6 +509,7 @@ function main () {
       LogFloaty.pushErrorLog('未找到"点击抽卡"')
       return false
     }
+    widgetUtils.widgetWaiting('^放弃$', '抽卡结果', 5000) // 等待"放弃"出现（完全匹配），总延时5s
     sleep(2000)
 
     // 检查抽卡结果

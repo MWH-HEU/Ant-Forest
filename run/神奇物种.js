@@ -155,7 +155,7 @@ function isOnMagicSpeciesPage () {
     let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 3000)
     if (result) {
       taskLog('检测到"' + texts[i] + '"，确认在神奇物种界面')
-      sleep(2000) // 等待界面加载完成
+      sleep(4000) // 等待界面加载完成
       return true
     }
   }
@@ -170,7 +170,7 @@ function isOnFriendCardPage () {
     let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 3000)
     if (result) {
       taskLog('检测到"' + texts[i] + '"，确认在好友的卡页面')
-      sleep(2000) // 等待界面加载完成
+      sleep(4000) // 等待界面加载完成
       return true
     }
   }
@@ -185,7 +185,7 @@ function isOnExchangePage () {
     let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 3000)
     if (result) {
       taskLog('检测到"' + texts[i] + '"，确认在交换页面')
-      sleep(2000) // 等待界面加载完成
+      sleep(4000) // 等待界面加载完成
       return true
     }
   }
@@ -305,7 +305,7 @@ function doExchangeFlow () {
     return false
   }
   widgetUtils.widgetWaiting('^继续抽卡$', '交换完成', 5000) // 等待"继续抽卡"出现（完全匹配），总延时5s
-  sleep(2000)
+  sleep(4000)
 
   // 点击"继续抽卡"
   if (!findAndClickByTextVisible(/^继续抽卡$/)) {
@@ -372,7 +372,7 @@ function synthesizeMedal () {
 
   // 等待"点击合成勋章"出现，超时2s
   widgetUtils.widgetWaiting('^点击合成勋章$', '点击合成勋章', 2000)
-  sleep(2000)
+  sleep(4000)
 
   if (!findAndClickByTextVisible(/^点击合成勋章$/)) {
     LogFloaty.pushErrorLog('未找到"点击合成勋章"，异常退出')
@@ -389,7 +389,7 @@ function synthesizeMedal () {
 
   // 等待"关闭"出现（合成完成），超时5s，完全匹配
   widgetUtils.widgetWaiting('^关闭$', '关闭', 5000)
-  sleep(2000)
+  sleep(4000)
 
   if (!findAndClickByTextVisible(/^关闭$/)) {
     LogFloaty.pushErrorLog('未找到"关闭"，异常退出')
@@ -510,7 +510,7 @@ function main () {
       return false
     }
     widgetUtils.widgetWaiting('^放弃$', '抽卡结果', 5000) // 等待"放弃"出现（完全匹配），总延时5s
-    sleep(2000)
+    sleep(4000)
 
     // 检查抽卡结果
     let allNodes = widgetInspector.detectAllNodesVisible().nodes

@@ -371,9 +371,9 @@ function handlePopupDialog () {
 
 const SPECIAL_TASKS = [
   { keyword: '逛一逛点淘得红包', waitTime: 15000, action: 'clickTarget', clickTarget: '打开APP' },
-  { keyword: '每日浇水领真绿植', waitTime: 0, action: 'scroll16' },
-  { keyword: '逛惊喜市集领红包', waitTime: 15000, action: 'scroll8' },
-  { keyword: '逛一逛芝麻树兑绿植', waitTime: 15000, action: 'scroll8' },
+  { keyword: '每日浇水领真绿植', waitTime: 0, action: 'specialScroll', scrollTimes: 20 },
+  { keyword: '逛惊喜市集领红包', waitTime: 15000, action: 'scroll', scrollTimes: 12 },
+  { keyword: '逛一逛芝麻树兑绿植', waitTime: 15000, action: 'scroll', scrollTimes: 12 },
   { keyword: '给随机好友一键浇水', waitTime: 0, action: 'clickTarget', clickTarget: '送给TA' }
 ]
 
@@ -458,7 +458,7 @@ function executeSpecialTask (specialTask) {
     if (!found) {
       taskLog('未找到"' + specialTask.clickTarget + '"')
     }
-  } else if (specialTask.action === 'scroll16') {
+  } else if (specialTask.action === 'specialScroll') {
     taskLog('执行' + specialTask.keyword + '，检查弹窗')
     for (let i = 0; i < 7; i++) {
       sleep(2000)
@@ -476,8 +476,8 @@ function executeSpecialTask (specialTask) {
         break
       }
     }
-    taskLog('执行下滑上滑16次')
-    let scrollRound = 16
+    taskLog('执行下滑上滑' + specialTask.scrollTimes + '次')
+    let scrollRound = specialTask.scrollTimes
     let h = config.device_height
     while (scrollRound-- > 0) {
       automator.gestureDown(Math.round(h * 0.75), Math.round(h * 0.25), 300)
@@ -485,8 +485,8 @@ function executeSpecialTask (specialTask) {
       automator.gestureUp(Math.round(h * 0.25), Math.round(h * 0.75), 300)
       sleep(500)
     }
-  } else if (specialTask.action === 'scroll8') {
-    let scrollRound = 8
+  } else if (specialTask.action === 'scroll') {
+    let scrollRound = specialTask.scrollTimes
     taskLog('执行下滑上滑' + scrollRound + '次')
     let h = config.device_height
     while (scrollRound-- > 0) {

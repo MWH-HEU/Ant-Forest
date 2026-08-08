@@ -1,7 +1,7 @@
 /*
  * 自动执行每日任务
  * 1. 打开蚂蚁森林 → 点击"领奖励"（优先模板匹配 sign_reward_icon，OCR 兜底）
- * 2. 判断是否在领奖励页面（widgetUtils.widgetWaiting 我的活力值 关闭奖励弹窗 3s）
+ * 2. 判断是否在领奖励页面（isOnRewardPage：任一匹配"我的活力值"或"关闭奖励弹窗"即视为在）
  *    不在则重新打开蚂蚁森林进入领奖励页面，最多尝试3次，否则失败
  * 3. 领奖励与去抽奖采用 findAndClickByTextVisible 点击，不限制次数，去抽奖有额外抽奖操作
  * 4. 探索任务：widgetInspector.detectAllNodesVisible 匹配所有控件
@@ -11,6 +11,7 @@
  *    特殊任务 clickTarget 分支：控件优先识别，OCR 兜底
  *    任务完成后类似 waitForTaskComplete：先检测当前包，不在支付宝则切入，再先检测后back
  *    失败则重新进入蚂蚁森林-领奖励-继续执行任务
+ * 5. 主循环：无任务可执行时滑动屏幕继续查找，直到检测到"践行绿色行为"（包含匹配）或滑动达上限（maxScrolls）退出
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
@@ -185,19 +186,18 @@ function claimAllLotteries () {
   }
 }
 
+// 判断是否在领奖励页面（参考 isOnMagicSpeciesPage，任一文本匹配即视为成功："我的活力值" "关闭奖励弹窗"）
 function isOnRewardPage () {
-  let result = widgetUtils.widgetWaiting('我的活力值', '领奖励页面', 3000)
-  if (!result) {
-    taskLog('未检测到"我的活力值"，不在领奖励页面')
-    return false
+  let texts = ['我的活力值', '关闭奖励弹窗']
+  for (let i = 0; i < texts.length; i++) {
+    let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 3000)
+    if (result) {
+      taskLog('检测到"' + texts[i] + '"，确认在领奖励页面')
+      return true
+    }
   }
-  let closeResult = widgetUtils.widgetWaiting('关闭奖励弹窗', '领奖励页面', 3000)
-  if (!closeResult) {
-    taskLog('未检测到"关闭奖励弹窗"，不在领奖励页面')
-    return false
-  }
-  taskLog('检测到"我的活力值"和"关闭奖励弹窗"，确认在领奖励页面')
-  return true
+  taskLog('未检测到"我的活力值 关闭奖励弹窗"任一文本，不在领奖励页面')
+  return false
 }
 
 /**
@@ -478,21 +478,21 @@ function executeSpecialTask (specialTask) {
     }
     taskLog('执行下滑上滑16次')
     let scrollRound = 16
+    let h = config.device_height
     while (scrollRound-- > 0) {
-      let h = config.device_height
-      automator.randomScrollDown(0.7 * h, 0.8 * h, 0.2 * h, 0.3 * h)
+      automator.gestureDown(Math.round(h * 0.75), Math.round(h * 0.25), 300)
       sleep(500)
-      automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
+      automator.gestureUp(Math.round(h * 0.25), Math.round(h * 0.75), 300)
       sleep(500)
     }
   } else if (specialTask.action === 'scroll8') {
     let scrollRound = 8
     taskLog('执行下滑上滑' + scrollRound + '次')
+    let h = config.device_height
     while (scrollRound-- > 0) {
-      let h = config.device_height
-      automator.randomScrollDown(0.7 * h, 0.8 * h, 0.2 * h, 0.3 * h)
+      automator.gestureDown(Math.round(h * 0.75), Math.round(h * 0.25), 300)
       sleep(500)
-      automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
+      automator.gestureUp(Math.round(h * 0.25), Math.round(h * 0.75), 300)
       sleep(500)
     }
   }
@@ -629,9 +629,12 @@ function main () {
   }
 
   // 2. 主循环
-  let maxRounds = 50
-  for (let round = 0; round < maxRounds; round++) {
-    taskLog('=== 每日任务 第 ' + (round + 1) + ' 轮 ===')
+  let maxScrolls = 10   // 滑动上限，防止死循环
+  let scrollCount = 0
+  let round = 0
+  while (true) {
+    round++
+    taskLog('=== 每日任务 第 ' + round + ' 轮 ===')
 
     claimAllRewards()
     claimAllLotteries()
@@ -640,6 +643,7 @@ function main () {
     try {
       if (findAndExecuteExploreTask()) {
         taskLog('探索任务执行完毕，继续下一轮')
+        scrollCount = 0   // 执行了任务，重置滑动计数
         continue
       }
     } catch (e) {
@@ -649,12 +653,30 @@ function main () {
       sleep(500)
       if (enterRewardPage()) {
         continue
+      } else {
+        errorInfo('重新进入领奖励页面失败，退出每日任务')
+        exitScript()
       }
+    }
+
+    // 没有可执行任务：检查是否滑到底部（找到"践行绿色行为"）
+    let result = widgetInspector.detectAllNodesVisible()
+    let hasEnd = result.nodes.some(n => /践行绿色行为/.test(n.text))
+    if (hasEnd) {
+      taskLog('已滑到底部（找到"践行绿色行为"），退出每日任务')
       break
     }
 
-    taskLog('没有更多任务可执行，退出每日任务')
-    break
+    // 未到底：滑动继续查找
+    if (scrollCount >= maxScrolls) {
+      taskLog('滑动已达上限，退出每日任务')
+      break
+    }
+    scrollCount++
+    taskLog('没有更多任务可执行，滑动屏幕继续查找')
+    let h = config.device_height
+    automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.70), 300)
+    sleep(1000)
   }
 
   taskLog('每日任务完成，返回原页面')

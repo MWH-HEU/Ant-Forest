@@ -679,7 +679,12 @@ function scrollUntilEnd () {
       taskLog('检测到"每日24点更新任务列表，未领取的机会会消失哦"，停止滑动')
       break
     }
-    automator.gestureDown(Math.round(config.device_height * 0.90), Math.round(config.device_height * 0.70), 300)
+    // 起始点80%~90%随机，滑动距离15%~20%随机，延时100+随机%300
+    let h = config.device_height
+    let startY = h * (0.80 + Math.random() * 0.10)
+    let dist = (0.15 + Math.random() * 0.05) * h
+    let duration = 100 + Math.random() * 1000 % 300
+    automator.gestureDown(Math.round(startY), Math.round(startY - dist), duration)
     sleep(1000)
   }
 }

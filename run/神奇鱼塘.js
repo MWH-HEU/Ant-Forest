@@ -409,7 +409,11 @@ function doBrowseTask () {
     taskLog('浏览商品 第' + (s + 1) + '次下滑')
 
     let h = config.device_height
-    automator.randomScrollDown(0.6 * h, 0.7 * h, 0.2 * h, 0.3 * h)
+    // 从65%-75%高度开始，随机下滑15%-25%，延时100+Math.random()*300
+    let startY = randomNum(0.65 * h, 0.75 * h)
+    let endY = startY - randomNum(0.15 * h, 0.25 * h)
+    let duration = 100 + Math.random() * 300
+    automator.gestureDown(startY, endY, duration)
     sleep(1500)
 
     // 优先匹配"抵"（完全匹配），其次匹配"抵后价..."

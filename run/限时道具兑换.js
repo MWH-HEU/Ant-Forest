@@ -280,7 +280,7 @@ function isOnVitalityShopPage () {
   return true
 }
 
-// 关闭背包后重新进入背包，并点击"活力值积分商店"
+// 兜底方案：enterVitalityShopByScrollUp 上滑进入商店失败时调用（关闭背包后重新进入背包，并点击"活力值积分商店"）
 function clickExchangeWithVitality () {
   // 关闭当前背包页面
   if (!closeBackpack()) {
@@ -431,7 +431,9 @@ function findAndUseCard (pattern) {
       break
     }
 
-    automator.gestureDown(Math.round(config.device_height * 0.90), Math.round(config.device_height * 0.70), 300)
+    // 滑动位置不变（从90%高度起），滑动距离15%~20%随机
+    let dist = (0.15 + Math.random() * 0.05) * config.device_height
+    automator.gestureDown(Math.round(config.device_height * 0.90), Math.round(config.device_height * 0.90 - dist), 300)
     sleep(1000)
   }
 
@@ -624,7 +626,9 @@ function exchangeProtectorCard () {
       break
     }
 
-    automator.gestureDown(Math.round(config.device_height * 0.90), Math.round(config.device_height * 0.70), 300)
+    // 滑动位置不变（从90%高度起），滑动距离15%~20%随机
+    let dist = (0.15 + Math.random() * 0.05) * config.device_height
+    automator.gestureDown(Math.round(config.device_height * 0.90), Math.round(config.device_height * 0.90 - dist), 300)
     sleep(1000)
   }
 
@@ -647,7 +651,7 @@ function clickUseNow () {
 
 // 判断当天是否已使用指定道具（通过森林动态时间线判断）：已使用返回true（退出主函数），未使用返回false
 // usedPattern: 匹配道具使用记录的正则对象，如能量雨/使用了.*能量雨机会/、保护罩/使用了.*保护罩/
-// 逻辑：进入森林动态后下滑搜索，找到"昨天"则判断匹配项是否在昨天上方（在则已使用）；没找到"昨天"时当前页有匹配项即视为已使用；找到"昨天"即停止搜索
+// 逻辑：进入森林动态后下滑搜索，找到"昨天"则判断匹配项是否在昨天上方（在则已使用）；没找到"昨天"时当前页有匹配项即视为已使用；找到"昨天"即停止搜索；下滑超过10次未找到则保守处理视为未使用
 function hasUsedItemToday (usedPattern) {
   taskLog('=== 检查当天是否已使用道具: ' + usedPattern + ' ===')
 
@@ -662,11 +666,12 @@ function hasUsedItemToday (usedPattern) {
   }
   sleep(2000)
 
-  // 最多下滑3次，寻找"森林动态"和"去看全部"（完全匹配）；每次下滑20%屏幕高度（用像素坐标精确控制）
+  // 最多下滑3次，寻找"森林动态"和"去看全部"（完全匹配）；滑动位置不变（从90%高度起），滑动距离15%~20%随机
   let foundEntry = false
   let h = config.device_height
   for (let i = 0; i < 3; i++) {
-    automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.70), 300)
+    let dist = (0.15 + Math.random() * 0.05) * h
+    automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.90 - dist), 300)
     sleep(1000)
 
     let hasForest = widgetUtils.widgetWaiting('^森林动态$', '森林动态', 2000)
@@ -702,7 +707,14 @@ function hasUsedItemToday (usedPattern) {
 
   // 循环下滑搜索：查找匹配项与"昨天"（找到"昨天"即停止，类似findAndUseCard的hasEnd退出）
   // 找到"昨天"则判断匹配项y是否在其上方；没找到"昨天"时，当前页有匹配项即视为已使用
+  // 每次循环i++，i大于10则保守处理（视为未使用）
+  let i = 0
   while (true) {
+    i++
+    if (i > 10) {
+      taskLog('下滑搜索超过10次未找到"昨天"，保守处理视为未使用')
+      return false
+    }
     let nodes = widgetInspector.detectAllNodesVisible().nodes
 
     // 收集当前页所有匹配usedPattern的节点（可能有多个）
@@ -736,10 +748,49 @@ function hasUsedItemToday (usedPattern) {
       return true
     }
 
-    // 都没找到，下滑继续搜索
-    automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.70), 300)
+    // 都没找到，下滑继续搜索（滑动位置不变，滑动距离15%~20%随机）
+    let dist = (0.15 + Math.random() * 0.05) * h
+    automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.90 - dist), 300)
     sleep(1000)
   }
+}
+
+// 通过上滑查找并点击"活力值积分商店"进入商店，点击后判断是否在商店
+// 上滑起始位置与背包中下滑一致（90%高度），滑动距离30%~40%随机；检测到商店后再执行一次上滑确保完整显示
+function enterVitalityShopByScrollUp () {
+  taskLog('=== 上滑查找并进入活力值积分商店 ===')
+  let h = config.device_height
+
+  // 循环上滑，每次上滑后等待"活力值积分商店"（从90%高度向上滑，让上方内容显示，幅度30%~40%随机）
+  let found = false
+  for (let i = 0; i < 10; i++) {
+    let dist = (0.30 + Math.random() * 0.10) * h
+    automator.gestureUp(Math.round(h * 0.90), Math.round(h * 0.90 - dist), 300)
+    sleep(1000)
+    if (widgetUtils.widgetWaiting('活力值积分商店', '活力值积分商店', 2000)) {
+      found = true
+      // 检测到后再执行一次上滑，确保商店入口完整显示
+      let dist2 = (0.30 + Math.random() * 0.10) * h
+      automator.gestureUp(Math.round(h * 0.90), Math.round(h * 0.90 - dist2), 300)
+      sleep(1000)
+      break
+    }
+  }
+
+  if (!found) {
+    taskLog('上滑多次未找到"活力值积分商店"')
+    return false
+  }
+
+  // 点击"活力值积分商店"
+  if (!findAndClickByTextVisible(/活力值积分商店/)) {
+    taskLog('找到但点击"活力值积分商店"失败')
+    return false
+  }
+  sleep(2000)
+
+  // 判断是否在商店
+  return isOnVitalityShopPage()
 }
 
 // 能量雨次卡流程
@@ -789,9 +840,12 @@ function doEnergyRainExchange () {
   taskLog('背包中未找到能量雨机会卡片，开始兑换流程')
 
   taskLog('=== 重新进入背包并点击"活力值积分商店" ===')
-  if (!clickExchangeWithVitality()) {
-    LogFloaty.pushErrorLog('能量雨：无法进入活力值积分商店页面')
-    return false
+  if (!enterVitalityShopByScrollUp()) {
+    taskLog('上滑进入商店失败，改用兜底方案')
+    if (!clickExchangeWithVitality()) {
+      LogFloaty.pushErrorLog('能量雨：无法进入活力值积分商店页面')
+      return false
+    }
   }
 
   taskLog('=== 点击能量雨次卡的"兑换" ===')
@@ -871,9 +925,12 @@ function doProtectorExchange () {
   taskLog('背包中未找到保护罩卡片，开始兑换流程')
 
   taskLog('=== 重新进入背包并点击"活力值积分商店" ===')
-  if (!clickExchangeWithVitality()) {
-    LogFloaty.pushErrorLog('保护罩：无法进入活力值积分商店页面')
-    return false
+  if (!enterVitalityShopByScrollUp()) {
+    taskLog('上滑进入商店失败，改用兜底方案')
+    if (!clickExchangeWithVitality()) {
+      LogFloaty.pushErrorLog('保护罩：无法进入活力值积分商店页面')
+      return false
+    }
   }
 
   taskLog('=== 遍历兑换保护罩卡片 ===')

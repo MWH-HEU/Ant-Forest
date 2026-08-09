@@ -138,8 +138,12 @@ function openMagicSpecies () {
 
   commonFunction.readyForAlipayWidgets()
 
+  // 每天第一次进入会自动抽取一张卡片，点击"收下"（可能不是第一次进入，无"收下"则跳过，不退出）
+  collectFirstCard()
+
   // 等待进入神奇物种页面
   sleep(2000)
+
   if (!isOnMagicSpeciesPage()) {
     LogFloaty.pushErrorLog('不在神奇物种页面，退出脚本')
     return false
@@ -351,11 +355,10 @@ function isTodayCountZero () {
   return false
 }
 
-// 每天第一次进入神奇物种会自动抽取一张卡片，需手动点击"收下"；等待5s后点击，结束前再等待2s，返回 false 不退出（可能不是第一次进入，无"收下"可点）
+// 每天第一次进入神奇物种会自动抽取一张卡片，需手动点击"收下"；等待5s后点击，返回 false 不退出（可能不是第一次进入，无"收下"可点）
 function collectFirstCard () {
   sleep(5000)
   findAndClickByTextVisible(/^收下$/)
-  sleep(2000)
   return false
 }
 
@@ -462,9 +465,6 @@ function main () {
     LogFloaty.pushErrorLog('无法进入神奇物种')
     return false
   }
-
-  // 每天第一次进入会自动抽取一张卡片，点击"收下"（可能不是第一次进入，无"收下"则跳过，不退出）
-  collectFirstCard()
 
   // 检测并合成勋章；返回 true 表示已合成勋章，任务完成直接退出，不再执行后续交换流程
   if (synthesizeMedal()) {

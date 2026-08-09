@@ -193,7 +193,11 @@ function clickEnergyRankTab() {
       return true
     }
     let h = config.device_height
-    automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.70), 300)
+    // 随机滑动：从65%-75%高度开始，随机下滑15%-25%距离，延时100-400ms随机
+    let startY = h * (0.65 + Math.random() * 0.10)
+    let endY = startY - h * (0.15 + Math.random() * 0.10)
+    let duration = 100 + Math.random() * 300
+    automator.gestureDown(Math.round(startY), Math.round(endY), duration)
     sleep(1000)
   } while (--limit > 0)
   warnInfo('切换到总能量榜tab失败')
@@ -228,7 +232,11 @@ function enterEnergyRankFirstTime() {
         break
       }
       let h = config.device_height
-      automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.70), 300)
+      // 随机滑动：从65%-75%高度开始，随机下滑15%-25%距离，延时100-400ms随机
+      let startY = h * (0.65 + Math.random() * 0.10)
+      let endY = startY - h * (0.15 + Math.random() * 0.10)
+      let duration = 100 + Math.random() * 300
+      automator.gestureDown(Math.round(startY), Math.round(endY), duration)
       sleep(1000)
     }
 
@@ -543,7 +551,11 @@ function main() {
         break
       }
       let h = config.device_height
-      automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.70), 300)
+      // 随机滑动：从65%-75%高度开始，随机下滑15%-25%距离，延时100-400ms随机
+      let startY = h * (0.65 + Math.random() * 0.10)
+      let endY = startY - h * (0.15 + Math.random() * 0.10)
+      let duration = 100 + Math.random() * 300
+      automator.gestureDown(Math.round(startY), Math.round(endY), duration)
       sleep(1000)
     }
 

@@ -410,8 +410,8 @@ function doBrowseTask () {
 
     let h = config.device_height
     // 从65%-75%高度开始，随机下滑15%-25%，延时100+Math.random()*300
-    let startY = randomNum(0.65 * h, 0.75 * h)
-    let endY = startY - randomNum(0.15 * h, 0.25 * h)
+    let startY = h * (0.65 + Math.random() * 0.10)
+    let endY = startY - h * (0.15 + Math.random() * 0.10)
     let duration = 100 + Math.random() * 300
     automator.gestureDown(startY, endY, duration)
     sleep(1500)

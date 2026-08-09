@@ -77,7 +77,8 @@ function findAndClickByText (pattern) {
   return false
 }
 
-// 遍历可见区域内的控件，正则匹配文本并点击（参考限时道具兑换 findAndClickByTextVisible）
+// 遍历可见区域内的控件，用正则 pattern 匹配文本，匹配到第一个符合条件的节点即点击并返回 true；未匹配到返回 false
+// （参考限时道具兑换 findAndClickByTextVisible）
 function findAndClickByTextVisible (pattern) {
   let result = widgetInspector.detectAllNodesVisible()
   for (let node of result.nodes) {
@@ -158,7 +159,7 @@ function openOcean () {
 
   // 先杀掉支付宝进程，强制冷启动进入神奇海洋主页面（避免停留在子页面）
   killApps()
-  sleep(1000)
+  sleep(2000)
 
   app.startActivity({
     action: 'VIEW',
@@ -244,9 +245,6 @@ function isOnFishPage () {
   taskLog('未检测到"蚂蚁森林.*AI摸鱼 规则 奖励"任一文本，不在AI摸鱼界面')
   return false
 }
-
-// 全局变量："奖励"按钮的 y 坐标（由 getRewardY 获取并记录，供其他函数读取）
-let _rewardY = -1
 
 // 获取"奖励"的 y 坐标：分别通过控件、模板、OCR 三种方式获取，任一成功即返回该 y 值（不点击）
 // 返回 y 坐标，全部失败返回 -1
@@ -353,13 +351,49 @@ function clickByOcr (keyword, timeout) {
 }
 
 // 摸鱼循环处理：每轮独立检查3种分支，任一存在则处理并继续下一轮，3个分支都不存在才退出
-// 1. "仅解救"（鱼被别人摸走）→ 点击仅解救后点击继续摸鱼 2. "收下并涂鸦"→"提交并继续摸鱼" 3. "继续摸鱼"→点击并等待
+// 1. "继续摸鱼"→点击并等待 2. "收下并涂鸦"→"提交并继续摸鱼"/"确认涂鸦"（任一即提交涂鸦） 3. "仅解救"（鱼被别人摸走）→点击仅解救后点击继续摸鱼
 function loopFishProcess () {
   let maxRounds = 20
   for (let round = 0; round < maxRounds; round++) {
     taskLog('摸鱼循环 第 ' + (round + 1) + ' 轮')
 
-    // 分支1：检查是否弹出"仅解救"（鱼被别人摸走），有则点击"仅解救"后点击"继续摸鱼"（会自动用完所有摸鱼次数）
+    // 分支1：检查"继续摸鱼"，有则点击并等待
+    if (clickByOcr('继续摸鱼', 3000)) {
+      taskLog('已点击"继续摸鱼"，等待8s')
+      sleep(8000)
+      continue
+    }
+
+    // 分支2：检查OCR点击"收下并涂鸦"，有则处理"提交并继续摸鱼"/"确认涂鸦"分支
+    if (clickByOcr('收下并涂鸦', 3000)) {
+      // 判断"提交并继续摸鱼"/"确认涂鸦"分支：这两个按钮任何一个都表示提交涂鸦，存在则处理
+      let submitNode = null
+      let allNodes = widgetInspector.detectAllNodesVisible().nodes
+      for (let n of allNodes) {
+        if (n.text && /^(提交并继续摸鱼|确认涂鸦)$/.test(n.text) && n.bounds) {
+          submitNode = n
+          break
+        }
+      }
+      if (submitNode) {
+        // 存在则点击一个坐标：x与它一样，y是centerY - 4*高度（向上偏移4倍控件高度）
+        let bd = submitNode.bounds
+        let sx = Math.round(bd.centerX())
+        let sy = Math.round(bd.centerY() - 4 * bd.height())
+        taskLog('找到"提交并继续摸鱼"/"确认涂鸦"，点击其上方坐标: (' + sx + ', ' + sy + ')')
+        automator.click(sx, sy)
+        sleep(1000)
+
+        // 接着点击"提交并继续摸鱼"或"确认涂鸦"（完全匹配，任一即可）
+        if (!findAndClickByTextVisible(/^(提交并继续摸鱼|确认涂鸦)$/)) {
+          taskLog('未找到"提交并继续摸鱼"或"确认涂鸦"按钮')
+        }
+        sleep(8000)
+      }
+      continue
+    }
+
+    // 分支3：检查是否弹出"仅解救"（鱼被别人摸走），有则点击"仅解救"后点击"继续摸鱼"（会自动用完所有摸鱼次数）
     if (findAndClickByTextVisible(/^仅解救$/)) {
       taskLog('检测到"仅解救"，点击"仅解救"')
       sleep(2000)
@@ -373,42 +407,8 @@ function loopFishProcess () {
       continue
     }
 
-    // 分支2：检查OCR点击"收下并涂鸦"，有则处理"提交并继续摸鱼"分支
-    if (clickByOcr('收下并涂鸦', 3000)) {
-      // 判断"提交并继续摸鱼"分支：若存在该控件则处理
-      let submitNode = null
-      let allNodes = widgetInspector.detectAllNodesVisible().nodes
-      for (let n of allNodes) {
-        if (n.text && /^提交并继续摸鱼$/.test(n.text) && n.bounds) {
-          submitNode = n
-          break
-        }
-      }
-      if (submitNode) {
-        // 存在则点击一个坐标：x与它一样，y是centerY - 4*高度（向上偏移4倍控件高度）
-        let bd = submitNode.bounds
-        let sx = Math.round(bd.centerX())
-        let sy = Math.round(bd.centerY() - 4 * bd.height())
-        taskLog('找到"提交并继续摸鱼"，点击其上方坐标: (' + sx + ', ' + sy + ')')
-        automator.click(sx, sy)
-        sleep(1000)
-
-        // 接着点击"提交并继续摸鱼"（完全匹配）
-        findAndClickByTextVisible(/^提交并继续摸鱼$/)
-        sleep(8000)
-      }
-      continue
-    }
-
-    // 分支3：检查"继续摸鱼"，有则点击并等待
-    if (clickByOcr('继续摸鱼', 3000)) {
-      taskLog('已点击"继续摸鱼"，等待8s')
-      sleep(8000)
-      continue
-    }
-
     // 3个分支都不存在，退出循环
-    taskLog('未检测到"仅解救""收下并涂鸦""继续摸鱼"任一分支，退出循环')
+    taskLog('未检测到"继续摸鱼""收下并涂鸦""仅解救"任一分支，退出循环')
     break
   }
 
@@ -435,7 +435,10 @@ function classifyFishTask (allNodes, centerY) {
 }
 
 // 领取奖励：完全匹配"立即领取"，若匹配到多个只选最上方的一个，反复点击（参考森林寻宝 claimReward）
+// 保持 while true，但新增计数，最多点击 10 次就退出，防止"立即领取"一直存在导致死循环
 function claimImmediateReward () {
+  let maxClicks = 10
+  let clickCount = 0
   while (true) {
     let result = widgetInspector.detectAllNodesVisible()
     let allNodes = result.nodes
@@ -463,14 +466,21 @@ function claimImmediateReward () {
     taskLog('找到"立即领取"（最上方），点击: (' + bd.centerX() + ', ' + bd.centerY() + ')')
     automator.click(bd.centerX(), bd.centerY())
     sleep(2000)
+
+    // 计数，达到上限退出
+    clickCount++
+    if (clickCount >= maxClicks) {
+      taskLog('"立即领取"点击已达 ' + maxClicks + ' 次上限，退出')
+      return false
+    }
   }
 }
 
 // 查找并执行摸鱼任务（参考森林寻宝 findAndExecuteExploreTask）
-// 开头先处理"仅解救"（loopFishProcess）和领取奖励（立即领取）；遍历所有节点，匹配 FISH_BUTTONS 按钮；对每个按钮若匹配到多个只选最上方的一个；
-// 做同行判断匹配 ".*\d+s.*摸鱼次数"，匹配到则点击按钮，等待匹配到的时间+2s，然后等待任务完成回到摸鱼界面
+// 开头先处理摸鱼循环（loopFishProcess，含"继续摸鱼"/"收下并涂鸦"/"仅解救"分支）和领取奖励（立即领取）；遍历所有节点，匹配 FISH_BUTTONS 按钮；对每个按钮若匹配到多个只选最上方的一个；
+// 做同行判断匹配 ".*?(\d+)s.*摸鱼次数"（非贪婪提取秒数），匹配到则点击按钮，等待匹配到的时间+2s，然后等待任务完成回到摸鱼界面
 function findAndExecuteFishTask () {
-  // 开头先处理"仅解救"（loopFishProcess 分支1会检测并处理"仅解救"）
+  // 开头先处理摸鱼循环（loopFishProcess 会处理"继续摸鱼"/"收下并涂鸦"/"仅解救"分支）
   loopFishProcess()
 
   // 领取奖励（立即领取）
@@ -528,7 +538,7 @@ function findAndExecuteFishTask () {
 }
 
 // 使用所有的摸鱼次数：先返回，在神奇海洋界面则通过模板匹配进入摸鱼界面，否则重新打开进入；
-// 进入摸鱼界面后处理首次自动摸鱼（含"仅解救"），再点击屏幕正中央（y与"奖励"一致）使用摸鱼次数
+// 进入摸鱼界面后处理首次自动摸鱼（含"仅解救"），再获取"奖励"y坐标，点击屏幕正中央（y与"奖励"一致）使用摸鱼次数
 function useAllFishTimes () {
   taskLog('使用所有的摸鱼次数')
 
@@ -558,13 +568,15 @@ function useAllFishTimes () {
   // 进入摸鱼界面后，处理首次进入赠送机会且自动摸鱼的情况（含"仅解救"处理）
   handleFirstEnterAutoFish()
 
-  if (_rewardY < 0) {
-    taskLog('未记录到"奖励"y坐标，无法使用摸鱼次数')
+  // 获取"奖励"y坐标（依次尝试控件/模板/OCR 三种方式，取最上方值）
+  let rewardY = getRewardY()
+  if (rewardY < 0) {
+    taskLog('获取"奖励"y坐标失败，无法使用摸鱼次数')
     return false
   }
 
   let clickX = Math.round(config.device_width / 2)
-  let clickY = Math.round(_rewardY)
+  let clickY = Math.round(rewardY)
   taskLog('点击屏幕正中央(x=' + clickX + ', y=' + clickY + ')使用摸鱼次数')
   automator.click(clickX, clickY)
   sleep(8000)
@@ -665,9 +677,6 @@ function main () {
     LogFloaty.pushErrorLog('不在AI摸鱼界面')
     return false
   }
-
-  // 获取"奖励"y坐标并记录到全局变量（供 useAllFishTimes 使用）
-  _rewardY = getRewardY()
 
   // 进入任务界面
   if (!enterTaskPage()) {

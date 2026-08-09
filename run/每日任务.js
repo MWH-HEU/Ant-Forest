@@ -480,10 +480,17 @@ function executeSpecialTask (specialTask) {
     let scrollRound = specialTask.scrollTimes
     let h = config.device_height
     while (scrollRound-- > 0) {
-      let dist = (0.15 + Math.random() * 0.05) * h   // 滑动距离 15%~20% 随机
-      automator.gestureDown(Math.round(h * 0.75), Math.round(h * 0.75 - dist), 300)
+      // 下滑：起始75%~85%随机，距离20%~30%随机，startY大值 endY小值
+      let downStart = (0.75 + Math.random() * 0.10) * h
+      let downDist = (0.20 + Math.random() * 0.10) * h
+      let downDuration = 100 + Math.random() * 300
+      automator.gestureDown(Math.round(downStart), Math.round(downStart - downDist), downDuration)
       sleep(500)
-      automator.gestureUp(Math.round(h * 0.25), Math.round(h * 0.25 + dist), 300)
+      // 上滑：起始30%~40%随机，距离20%~30%随机，startY小值 endY大值
+      let upStart = (0.30 + Math.random() * 0.10) * h
+      let upDist = (0.20 + Math.random() * 0.10) * h
+      let upDuration = 100 + Math.random() * 300
+      automator.gestureUp(Math.round(upStart), Math.round(upStart + upDist), upDuration)
       sleep(500)
     }
   } else if (specialTask.action === 'scroll') {
@@ -491,10 +498,17 @@ function executeSpecialTask (specialTask) {
     taskLog('执行下滑上滑' + scrollRound + '次')
     let h = config.device_height
     while (scrollRound-- > 0) {
-      let dist = (0.15 + Math.random() * 0.05) * h   // 滑动距离 15%~20% 随机
-      automator.gestureDown(Math.round(h * 0.75), Math.round(h * 0.75 - dist), 300)
+      // 下滑：起始75%~85%随机，距离20%~30%随机，startY大值 endY小值
+      let downStart = (0.75 + Math.random() * 0.10) * h
+      let downDist = (0.20 + Math.random() * 0.10) * h
+      let downDuration = 100 + Math.random() * 300
+      automator.gestureDown(Math.round(downStart), Math.round(downStart - downDist), downDuration)
       sleep(500)
-      automator.gestureUp(Math.round(h * 0.25), Math.round(h * 0.25 + dist), 300)
+      // 上滑：起始30%~40%随机，距离20%~30%随机，startY小值 endY大值
+      let upStart = (0.30 + Math.random() * 0.10) * h
+      let upDist = (0.20 + Math.random() * 0.10) * h
+      let upDuration = 100 + Math.random() * 300
+      automator.gestureUp(Math.round(upStart), Math.round(upStart + upDist), upDuration)
       sleep(500)
     }
   }
@@ -677,8 +691,11 @@ function main () {
     scrollCount++
     taskLog('没有更多任务可执行，滑动屏幕继续查找')
     let h = config.device_height
-    let dist = (0.15 + Math.random() * 0.05) * h   // 滑动距离 15%~20% 随机
-    automator.gestureDown(Math.round(h * 0.75), Math.round(h * 0.75 - dist), 300)
+    // 下滑：起始75%~85%随机，距离15%~20%随机，startY大值 endY小值
+    let downStart = (0.75 + Math.random() * 0.10) * h
+    let downDist = (0.15 + Math.random() * 0.05) * h
+    let downDuration = 100 + Math.random() * 300
+    automator.gestureDown(Math.round(downStart), Math.round(downStart - downDist), downDuration)
     sleep(1000)
   }
 

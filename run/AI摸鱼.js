@@ -133,22 +133,9 @@ function clickByTemplateOrOcr (templateKey, ocrText) {
     taskLog('未配置' + templateKey + '模板，使用OCR')
   }
 
-  // 方案2：OCR识别（兜底）
+  // 方案2：OCR识别（兜底，直接调用 clickByOcr，带重试机制）
   taskLog('通过OCR识别"' + ocrText + '"')
-  let ocrResult = widgetInspector.detectByOcr()
-
-  for (let item of ocrResult.results) {
-    if (item.label.indexOf(ocrText) >= 0) {
-      let bounds = item.bounds
-      taskLog('OCR找到"' + ocrText + '": 点击: (' + bounds.centerX() + ', ' + bounds.centerY() + ')')
-      automator.click(bounds.centerX(), bounds.centerY())
-      sleep(2000)
-      return true
-    }
-  }
-
-  taskLog('未找到"' + ocrText + '"入口')
-  return false
+  return clickByOcr(ocrText, 3000)
 }
 
 // 打开进入神奇海洋的函数（形如 openAntForest）
@@ -185,24 +172,25 @@ function openOcean () {
   return true
 }
 
-// 判断是否在神奇海洋界面（任一文本匹配即成功，支持通配符；完全匹配用 ^xxx$）
+// 判断是否在神奇海洋界面（全部文本都检测到才算成功，支持通配符；完全匹配用 ^xxx$）
 // 匹配文本："蚂蚁森林.*神奇海洋"(非完全) ".*前去参与保护项目"(非完全) "返回"(完全)
 function isOnOceanPage () {
   let texts = ['蚂蚁森林.*神奇海洋', '.*前去参与保护项目', '^返回$']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 3000)
-    if (result) {
-      taskLog('检测到"' + texts[i] + '"，确认在神奇海洋界面')
-      sleep(4000) // 等待界面加载完成
-      return true
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
+    if (!result) {
+      taskLog('未检测到"' + texts[i] + '"，不在神奇海洋界面')
+      return false
     }
+    taskLog('检测到"' + texts[i] + '"')
   }
-  taskLog('未检测到"蚂蚁森林.*神奇海洋 .*前去参与保护项目 返回"任一文本，不在神奇海洋界面')
-  return false
+  taskLog('全部文本检测到，确认在神奇海洋界面')
+  sleep(4000) // 等待界面加载完成
+  return true
 }
 
 // 进入AI摸鱼（形如 enterRewardPage）
-// 调用 openOcean 进入神奇海洋 → 判断是否在界面 → 先模板匹配 ai_fish_icon "AI摸鱼"，OCR兜底；
+// 调用 openOcean 进入神奇海洋 → 判断是否在界面 → 先模板匹配 ai_fish_icon "去摸鱼"，OCR兜底；
 // 未匹配到再模板匹配 rescue_fish "解救鱼"，OCR兜底；都没匹配到则失败。
 // 注意：这里不判断是否在摸鱼界面，因为进入摸鱼界面后有可能需要出现弹窗，需要特殊处理。
 function enterRewardPage () {
@@ -214,36 +202,37 @@ function enterRewardPage () {
     return false
   }
 
-  // 先尝试点击"AI摸鱼"（模板 ai_fish_icon 优先，OCR兜底）
-  if (clickByTemplateOrOcr('ai_fish_icon', 'AI摸鱼')) {
-    taskLog('已点击"AI摸鱼"')
+  // 先尝试点击"去摸鱼"（模板 ai_fish_icon 优先，OCR兜底）
+  if (clickByTemplateOrOcr('ai_fish_icon', '去摸鱼')) {
+    taskLog('已点击"去摸鱼"')
     return true
   }
 
-  // 未匹配到"AI摸鱼"，再尝试点击"解救鱼"（模板 rescue_fish 优先，OCR兜底）
+  // 未匹配到"去摸鱼"，再尝试点击"解救鱼"（模板 rescue_fish 优先，OCR兜底）
   if (clickByTemplateOrOcr('rescue_fish', '解救鱼')) {
     taskLog('已点击"解救鱼"')
     return true
   }
 
-  LogFloaty.pushErrorLog('未找到"AI摸鱼"或"解救鱼"入口，进入AI摸鱼失败')
+  LogFloaty.pushErrorLog('未找到"去摸鱼"或"解救鱼"入口，进入AI摸鱼失败')
   return false
 }
 
-// 判断是否在AI摸鱼界面（任一文本匹配即成功，支持通配符；完全匹配用 ^xxx$）
+// 判断是否在AI摸鱼界面（全部文本都检测到才算成功，支持通配符；完全匹配用 ^xxx$）
 // 匹配文本："蚂蚁森林.*AI摸鱼"(非完全) "规则"(完全) "奖励"(完全)
 function isOnFishPage () {
   let texts = ['蚂蚁森林.*AI摸鱼', '^规则$', '^奖励$']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 3000)
-    if (result) {
-      taskLog('检测到"' + texts[i] + '"，确认在AI摸鱼界面')
-      sleep(4000) // 等待界面加载完成
-      return true
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
+    if (!result) {
+      taskLog('未检测到"' + texts[i] + '"，不在AI摸鱼界面')
+      return false
     }
+    taskLog('检测到"' + texts[i] + '"')
   }
-  taskLog('未检测到"蚂蚁森林.*AI摸鱼 规则 奖励"任一文本，不在AI摸鱼界面')
-  return false
+  taskLog('全部文本检测到，确认在AI摸鱼界面')
+  sleep(4000) // 等待界面加载完成
+  return true
 }
 
 // 获取"奖励"的 y 坐标：分别通过控件、模板、OCR 三种方式获取，任一成功即返回该 y 值（不点击）
@@ -510,7 +499,7 @@ function findAndExecuteFishTask () {
     let bd = targetNode.bounds
     let centerY = bd.centerY()
 
-    // 同行判断：匹配 ".*\d+s.*摸鱼次数"
+    // 同行判断：匹配 ".*?(\d+)s.*摸鱼次数"（非贪婪提取秒数）
     let cmd = classifyFishTask(allNodes, centerY)
     if (cmd.type !== 'fish') {
       taskLog('按钮"' + btn + '"同行未匹配到"摸鱼次数"任务，跳过')
@@ -548,9 +537,9 @@ function useAllFishTimes () {
   // 判断是否在神奇海洋界面
   if (isOnOceanPage()) {
     taskLog('在神奇海洋界面，通过模板匹配进入摸鱼界面')
-    // 在神奇海洋界面：直接通过模板匹配点击"AI摸鱼"进入摸鱼界面（不重新打开）
-    if (!clickByTemplateOrOcr('ai_fish_icon', 'AI摸鱼')) {
-      // 模板匹配"AI摸鱼"失败，再尝试"解救鱼"
+    // 在神奇海洋界面：直接通过模板匹配点击"去摸鱼"进入摸鱼界面（不重新打开）
+    if (!clickByTemplateOrOcr('ai_fish_icon', '去摸鱼')) {
+      // 模板匹配"去摸鱼"失败，再尝试"解救鱼"
       if (!clickByTemplateOrOcr('rescue_fish', '解救鱼')) {
         LogFloaty.pushErrorLog('模板匹配进入摸鱼界面失败')
         return false
@@ -606,7 +595,6 @@ function handleFirstEnterAutoFish () {
 // 等待任务完成并回到摸鱼界面（参考每日任务 waitForTaskComplete，判断界面用摸鱼界面）
 function waitForTaskComplete () {
   taskLog('任务完成，退出页面')
-  sleep(2000)
 
   let pkg = config.package_name || 'com.eg.android.AlipayGphone'
 

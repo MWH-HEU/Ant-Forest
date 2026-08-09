@@ -81,7 +81,7 @@ threads.start(function () {
 // 核心逻辑：限时道具兑换
 // ============================================================
 
-// 遍历所有控件，正则匹配文本并点击（参考复活能量 findAndClickByText）
+// 遍历所有控件（含不可见的），正则匹配文本并点击（参考复活能量 findAndClickByText）
 function findAndClickByText (pattern) {
   let result = widgetInspector.detectAllNodes()
   for (let node of result.nodes) {
@@ -431,9 +431,10 @@ function findAndUseCard (pattern) {
       break
     }
 
-    // 滑动位置不变（从90%高度起），滑动距离15%~20%随机
-    let dist = (0.15 + Math.random() * 0.05) * config.device_height
-    automator.gestureDown(Math.round(config.device_height * 0.90), Math.round(config.device_height * 0.90 - dist), 300)
+    // 滑动起始点85%~95%高度随机，滑动距离10%~15%随机，持续时间100~400ms随机
+    let dist = (0.10 + Math.random() * 0.05) * config.device_height
+    let startY = config.device_height * (0.85 + Math.random() * 0.10)
+    automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
     sleep(1000)
   }
 
@@ -626,9 +627,10 @@ function exchangeProtectorCard () {
       break
     }
 
-    // 滑动位置不变（从90%高度起），滑动距离15%~20%随机
-    let dist = (0.15 + Math.random() * 0.05) * config.device_height
-    automator.gestureDown(Math.round(config.device_height * 0.90), Math.round(config.device_height * 0.90 - dist), 300)
+    // 滑动起始点85%~95%高度随机，滑动距离10%~15%随机，持续时间100~400ms随机
+    let dist = (0.10 + Math.random() * 0.05) * config.device_height
+    let startY = config.device_height * (0.85 + Math.random() * 0.10)
+    automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
     sleep(1000)
   }
 
@@ -666,12 +668,14 @@ function hasUsedItemToday (usedPattern) {
   }
   sleep(2000)
 
-  // 最多下滑3次，寻找"森林动态"和"去看全部"（完全匹配）；滑动位置不变（从90%高度起），滑动距离15%~20%随机
+  // 最多下滑3次，寻找"森林动态"和"去看全部"（完全匹配）；起始点85%~95%高度随机，滑动距离10%~15%随机，持续时间100~400ms随机
   let foundEntry = false
   let h = config.device_height
   for (let i = 0; i < 3; i++) {
-    let dist = (0.15 + Math.random() * 0.05) * h
-    automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.90 - dist), 300)
+    // 滑动起始点85%~95%高度随机，滑动距离10%~15%随机，持续时间100~400ms随机
+    let dist = (0.10 + Math.random() * 0.05) * h
+    let startY = h * (0.85 + Math.random() * 0.10)
+    automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
     sleep(1000)
 
     let hasForest = widgetUtils.widgetWaiting('^森林动态$', '森林动态', 2000)
@@ -748,30 +752,35 @@ function hasUsedItemToday (usedPattern) {
       return true
     }
 
-    // 都没找到，下滑继续搜索（滑动位置不变，滑动距离15%~20%随机）
-    let dist = (0.15 + Math.random() * 0.05) * h
-    automator.gestureDown(Math.round(h * 0.90), Math.round(h * 0.90 - dist), 300)
+    // 都没找到，下滑继续搜索（起始点85%~95%高度随机，滑动距离10%~15%随机，持续时间100~400ms随机）
+    let dist = (0.10 + Math.random() * 0.05) * h
+    let startY = h * (0.85 + Math.random() * 0.10)
+    automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
     sleep(1000)
   }
 }
 
 // 通过上滑查找并点击"活力值积分商店"进入商店，点击后判断是否在商店
-// 上滑起始位置与背包中下滑一致（90%高度），滑动距离30%~40%随机；检测到商店后再执行一次上滑确保完整显示
+// 上滑起始点65%~70%高度随机，滑动距离20%~30%随机（结束点不超过95%），持续时间100~400ms随机；检测到商店后再执行一次上滑确保完整显示
 function enterVitalityShopByScrollUp () {
   taskLog('=== 上滑查找并进入活力值积分商店 ===')
   let h = config.device_height
 
-  // 循环上滑，每次上滑后等待"活力值积分商店"（从90%高度向上滑，让上方内容显示，幅度30%~40%随机）
+  // 循环上滑，每次上滑后等待"活力值积分商店"（起始点65%~70%高度随机，向下滑让上方内容显示，幅度20%~30%随机且结束点不超过95%，持续时间100~400ms随机）
   let found = false
   for (let i = 0; i < 10; i++) {
-    let dist = (0.30 + Math.random() * 0.10) * h
-    automator.gestureUp(Math.round(h * 0.90), Math.round(h * 0.90 - dist), 300)
+    let dist = (0.20 + Math.random() * 0.10) * h
+    let startY = h * (0.65 + Math.random() * 0.05)
+    let endY = Math.min(startY + dist, h * 0.95)
+    automator.gestureUp(Math.round(startY), Math.round(endY), 100 + Math.round(Math.random() * 300))
     sleep(1000)
     if (widgetUtils.widgetWaiting('活力值积分商店', '活力值积分商店', 2000)) {
       found = true
-      // 检测到后再执行一次上滑，确保商店入口完整显示
-      let dist2 = (0.30 + Math.random() * 0.10) * h
-      automator.gestureUp(Math.round(h * 0.90), Math.round(h * 0.90 - dist2), 300)
+      // 检测到后再执行一次上滑，确保商店入口完整显示（重新生成随机起始点/距离/结束点）
+      dist = (0.20 + Math.random() * 0.10) * h
+      startY = h * (0.65 + Math.random() * 0.05)
+      endY = Math.min(startY + dist, h * 0.95)
+      automator.gestureUp(Math.round(startY), Math.round(endY), 100 + Math.round(Math.random() * 300))
       sleep(1000)
       break
     }

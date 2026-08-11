@@ -60,7 +60,7 @@ threads.start(function () {
 // 核心逻辑：AI摸鱼
 // ============================================================
 
-// 遍历所有控件，正则匹配文本并点击（参考限时道具兑换 findAndClickByText）
+// 遍历所有控件，正则匹配文本并点击
 function findAndClickByText (pattern) {
   let result = widgetInspector.detectAllNodes()
   for (let node of result.nodes) {
@@ -78,7 +78,6 @@ function findAndClickByText (pattern) {
 }
 
 // 遍历可见区域内的控件，用正则 pattern 匹配文本，匹配到第一个符合条件的节点即点击并返回 true；未匹配到返回 false
-// （参考限时道具兑换 findAndClickByTextVisible）
 function findAndClickByTextVisible (pattern) {
   let result = widgetInspector.detectAllNodesVisible()
   for (let node of result.nodes) {
@@ -102,7 +101,7 @@ function goBack () {
 
 /**
  * 通过模板图片匹配指定 key 的图标并点击
- * 模板未配置或匹配失败时回退到 OCR 识别（参考神奇鱼塘 clickGetEnergy）
+ * 模板未配置或匹配失败时回退到 OCR 识别
  * @param {string} templateKey - config.image_config 中的模板 key（如 ai_fish_icon / rescue_fish）
  * @param {string} ocrText - OCR 兜底识别的文字（如 "AI摸鱼" / "解救鱼"）
  * @returns {boolean} 是否成功找到并点击
@@ -144,9 +143,9 @@ function openOcean () {
 
   commonFunction.backHomeIfInVideoPackage()
 
-  // 先杀掉支付宝进程，强制冷启动进入神奇海洋主页面（避免停留在子页面）
-  killApps()
-  sleep(2000)
+  // // 先杀掉支付宝进程，强制冷启动进入神奇海洋主页面（避免停留在子页面）
+  // killApps()
+  // sleep(2000)
 
   app.startActivity({
     action: 'VIEW',
@@ -235,6 +234,9 @@ function isOnFishPage () {
   return true
 }
 
+// 全局变量："奖励"按钮的 y 坐标（只能在摸鱼界面获取，由 main 在进入任务界面前赋值，供 findAndExecuteFishTask / useAllFishTimes 使用）
+let rewardY = -1
+
 // 获取"奖励"的 y 坐标：分别通过控件、模板、OCR 三种方式获取，任一成功即返回该 y 值（不点击）
 // 返回 y 坐标，全部失败返回 -1
 function getRewardY () {
@@ -314,7 +316,7 @@ function enterTaskPage () {
   return false
 }
 
-// 通过OCR识别并点击指定关键词（参考森林寻宝 clickByOcr）
+// 通过OCR识别并点击指定关键词
 // 在 timeout 时间内循环截屏识别，命中即点击返回 true
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
@@ -337,6 +339,33 @@ function clickByOcr (keyword, timeout) {
     sleep(500)
   }
   return false
+}
+
+// 通过OCR识别"开始摸鱼"/"继续摸鱼"/"解救我的鱼"，返回其 y 坐标（不点击）；未识别到返回 -1
+function findFishButtonY () {
+  if (!localOcrUtil.enabled) return -1
+  let keywords = ['开始摸鱼', '继续摸鱼', '解救我的鱼']
+  let deadline = new Date().getTime() + 3000
+  while (new Date().getTime() < deadline) {
+    commonFunction.requestScreenCaptureOrRestart()
+    sleep(300)
+    let screen = commonFunction.captureScreen()
+    if (screen) {
+      for (let keyword of keywords) {
+        let results = localOcrUtil.recognizeWithBounds(screen, null, keyword)
+        if (results && results.length > 0) {
+          let y = Math.round(results[0].bounds.centerY())
+          screen.recycle()
+          taskLog('OCR识别到"' + keyword + '"，y坐标: ' + y)
+          return y
+        }
+      }
+      screen.recycle()
+    }
+    sleep(500)
+  }
+  taskLog('OCR未识别到"开始摸鱼"/"继续摸鱼"/"解救我的鱼"')
+  return -1
 }
 
 // 摸鱼循环处理：每轮独立检查3种分支，任一存在则处理并继续下一轮，3个分支都不存在才退出
@@ -364,6 +393,7 @@ function loopFishProcess () {
           break
         }
       }
+      sleep(1000)
       if (submitNode) {
         // 存在则点击一个坐标：x与它一样，y是centerY - 4*高度（向上偏移4倍控件高度）
         let bd = submitNode.bounds
@@ -408,6 +438,27 @@ function loopFishProcess () {
 // 摸鱼任务按钮（完全匹配）
 const FISH_BUTTONS = ['去看看', '去完成']
 
+// 排除项关键词（非完全匹配：按钮同行包含任一关键词则跳过）
+const FISH_SKIP_KEYWORDS = ['玩一玩']
+
+// 判断按钮同行是否包含排除项关键词
+// 返回命中的关键词，未命中返回 null
+function findSkipKeywordInSameRow (allNodes, centerY) {
+  for (let node of allNodes) {
+    let text = node.text
+    if (!text) continue
+    for (let kw of FISH_SKIP_KEYWORDS) {
+      if (text.indexOf(kw) >= 0) {
+        let y = node.bounds.centerY()
+        if (Math.abs(y - centerY) < 200) {
+          return kw
+        }
+      }
+    }
+  }
+  return null
+}
+
 // 判断同行任务类型：匹配 ".*?\d+s.*摸鱼次数"（非贪婪提取完整秒数），提取秒数
 // 返回 { type: 'fish', seconds } 或 { type: 'other' }
 function classifyFishTask (allNodes, centerY) {
@@ -423,7 +474,7 @@ function classifyFishTask (allNodes, centerY) {
   return { type: 'other' }
 }
 
-// 领取奖励：完全匹配"立即领取"，若匹配到多个只选最上方的一个，反复点击（参考森林寻宝 claimReward）
+// 领取奖励：完全匹配"立即领取"，若匹配到多个只选最上方的一个，反复点击
 // 保持 while true，但新增计数，最多点击 10 次就退出，防止"立即领取"一直存在导致死循环
 function claimImmediateReward () {
   let maxClicks = 10
@@ -465,8 +516,9 @@ function claimImmediateReward () {
   }
 }
 
-// 查找并执行摸鱼任务（参考森林寻宝 findAndExecuteExploreTask）
-// 开头先处理摸鱼循环（loopFishProcess，含"继续摸鱼"/"收下并涂鸦"/"仅解救"分支）和领取奖励（立即领取）；遍历所有节点，匹配 FISH_BUTTONS 按钮；对每个按钮若匹配到多个只选最上方的一个；
+// 查找并执行摸鱼任务
+// 开头先处理摸鱼循环（loopFishProcess，含"继续摸鱼"/"收下并涂鸦"/"仅解救"分支）和领取奖励（立即领取）；遍历所有节点，匹配 FISH_BUTTONS 按钮；
+// 跳过"奖励"下方的按钮（只选"奖励"上方的摸鱼任务按钮）；排除项数组 FISH_SKIP_KEYWORDS（如"玩一玩"）同行则跳过；
 // 做同行判断匹配 ".*?(\d+)s.*摸鱼次数"（非贪婪提取秒数），匹配到则点击按钮，等待匹配到的时间+2s，然后等待任务完成回到摸鱼界面
 function findAndExecuteFishTask () {
   // 开头先处理摸鱼循环（loopFishProcess 会处理"继续摸鱼"/"收下并涂鸦"/"仅解救"分支）
@@ -482,22 +534,33 @@ function findAndExecuteFishTask () {
     return false
   }
 
-  // 对每个按钮类型，只选最上方（centerY 最小）的一个
+  // 直接使用全局变量 rewardY（由 main 在进入任务界面前获取），用于跳过其下方的按钮
+  taskLog('"奖励"y坐标: ' + rewardY + '，将跳过其下方的摸鱼任务按钮')
+
+  // 对每个按钮类型，选择"奖励"上方且同行不包含排除项的按钮
   for (let btn of FISH_BUTTONS) {
     let targetNode = null
     for (let node of allNodes) {
       let text = node.text
       if (!text || text !== btn) continue
       if (!node.bounds) continue
-      // 只选最上方的一个（centerY 最小）
-      if (!targetNode || node.bounds.centerY() < targetNode.bounds.centerY()) {
-        targetNode = node
-      }
+      // 跳过"奖励"下方的按钮（centerY 大于等于奖励 y 坐标的跳过）
+      if (node.bounds.centerY() >= rewardY) continue
+      // 选择第一个符合条件的按钮（不再选最上方，直接取遇到的第一个）
+      targetNode = node
+      break
     }
     if (!targetNode) continue
 
     let bd = targetNode.bounds
     let centerY = bd.centerY()
+
+    // 排除项判断：按钮同行包含排除关键词（如"玩一玩"）则跳过
+    let skipKeyword = findSkipKeywordInSameRow(allNodes, centerY)
+    if (skipKeyword) {
+      taskLog('跳过"' + skipKeyword + '"行的按钮: "' + btn + '"')
+      continue
+    }
 
     // 同行判断：匹配 ".*?(\d+)s.*摸鱼次数"（非贪婪提取秒数）
     let cmd = classifyFishTask(allNodes, centerY)
@@ -527,7 +590,8 @@ function findAndExecuteFishTask () {
 }
 
 // 使用所有的摸鱼次数：先返回，在神奇海洋界面则通过模板匹配进入摸鱼界面，否则重新打开进入；
-// 进入摸鱼界面后处理首次自动摸鱼（含"仅解救"），再获取"奖励"y坐标，点击屏幕正中央（y与"奖励"一致）使用摸鱼次数
+// 进入摸鱼界面后处理首次自动摸鱼（含"仅解救"），再获取"奖励"y坐标（全局变量 rewardY，用于同行判断）
+// OCR识别"开始摸鱼"/"继续摸鱼"/"解救我的鱼"，识别到且与"奖励"同行则用固定坐标（x=屏幕中央，y=奖励）点击+摸鱼循环；未识别到则不执行
 function useAllFishTimes () {
   taskLog('使用所有的摸鱼次数')
 
@@ -557,16 +621,19 @@ function useAllFishTimes () {
   // 进入摸鱼界面后，处理首次进入赠送机会且自动摸鱼的情况（含"仅解救"处理）
   handleFirstEnterAutoFish()
 
-  // 获取"奖励"y坐标（依次尝试控件/模板/OCR 三种方式，取最上方值）
-  let rewardY = getRewardY()
-  if (rewardY < 0) {
-    taskLog('获取"奖励"y坐标失败，无法使用摸鱼次数')
-    return false
-  }
-
+  // 直接使用全局变量 rewardY（由 main 在进入任务界面前获取），用于判断摸鱼按钮是否同行
   let clickX = Math.round(config.device_width / 2)
   let clickY = Math.round(rewardY)
-  taskLog('点击屏幕正中央(x=' + clickX + ', y=' + clickY + ')使用摸鱼次数')
+
+  // OCR识别"开始摸鱼"/"继续摸鱼"/"解救我的鱼"，识别到且与"奖励"同行则用固定坐标点击+摸鱼循环
+  let fishY = findFishButtonY()
+  if (fishY < 0 || Math.abs(fishY - rewardY) < 200) {
+    taskLog('未识别到"开始摸鱼"/"继续摸鱼"/"解救我的鱼"或与"奖励"不同行，不执行摸鱼')
+    taskLog('摸鱼次数已使用完毕')
+    return true
+  }
+
+  taskLog('识别到摸鱼按钮且与"奖励"同行，点击固定坐标(x=' + clickX + ', y=' + clickY + ')')
   automator.click(clickX, clickY)
   sleep(8000)
 
@@ -592,7 +659,7 @@ function handleFirstEnterAutoFish () {
   return true
 }
 
-// 等待任务完成并回到摸鱼界面（参考每日任务 waitForTaskComplete，判断界面用摸鱼界面）
+// 等待任务完成并回到摸鱼界面
 function waitForTaskComplete () {
   taskLog('任务完成，退出页面')
 
@@ -663,6 +730,13 @@ function main () {
   // 判断是否在AI摸鱼界面
   if (!isOnFishPage()) {
     LogFloaty.pushErrorLog('不在AI摸鱼界面')
+    return false
+  }
+
+  // 在摸鱼界面获取"奖励"y坐标（只能在摸鱼界面获取，进入任务界面后无法获取），赋值给全局变量
+  rewardY = getRewardY()
+  if (rewardY < 0) {
+    LogFloaty.pushErrorLog('获取"奖励"y坐标失败，退出脚本')
     return false
   }
 

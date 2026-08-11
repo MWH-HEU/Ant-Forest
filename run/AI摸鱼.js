@@ -474,7 +474,7 @@ function classifyFishTask (allNodes, centerY) {
   return { type: 'other' }
 }
 
-// 领取奖励：完全匹配"立即领取"，若匹配到多个只选最上方的一个，反复点击
+// 领取奖励：完全匹配"立即领取"，只选位于"奖励"上方的按钮，反复点击
 // 保持 while true，但新增计数，最多点击 10 次就退出，防止"立即领取"一直存在导致死循环
 function claimImmediateReward () {
   let maxClicks = 10
@@ -487,23 +487,24 @@ function claimImmediateReward () {
       return false
     }
 
-    // 只选最上方（centerY 最小）的一个"立即领取"按钮
+    // 只选位于"奖励"上方（centerY 小于 rewardY）的一个"立即领取"按钮
     let targetNode = null
     for (let node of allNodes) {
       let text = node.text
       if (!text || text !== '立即领取') continue
       if (!node.bounds) continue
-      if (!targetNode || node.bounds.centerY() < targetNode.bounds.centerY()) {
-        targetNode = node
-      }
+      // 跳过"奖励"下方或同行的"立即领取"（centerY 大于等于 rewardY 的跳过）
+      if (node.bounds.centerY() >= rewardY) continue
+      targetNode = node
+      break
     }
     if (!targetNode) {
-      taskLog('未找到"立即领取"按钮')
+      taskLog('未找到"奖励"上方的"立即领取"按钮')
       return false
     }
 
     let bd = targetNode.bounds
-    taskLog('找到"立即领取"（最上方），点击: (' + bd.centerX() + ', ' + bd.centerY() + ')')
+    taskLog('找到"立即领取"（奖励上方），点击: (' + bd.centerX() + ', ' + bd.centerY() + ')')
     automator.click(bd.centerX(), bd.centerY())
     sleep(2000)
 

@@ -494,7 +494,7 @@ function openRainPage (reopen) {
   if (confirm) {
     automator.clickCenter(confirm)
   }
-  if (!widgetUtils.widgetWaiting('.*(返回蚂蚁森林|本场机会由好友|去蚂蚁森林看看).*') || !commonFunction.myCurrentPackage() == config.package_name) {
+  if (!widgetUtils.widgetWaiting('.*(返回蚂蚁森林|本场机会由好友|本场机会由道具生成|去蚂蚁森林看看|立即开启|找更多能量).*') || !commonFunction.myCurrentPackage() == config.package_name) {
     errorInfo(['打开能量雨界面失败'], true)
     LogFloaty.pushWarningLog('打开能量雨界面失败')
     if (reopen) {

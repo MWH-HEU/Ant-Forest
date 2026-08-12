@@ -237,27 +237,10 @@ function isOnFishPage () {
 // 全局变量："奖励"按钮的 y 坐标（只能在摸鱼界面获取，由 main 在进入任务界面前赋值，供 findAndExecuteFishTask / useAllFishTimes 使用）
 let rewardY = -1
 
-// 获取"奖励"的 y 坐标：分别通过控件、模板、OCR 三种方式获取，任一成功即返回该 y 值（不点击）
+// 获取"奖励"的 y 坐标：分别通过模板、OCR、控件三种方式获取，任一成功即返回该 y 值（不点击）
 // 返回 y 坐标，全部失败返回 -1
 function getRewardY () {
-  // 方案1：控件查找"奖励"（完全匹配），若匹配到多个只选最上方的一个（centerY 最小）
-  let allNodes = widgetInspector.detectAllNodesVisible().nodes
-  let targetNode = null
-  for (let n of allNodes) {
-    if (n.text && /^奖励$/.test(n.text) && n.bounds) {
-      if (!targetNode || n.bounds.centerY() < targetNode.bounds.centerY()) {
-        targetNode = n
-      }
-    }
-  }
-  if (targetNode) {
-    let y = targetNode.bounds.centerY()
-    taskLog('控件获取"奖励"y坐标（最上方）: ' + y)
-    return y
-  }
-  taskLog('控件未找到"奖励"，尝试模板匹配')
-
-  // 方案2：模板匹配 ai_fish_reward_icon "奖励(AI摸鱼)"
+  // 方案1：模板匹配 ai_fish_reward_icon "奖励(AI摸鱼)"（首选）
   if (config.image_config && config.image_config.ai_fish_reward_icon) {
     try {
       let screen = commonFunction.captureScreen()
@@ -279,7 +262,7 @@ function getRewardY () {
     taskLog('未配置ai_fish_reward_icon模板，尝试OCR')
   }
 
-  // 方案3：OCR识别"奖励"
+  // 方案2：OCR识别"奖励"
   taskLog('通过OCR获取"奖励"y坐标')
   let ocrResult = widgetInspector.detectByOcr()
   for (let item of ocrResult.results) {
@@ -289,26 +272,70 @@ function getRewardY () {
       return y
     }
   }
+  taskLog('OCR未识别到"奖励"，尝试控件')
+
+  // 方案3：控件查找"奖励"（完全匹配），若匹配到多个只选最上方的一个（centerY 最小）
+  let allNodes = widgetInspector.detectAllNodesVisible().nodes
+  let targetNode = null
+  for (let n of allNodes) {
+    if (n.text && /^奖励$/.test(n.text) && n.bounds) {
+      if (!targetNode || n.bounds.centerY() < targetNode.bounds.centerY()) {
+        targetNode = n
+      }
+    }
+  }
+  if (targetNode) {
+    let y = targetNode.bounds.centerY()
+    taskLog('控件获取"奖励"y坐标（最上方）: ' + y)
+    return y
+  }
 
   taskLog('未通过任何方式获取到"奖励"y坐标')
   return -1
 }
 
-// 进入任务界面：在摸鱼界面先通过控件点击"奖励"，失败则模板匹配 ai_fish_reward_icon "奖励(AI摸鱼)"，再失败则OCR识别
+// 进入任务界面：在摸鱼界面先通过模板匹配 ai_fish_reward_icon "奖励(AI摸鱼)"（首选），失败则OCR识别"奖励"，再失败则控件点击"奖励"（完全匹配）
 function enterTaskPage () {
   taskLog('进入任务界面')
 
-  // 方案1：控件点击"奖励"（完全匹配）
-  if (findAndClickByTextVisible(/^奖励$/)) {
-    taskLog('控件点击"奖励"成功')
+  // 方案1：模板匹配 ai_fish_reward_icon "奖励(AI摸鱼)"（首选）
+  if (config.image_config && config.image_config.ai_fish_reward_icon) {
+    try {
+      let screen = commonFunction.captureScreen()
+      if (screen) {
+        let match = OpenCvUtil.findByGrayBase64(screen, config.image_config.ai_fish_reward_icon, false)
+        if (match) {
+          let centerX = Math.round(match.centerX())
+          let centerY = Math.round(match.centerY())
+          taskLog('模板匹配找到"奖励"，点击: (' + centerX + ', ' + centerY + ')')
+          automator.click(centerX, centerY)
+          sleep(2000)
+          return true
+        }
+        taskLog('模板匹配未找到"奖励"，尝试OCR')
+      } else {
+        taskLog('截屏失败，尝试OCR')
+      }
+    } catch (e) {
+      taskLog('模板匹配异常: ' + e + '，尝试OCR')
+    }
+  } else {
+    taskLog('未配置ai_fish_reward_icon模板，尝试OCR')
+  }
+
+  // 方案2：OCR识别"奖励"（第二）
+  taskLog('通过OCR识别"奖励"')
+  if (clickByOcr('奖励', 3000)) {
+    taskLog('OCR点击"奖励"成功')
     sleep(2000)
     return true
   }
-  taskLog('控件未找到"奖励"，尝试模板匹配')
+  taskLog('OCR未识别到"奖励"，尝试控件')
 
-  // 方案2：模板匹配 ai_fish_reward_icon "奖励(AI摸鱼)"（OCR兜底）
-  if (clickByTemplateOrOcr('ai_fish_reward_icon', '奖励')) {
-    taskLog('模板/OCR点击"奖励"成功')
+  // 方案3：控件点击"奖励"（完全匹配，最后）
+  if (findAndClickByTextVisible(/^奖励$/)) {
+    taskLog('控件点击"奖励"成功')
+    sleep(2000)
     return true
   }
 
@@ -341,50 +368,23 @@ function clickByOcr (keyword, timeout) {
   return false
 }
 
-// 通过OCR识别"开始摸鱼"/"继续摸鱼"/"解救我的鱼"，返回其 y 坐标（不点击）；未识别到返回 -1
-function findFishButtonY () {
-  if (!localOcrUtil.enabled) return -1
-  let keywords = ['开始摸鱼', '继续摸鱼', '解救我的鱼']
-  let deadline = new Date().getTime() + 3000
-  while (new Date().getTime() < deadline) {
-    commonFunction.requestScreenCaptureOrRestart()
-    sleep(300)
-    let screen = commonFunction.captureScreen()
-    if (screen) {
-      for (let keyword of keywords) {
-        let results = localOcrUtil.recognizeWithBounds(screen, null, keyword)
-        if (results && results.length > 0) {
-          let y = Math.round(results[0].bounds.centerY())
-          screen.recycle()
-          taskLog('OCR识别到"' + keyword + '"，y坐标: ' + y)
-          return y
-        }
-      }
-      screen.recycle()
-    }
-    sleep(500)
-  }
-  taskLog('OCR未识别到"开始摸鱼"/"继续摸鱼"/"解救我的鱼"')
-  return -1
-}
-
 // 摸鱼循环处理：每轮独立检查4种分支，任一存在则处理并继续下一轮，4个分支都不存在才退出
 // 1. "继续摸鱼"→点击并等待 2. "收下并涂鸦"→"提交并继续摸鱼"/"确认涂鸦"（任一即提交涂鸦）
-// 3. "仅追回"→首选控件点击，OCR兜底 4. "仅解救"（鱼被别人摸走）→点击仅解救后点击继续摸鱼
+// 3. "仅解救"（鱼被别人摸走）→点击仅解救后点击继续摸鱼 4. "仅追回"→首选控件点击，OCR兜底
 function loopFishProcess () {
   let maxRounds = 20
   for (let round = 0; round < maxRounds; round++) {
     taskLog('摸鱼循环 第 ' + (round + 1) + ' 轮')
 
-    // 分支1：检查"继续摸鱼"，有则点击并等待
-    if (clickByOcr('继续摸鱼', 3000)) {
+    // 分支1：检查"继续摸鱼"（完全匹配 ^继续摸鱼$），有则点击并等待
+    if (clickByOcr('^继续摸鱼$', 3000)) {
       taskLog('已点击"继续摸鱼"，等待8s')
       sleep(8000)
       continue
     }
 
-    // 分支2：检查OCR点击"收下并涂鸦"，有则处理"提交并继续摸鱼"/"确认涂鸦"分支
-    if (clickByOcr('收下并涂鸦', 3000)) {
+    // 分支2：检查OCR点击"收下并涂鸦"（完全匹配 ^收下并涂鸦$），有则处理"提交并继续摸鱼"/"确认涂鸦"分支
+    if (clickByOcr('^收下并涂鸦$', 3000)) {
       // 判断"提交并继续摸鱼"/"确认涂鸦"分支：这两个按钮任何一个都表示提交涂鸦，存在则处理
       let submitNode = null
       let allNodes = widgetInspector.detectAllNodesVisible().nodes
@@ -413,31 +413,31 @@ function loopFishProcess () {
       continue
     }
 
-    // 分支3：检查"仅追回"，首选控件查找点击，OCR兜底（两者任一命中即处理）
-    let rescued = false
-    if (findAndClickByTextVisible(/^仅追回$/)) {
-      taskLog('检测到"仅追回"，点击"仅追回"')
-      rescued = true
-    } else if (clickByOcr('仅追回', 3000)) {
-      taskLog('OCR点击"仅追回"')
-      rescued = true
-    }
-    if (rescued) {
-      sleep(2000)
-      continue
-    }
-
-    // 分支4：检查是否弹出"仅解救"（鱼被别人摸走），有则点击"仅解救"后点击"继续摸鱼"（会自动用完所有摸鱼次数）
+    // 分支3：检查是否弹出"仅解救"（鱼被别人摸走），有则点击"仅解救"后点击"继续摸鱼"（会自动用完所有摸鱼次数）
     if (findAndClickByTextVisible(/^仅解救$/)) {
       taskLog('检测到"仅解救"，点击"仅解救"')
       sleep(2000)
       // 点击"继续摸鱼"，自动使用当前所有摸鱼次数
-      if (!clickByOcr('继续摸鱼', 3000)) {
+      if (!clickByOcr('^继续摸鱼$', 3000)) {
         taskLog('点击"仅解救"后未识别到"继续摸鱼"，退出循环')
         break
       }
       taskLog('已点击"继续摸鱼"，等待8s')
       sleep(8000)
+      continue
+    }
+
+    // 分支4：检查"仅追回"，首选控件查找点击，OCR兜底（两者任一命中即处理）
+    let rescued = false
+    if (findAndClickByTextVisible(/^仅追回$/)) {
+      taskLog('检测到"仅追回"，点击"仅追回"')
+      rescued = true
+    } else if (clickByOcr('^仅追回$', 3000)) {
+      taskLog('OCR点击"仅追回"')
+      rescued = true
+    }
+    if (rescued) {
+      sleep(2000)
       continue
     }
 
@@ -607,8 +607,7 @@ function findAndExecuteFishTask () {
 }
 
 // 使用所有的摸鱼次数：先返回，在神奇海洋界面则通过模板匹配进入摸鱼界面，否则重新打开进入；
-// 进入摸鱼界面后处理首次自动摸鱼（含"仅追回"/"仅解救"），再获取"奖励"y坐标（全局变量 rewardY，用于同行判断）
-// OCR识别"开始摸鱼"/"继续摸鱼"/"解救我的鱼"，识别到且与"奖励"同行则用固定坐标（x=屏幕中央，y=奖励）点击+摸鱼循环；未识别到则不执行
+// 进入摸鱼界面后处理首次自动摸鱼（含"仅追回"/"仅解救"），再点击固定坐标（x=屏幕中央，y=奖励）后进入摸鱼循环（由 main 循环调用多次）
 function useAllFishTimes () {
   taskLog('使用所有的摸鱼次数')
 
@@ -638,19 +637,12 @@ function useAllFishTimes () {
   // 进入摸鱼界面后，处理首次进入赠送机会且自动摸鱼的情况（含"仅追回"/"仅解救"处理）
   handleFirstEnterAutoFish()
 
-  // 直接使用全局变量 rewardY（由 main 在进入任务界面前获取），用于判断摸鱼按钮是否同行
+  // 直接使用全局变量 rewardY（由 main 在进入任务界面前获取），用于计算摸鱼按钮的固定点击坐标
   let clickX = Math.round(config.device_width / 2)
   let clickY = Math.round(rewardY)
 
-  // OCR识别"开始摸鱼"/"继续摸鱼"/"解救我的鱼"，识别到且与"奖励"同行则用固定坐标点击+摸鱼循环
-  let fishY = findFishButtonY()
-  if (fishY < 0 || Math.abs(fishY - rewardY) < 200) {
-    taskLog('未识别到"开始摸鱼"/"继续摸鱼"/"解救我的鱼"或与"奖励"不同行，不执行摸鱼')
-    taskLog('摸鱼次数已使用完毕')
-    return true
-  }
-
-  taskLog('识别到摸鱼按钮且与"奖励"同行，点击固定坐标(x=' + clickX + ', y=' + clickY + ')')
+  // 点击固定坐标（x=屏幕中央，y=奖励）后进入摸鱼循环（由外部 main 循环调用本函数多次）
+  taskLog('点击固定坐标(x=' + clickX + ', y=' + clickY + ')')
   automator.click(clickX, clickY)
   sleep(8000)
 
@@ -780,8 +772,11 @@ function main () {
     break
   }
 
-  // 使用所有的摸鱼次数
-  useAllFishTimes()
+  // 使用所有的摸鱼次数（循环调用3次）
+  for (let i = 0; i < 3; i++) {
+    taskLog('=== 使用所有摸鱼次数 第 ' + (i + 1) + ' 次 ===')
+    useAllFishTimes()
+  }
 
   taskLog('========== AI摸鱼 完成 ==========')
   taskLog('任务完成')

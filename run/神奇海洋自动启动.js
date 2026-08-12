@@ -19,8 +19,8 @@ toastLog("配置完毕done")
 // 显示5秒倒计时弹窗
 commonFunctions.showCommonDialogAndWait('神奇海洋')
 let mainScriptPath = FileUtils.getRealMainScriptPath(true)
-let childScriptPath = mainScriptPath + "/unit/神奇海洋.js"
-engines.execScriptFile(childScriptPath, { path: mainScriptPath + "/unit/", arguments: { executeByTimeTask: true } })
+let childScriptPath = mainScriptPath + "/run/神奇海洋.js"
+engines.execScriptFile(childScriptPath, { path: mainScriptPath + "/run/", arguments: { executeByTimeTask: true } })
 sleep(1000)
 let all = engines.all()
 for (let i = 0; i < all.length; i++) {

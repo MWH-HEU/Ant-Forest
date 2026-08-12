@@ -188,11 +188,11 @@ function isOnOceanPage () {
   return true
 }
 
-// 进入AI摸鱼（形如 enterRewardPage）
+// 进入AI摸鱼（形如 enterFishPage）
 // 调用 openOcean 进入神奇海洋 → 判断是否在界面 → 先模板匹配 ai_fish_icon "去摸鱼"，OCR兜底；
 // 未匹配到再模板匹配 rescue_fish "解救鱼"，OCR兜底；都没匹配到则失败。
 // 注意：这里不判断是否在摸鱼界面，因为进入摸鱼界面后有可能需要出现弹窗，需要特殊处理。
-function enterRewardPage () {
+function enterFishPage () {
   taskLog('进入AI摸鱼')
 
   // 进入神奇海洋
@@ -441,7 +441,7 @@ function loopFishProcess () {
       continue
     }
 
-    // 3个分支都不存在，退出循环
+    // 4个分支都不存在，退出循环
     taskLog('未检测到"继续摸鱼""收下并涂鸦""仅追回""仅解救"任一分支，退出循环')
     break
   }
@@ -607,7 +607,7 @@ function findAndExecuteFishTask () {
 }
 
 // 使用所有的摸鱼次数：先返回，在神奇海洋界面则通过模板匹配进入摸鱼界面，否则重新打开进入；
-// 进入摸鱼界面后处理首次自动摸鱼（含"仅解救"），再获取"奖励"y坐标（全局变量 rewardY，用于同行判断）
+// 进入摸鱼界面后处理首次自动摸鱼（含"仅追回"/"仅解救"），再获取"奖励"y坐标（全局变量 rewardY，用于同行判断）
 // OCR识别"开始摸鱼"/"继续摸鱼"/"解救我的鱼"，识别到且与"奖励"同行则用固定坐标（x=屏幕中央，y=奖励）点击+摸鱼循环；未识别到则不执行
 function useAllFishTimes () {
   taskLog('使用所有的摸鱼次数')
@@ -629,13 +629,13 @@ function useAllFishTimes () {
   } else {
     taskLog('不在神奇海洋界面，重新打开进入摸鱼界面')
     // 不在神奇海洋界面：重新打开进入摸鱼界面
-    if (!enterRewardPage()) {
+    if (!enterFishPage()) {
       LogFloaty.pushErrorLog('无法进入摸鱼界面')
       return false
     }
   }
 
-  // 进入摸鱼界面后，处理首次进入赠送机会且自动摸鱼的情况（含"仅解救"处理）
+  // 进入摸鱼界面后，处理首次进入赠送机会且自动摸鱼的情况（含"仅追回"/"仅解救"处理）
   handleFirstEnterAutoFish()
 
   // 直接使用全局变量 rewardY（由 main 在进入任务界面前获取），用于判断摸鱼按钮是否同行
@@ -654,7 +654,7 @@ function useAllFishTimes () {
   automator.click(clickX, clickY)
   sleep(8000)
 
-  // 点击后进入摸鱼循环，处理"继续摸鱼"/"收下并涂鸦"/"仅解救"3种分支
+  // 点击后进入摸鱼循环，处理"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"4种分支
   loopFishProcess()
 
   taskLog('摸鱼次数已使用完毕')
@@ -662,14 +662,14 @@ function useAllFishTimes () {
 }
 
 // 处理每天第一次进入摸鱼界面赠送两次摸鱼机会且自动摸鱼的情况：
-// 先等待8s，然后进入摸鱼循环处理"继续摸鱼"/"收下并涂鸦"/"仅解救"3种分支
+// 先等待8s，然后进入摸鱼循环处理"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"4种分支
 function handleFirstEnterAutoFish () {
   taskLog('处理首次进入自动摸鱼')
 
   // 先等待8s（等待自动摸鱼开始）
   sleep(8000)
 
-  // 进入摸鱼循环，处理3种分支
+  // 进入摸鱼循环，处理4种分支
   loopFishProcess()
 
   taskLog('首次自动摸鱼处理完毕')
@@ -694,7 +694,9 @@ function waitForTaskComplete () {
       taskLog('切入支付宝失败，重新进入摸鱼界面')
       commonFunction.minimize()
       sleep(500)
-      return enterRewardPage()
+      // 先回到摸鱼界面，再进入任务界面
+      if (!enterFishPage()) return false
+      return enterTaskPage()
     }
     sleep(2000)
   }
@@ -716,7 +718,9 @@ function waitForTaskComplete () {
   taskLog('多次back后仍未回到摸鱼界面，重新进入')
   commonFunction.minimize()
   sleep(500)
-  return enterRewardPage()
+  // 先回到摸鱼界面，再进入任务界面
+  if (!enterFishPage()) return false
+  return enterTaskPage()
 }
 
 // 退出脚本：返回桌面并清理运行状态
@@ -736,7 +740,7 @@ function main () {
   taskLog('========== AI摸鱼 开始 ==========')
 
   // 进入AI摸鱼界面
-  if (!enterRewardPage()) {
+  if (!enterFishPage()) {
     LogFloaty.pushErrorLog('无法进入AI摸鱼界面')
     return false
   }

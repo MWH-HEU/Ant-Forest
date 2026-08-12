@@ -368,8 +368,9 @@ function findFishButtonY () {
   return -1
 }
 
-// 摸鱼循环处理：每轮独立检查3种分支，任一存在则处理并继续下一轮，3个分支都不存在才退出
-// 1. "继续摸鱼"→点击并等待 2. "收下并涂鸦"→"提交并继续摸鱼"/"确认涂鸦"（任一即提交涂鸦） 3. "仅解救"（鱼被别人摸走）→点击仅解救后点击继续摸鱼
+// 摸鱼循环处理：每轮独立检查4种分支，任一存在则处理并继续下一轮，4个分支都不存在才退出
+// 1. "继续摸鱼"→点击并等待 2. "收下并涂鸦"→"提交并继续摸鱼"/"确认涂鸦"（任一即提交涂鸦）
+// 3. "仅追回"→首选控件点击，OCR兜底 4. "仅解救"（鱼被别人摸走）→点击仅解救后点击继续摸鱼
 function loopFishProcess () {
   let maxRounds = 20
   for (let round = 0; round < maxRounds; round++) {
@@ -412,7 +413,21 @@ function loopFishProcess () {
       continue
     }
 
-    // 分支3：检查是否弹出"仅解救"（鱼被别人摸走），有则点击"仅解救"后点击"继续摸鱼"（会自动用完所有摸鱼次数）
+    // 分支3：检查"仅追回"，首选控件查找点击，OCR兜底（两者任一命中即处理）
+    let rescued = false
+    if (findAndClickByTextVisible(/^仅追回$/)) {
+      taskLog('检测到"仅追回"，点击"仅追回"')
+      rescued = true
+    } else if (clickByOcr('仅追回', 3000)) {
+      taskLog('OCR点击"仅追回"')
+      rescued = true
+    }
+    if (rescued) {
+      sleep(2000)
+      continue
+    }
+
+    // 分支4：检查是否弹出"仅解救"（鱼被别人摸走），有则点击"仅解救"后点击"继续摸鱼"（会自动用完所有摸鱼次数）
     if (findAndClickByTextVisible(/^仅解救$/)) {
       taskLog('检测到"仅解救"，点击"仅解救"')
       sleep(2000)
@@ -427,7 +442,7 @@ function loopFishProcess () {
     }
 
     // 3个分支都不存在，退出循环
-    taskLog('未检测到"继续摸鱼""收下并涂鸦""仅解救"任一分支，退出循环')
+    taskLog('未检测到"继续摸鱼""收下并涂鸦""仅追回""仅解救"任一分支，退出循环')
     break
   }
 
@@ -439,6 +454,7 @@ function loopFishProcess () {
 const FISH_BUTTONS = ['去看看', '去完成']
 
 // 排除项关键词（非完全匹配：按钮同行包含任一关键词则跳过）
+// 保留备用：当前匹配到摸鱼任务（\d+s）后直接执行、忽略排除项；若后续任务形式变化（如出现非摸鱼任务按钮），可在此启用排除项判断
 const FISH_SKIP_KEYWORDS = ['玩一玩']
 
 // 判断按钮同行是否包含排除项关键词
@@ -518,11 +534,11 @@ function claimImmediateReward () {
 }
 
 // 查找并执行摸鱼任务
-// 开头先处理摸鱼循环（loopFishProcess，含"继续摸鱼"/"收下并涂鸦"/"仅解救"分支）和领取奖励（立即领取）；遍历所有节点，匹配 FISH_BUTTONS 按钮；
-// 跳过"奖励"下方的按钮（只选"奖励"上方的摸鱼任务按钮）；排除项数组 FISH_SKIP_KEYWORDS（如"玩一玩"）同行则跳过；
-// 做同行判断匹配 ".*?(\d+)s.*摸鱼次数"（非贪婪提取秒数），匹配到则点击按钮，等待匹配到的时间+2s，然后等待任务完成回到摸鱼界面
+// 开头先处理摸鱼循环（loopFishProcess，含"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"分支）和领取奖励（立即领取）；遍历所有节点，匹配 FISH_BUTTONS 按钮；
+// 先做同行判断匹配 ".*?(\d+)s.*摸鱼次数"（非贪婪提取秒数），匹配到则直接执行（排除项判断保留备用但当前不启用）；未匹配到则跳过；
+// 跳过"奖励"下方的按钮（只选"奖励"上方的摸鱼任务按钮），匹配到则点击按钮，等待匹配到的时间+2s，然后等待任务完成回到摸鱼界面
 function findAndExecuteFishTask () {
-  // 开头先处理摸鱼循环（loopFishProcess 会处理"继续摸鱼"/"收下并涂鸦"/"仅解救"分支）
+  // 开头先处理摸鱼循环（loopFishProcess 会处理"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"分支）
   loopFishProcess()
 
   // 领取奖励（立即领取）
@@ -538,7 +554,7 @@ function findAndExecuteFishTask () {
   // 直接使用全局变量 rewardY（由 main 在进入任务界面前获取），用于跳过其下方的按钮
   taskLog('"奖励"y坐标: ' + rewardY + '，将跳过其下方的摸鱼任务按钮')
 
-  // 对每个按钮类型，选择"奖励"上方且同行不包含排除项的按钮
+  // 对每个按钮类型，选择"奖励"上方的按钮
   for (let btn of FISH_BUTTONS) {
     let targetNode = null
     for (let node of allNodes) {
@@ -556,19 +572,19 @@ function findAndExecuteFishTask () {
     let bd = targetNode.bounds
     let centerY = bd.centerY()
 
-    // 排除项判断：按钮同行包含排除关键词（如"玩一玩"）则跳过
-    let skipKeyword = findSkipKeywordInSameRow(allNodes, centerY)
-    if (skipKeyword) {
-      taskLog('跳过"' + skipKeyword + '"行的按钮: "' + btn + '"')
-      continue
-    }
-
-    // 同行判断：匹配 ".*?(\d+)s.*摸鱼次数"（非贪婪提取秒数）
+    // 同行判断：匹配 ".*?(\d+)s.*摸鱼次数"（非贪婪提取秒数），先判断是否为摸鱼任务
     let cmd = classifyFishTask(allNodes, centerY)
     if (cmd.type !== 'fish') {
       taskLog('按钮"' + btn + '"同行未匹配到"摸鱼次数"任务，跳过')
       continue
     }
+    // 匹配到摸鱼任务（\d+s）后直接执行，忽略排除项（保留排除项判断代码备用，便于后续任务形式变化时维护）
+    // 排除项判断：按钮同行包含排除关键词（如"玩一玩"）则跳过——当前因已确认是摸鱼任务（\d+s）而不启用
+    // let skipKeyword = findSkipKeywordInSameRow(allNodes, centerY)
+    // if (skipKeyword) {
+    //   taskLog('跳过"' + skipKeyword + '"行的按钮: "' + btn + '"')
+    //   continue
+    // }
 
     taskLog('找到摸鱼任务按钮: "' + btn + '" 点击: (' + bd.centerX() + ', ' + bd.centerY() + ')，任务时长 ' + cmd.seconds + 's')
     automator.click(bd.centerX(), bd.centerY())

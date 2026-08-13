@@ -737,7 +737,7 @@ function main () {
   // 进入AI摸鱼界面
   if (!enterFishPage()) {
     LogFloaty.pushErrorLog('无法进入AI摸鱼界面')
-    return false
+    exitScript()
   }
 
   // 处理每天第一次进入摸鱼界面赠送两次机会且自动摸鱼的情况
@@ -746,20 +746,20 @@ function main () {
   // 判断是否在AI摸鱼界面
   if (!isOnFishPage()) {
     LogFloaty.pushErrorLog('不在AI摸鱼界面')
-    return false
+    exitScript()
   }
 
   // 在摸鱼界面获取"奖励"y坐标（只能在摸鱼界面获取，进入任务界面后无法获取），赋值给全局变量
   rewardY = getRewardY()
   if (rewardY < 0) {
     LogFloaty.pushErrorLog('获取"奖励"y坐标失败，退出脚本')
-    return false
+    exitScript()
   }
 
   // 进入任务界面
   if (!enterTaskPage()) {
     LogFloaty.pushErrorLog('无法进入任务界面')
-    return false
+    exitScript()
   }
 
   // 循环执行摸鱼任务，直到没有更多任务
@@ -784,7 +784,6 @@ function main () {
   taskLog('========== AI摸鱼 完成 ==========')
   taskLog('任务完成')
   exitScript()
-  return true
 }
 
 // 执行入口

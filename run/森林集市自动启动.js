@@ -34,6 +34,7 @@ for (let i = 0; i < all.length; i++) {
     while (!all[i].isDestroyed()) {
       if (new Date().getTime() - waitStart > 40 * 60 * 1000) {
         debugInfo('子脚本执行超时40分钟，强制退出')
+        all[i].forceStop()
         break
       }
       sleep(3000)

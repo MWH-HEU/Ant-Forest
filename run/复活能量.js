@@ -175,7 +175,10 @@ function enterAntForest() {
 }
 
 /**
- * 切换到总能量榜tab（点击"今日能量榜|本周能量榜|总能量榜"之一切换到排行榜视图）
+ * 切换到总能量榜tab：优先通过ID查找总能量榜按钮并点击；
+ * 找不到则循环（最多5次）：点击"今日能量榜|本周能量榜|总能量榜"之一，再点击"总榜"（完全匹配），
+ * 点击"总榜"失败则返回false；找不到tab则随机下滑重试
+ * @returns {boolean} 是否成功切换到总能量榜
  */
 function clickEnergyRankTab() {
   let energyRank = widgetUtils.widgetGetById('rank-tab-energyRank', 2000)
@@ -189,6 +192,12 @@ function clickEnergyRankTab() {
   do {
     // 先查找点击，找不到再滑动
     if (findAndClickByTextVisible(/今日能量榜|本周能量榜|总能量榜/)) {
+      sleep(1000)
+      // 再点击"总榜"（完全匹配），点击失败则返回false
+      if (!findAndClickByTextVisible(/^总榜$/)) {
+        warnInfo('点击"总榜"失败')
+        return false
+      }
       sleep(1000)
       return true
     }
@@ -359,7 +368,7 @@ function findOrangeMarkers() {
         if (match) {
           let centerX = Math.round(match.centerX())
           let centerY = Math.round(match.centerY())
-          debugInfo(['模板匹配找到+5g按钮: 左上({}, {}) 右下({}, {}) 中心({}, {})', match.left, match.top, match.right, match.bottom, centerX, centerY])
+          taskLog('模板匹配找到+5g按钮: 左上(' + match.left + ', ' + match.top + ') 右下(' + match.right + ', ' + match.bottom + ') 中心(' + centerX + ', ' + centerY + ')')
           results.push({ centerX: centerX, centerY: centerY })
           return results
         }
@@ -401,11 +410,13 @@ function findOrangeMarkers() {
       let centerX = Math.round((firstPoint.x + secondPoint.x) / 2)
       let centerY = Math.round((firstPoint.y + secondPoint.y) / 2)
 
-      debugInfo(['findColor找到橙色按钮: 点1({}, {}) 点2({}, {}) 中心({}, {})', firstPoint.x, firstPoint.y, secondPoint.x, secondPoint.y, centerX, centerY])
+      taskLog('findColor找到+5g按钮: 点1(' + firstPoint.x + ', ' + firstPoint.y + ') 点2(' + secondPoint.x + ', ' + secondPoint.y + ') 中心(' + centerX + ', ' + centerY + ')')
       results.push({
         centerX: centerX,
         centerY: centerY
       })
+    } else {
+      warnInfo('findColor未找到+5g橙色按钮')
     }
   } catch (e) {
     warnInfo('findOrangeMarkers异常: ' + e)

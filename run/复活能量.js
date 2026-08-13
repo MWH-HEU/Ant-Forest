@@ -175,7 +175,7 @@ function enterAntForest() {
 }
 
 /**
- * 切换到总能量榜tab（点击tab切换到排行榜视图）
+ * 切换到总能量榜tab（点击"今日能量榜|本周能量榜|总能量榜"之一切换到排行榜视图）
  */
 function clickEnergyRankTab() {
   let energyRank = widgetUtils.widgetGetById('rank-tab-energyRank', 2000)
@@ -188,7 +188,7 @@ function clickEnergyRankTab() {
   let limit = 5
   do {
     // 先查找点击，找不到再滑动
-    if (findAndClickByTextVisible(/总能量榜/)) {
+    if (findAndClickByTextVisible(/今日能量榜|本周能量榜|总能量榜/)) {
       sleep(1000)
       return true
     }

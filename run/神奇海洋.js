@@ -519,11 +519,12 @@ function collectFriendTrashOnce () {
 const SPECIAL_TASKS = [
   { keyword: '逛一逛市集', action: 'marketBrowse' },
   { keyword: '帮好友清理垃圾', action: 'friendClean' },
-  { keyword: '答题学海洋知识', action: 'quiz' }
+  { keyword: '答题学海洋知识', action: 'quiz' },
+  { keyword: '逛一逛点淘', action: 'clickTarget', clickTarget: '打开APP' }
 ]
 
 // 排除项：按钮同行包含任一关键词则跳过
-const SKIP_KEYWORDS = ['去快手看蚂蚁森林', '逛一逛百度地图', '随机获得海洋伙伴线索拼图2块', '连续3天来海洋', '玩一玩得拼图']
+const SKIP_KEYWORDS = ['去快手看蚂蚁森林', '逛一逛百度地图', '随机获得海洋伙伴线索拼图2块', '连续3天来海洋', '玩一玩得拼图', '随机获得海洋伙伴线索拼图3块']
 
 // 长等待关键词：普通任务同行命中则等待15s
 const LONG_WAIT_KEYWORDS = ['逛一逛闲鱼', '去淘宝看科普视频']
@@ -703,6 +704,32 @@ function executeQuizTask () {
 }
 
 /**
+ * 执行 clickTarget 特殊任务（仿每日任务：控件优先识别，OCR 兜底）
+ * 用于“逛一逛点淘”等需要点击“打开APP”的任务
+ */
+function executeClickTargetTask (specialTask) {
+  taskLog('执行特殊任务: ' + specialTask.keyword)
+  sleep(2000)
+
+  if (specialTask.action === 'clickTarget' && specialTask.clickTarget) {
+    let found = false
+    // 控件优先识别（包含匹配，兼容"下载/打开APP"等带前缀的按钮文字）
+    if (findAndClickByTextVisible(new RegExp(specialTask.clickTarget))) {
+      found = true
+    }
+    // OCR兜底（复用clickByOcr，带重试）
+    if (!found) {
+      if (clickByOcr(specialTask.clickTarget, 3000)) {
+        found = true
+      }
+    }
+    if (!found) {
+      taskLog('未找到"' + specialTask.clickTarget + '"')
+    }
+  }
+}
+
+/**
  * 等待任务完成并回到奖励页面（与每日任务 waitForTaskComplete 同理）
  * 1. 先检测当前包是否在支付宝，不在则先切入支付宝
  * 2. 走返回逻辑：先检测是否在奖励页面，不在则back，循环直到回到奖励页面
@@ -818,6 +845,8 @@ function findAndExecuteExploreTask () {
         executeFriendCleanTask()
       } else if (specialTask.action === 'quiz') {
         executeQuizTask()
+      } else if (specialTask.action === 'clickTarget') {
+        executeClickTargetTask(specialTask)
       }
     } else {
       // 普通任务：同行匹配到 \d+s 则浏览 \d+2s，否则按同行关键词等待（长等待15s，默认2s）

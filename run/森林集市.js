@@ -149,6 +149,26 @@ function closeFirstPurchaseRedPack () {
   enterMarket()
 }
 
+/**
+ * 进入森林集市并确认在页面（完整步骤1）
+ * 流程：enterMarket 进入 → 关闭首购红包 → 判断是否在页面
+ * 任一步骤失败则退出脚本
+ */
+function enterMarketAndCheck () {
+  taskLog('准备打开森林集市')
+  if (!enterMarket()) {
+    errorInfo('打开森林集市界面失败，退出脚本')
+    exitScript()
+  }
+  // 关闭首购红包弹窗，如果识别到则重新进入森林集市
+  closeFirstPurchaseRedPack()
+  // 判断是否在森林集市页面，不在则退出
+  if (!isOnMarketPage()) {
+    errorInfo('不在森林集市页面，退出脚本')
+    exitScript()
+  }
+}
+
 // ============ 页面判断 ============
 
 /**
@@ -191,35 +211,23 @@ function isOnAntForestPage () {
 // ============ 任务执行器 ============
 
 /**
- * 检测"任务已完成.*立即领取"，检测到后不断上滑直到出现"可领取"（完全匹配），
+ * 检测"任务已完成.*立即领取"，检测到后重新进入森林集市（完整进入流程，重进后自动回到最上方），
  * 点击"可领取"领取奖励，再等待"奖励已发放.*蚂蚁森林收取"消失（领取完成）
  * @returns {boolean} 是否检测到并处理了任务完成
  */
 function checkAndClickIfTaskEnd () {
   if (widgetUtils.widgetWaiting('任务已完成.*立即领取', '任务完成', 1000)) {
     sleep(1000)
-    // 不断上滑，直到检测到"可领取"（完全匹配）
-    let maxScroll = 10
-    while (maxScroll-- > 0) {
-      let result = widgetInspector.detectAllNodesVisible()
-      let hasClaim = result.nodes.some(function (n) { return n.text === '可领取' })
-      if (hasClaim) {
-        taskLog('检测到"可领取"，点击领取')
-        findAndClickByTextVisible(/^可领取$/)
-        sleep(5000)
-        // 等待"奖励已发放.*蚂蚁森林收取"消失（领取完成、提示关闭）
-        while (widgetUtils.widgetWaiting('奖励已发放.*蚂蚁森林收取', '奖励已发放', 1000)) {
-          sleep(1000)
-        }
-        return true
-      }
-      // 未检测到"可领取"，上滑
-      let h = config.device_height
-      automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
-      sleep(500)
+    // 重新进入森林集市（重进后自动回到最上方，可看到"可领取"按钮）
+    taskLog('检测到任务已完成，重新进入森林集市')
+    enterMarketAndCheck()
+    // 点击"可领取"领取奖励
+    findAndClickByTextVisible(/^可领取$/)
+    sleep(5000)
+    // 等待"奖励已发放.*蚂蚁森林收取"消失（领取完成、提示关闭）
+    while (widgetUtils.widgetWaiting('奖励已发放.*蚂蚁森林收取', '奖励已发放', 1000)) {
+      sleep(1000)
     }
-    // 上滑多次仍未找到"可领取"，直接返回 true 继续循环
-    taskLog('上滑多次未找到"可领取"')
     return true
   }
   return false
@@ -458,19 +466,8 @@ function main () {
 
   taskLog('====== 开始森林集市流程 ======')
 
-  // 步骤1：打开森林集市并判断是否在页面（失败直接退出，不重试）
-  taskLog('准备打开森林集市')
-  if (!enterMarket()) {
-    errorInfo('打开森林集市界面失败，退出脚本')
-    exitScript()
-  }
-  // 关闭首购红包弹窗，如果识别到则重新进入森林集市
-  closeFirstPurchaseRedPack()
-  // 判断是否在森林集市页面，不在则退出
-  if (!isOnMarketPage()) {
-    errorInfo('不在森林集市页面，退出脚本')
-    exitScript()
-  }
+  // 步骤1：进入森林集市并确认在页面（失败直接退出）
+  enterMarketAndCheck()
 
   // 步骤2：始终为真的 while 循环执行任务
   taskLog('开始执行森林集市任务')

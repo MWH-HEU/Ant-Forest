@@ -1,6 +1,6 @@
 /*
  * 神奇海洋核心脚本
- * 架构（仿每日任务）：
+ * 架构：
  * 1. 进入神奇海洋 → 判断是否在神奇海洋界面，不在则报错退出
  * 2. 在则收集自己的垃圾
  * 3. 收集完进入奖励页面，执行任务
@@ -64,7 +64,7 @@ function killApps () {
 }
 
 /**
- * 结束神奇海洋：返回原页面并清理（与每日任务 exitScript 一致）
+ * 结束神奇海洋：返回原页面并清理
  */
 function exitScript () {
   commonFunction.minimize()
@@ -303,12 +303,21 @@ function handleCollectPopup () {
     return true
   }
 
+  // 查找"欢迎伙伴回家"按钮（放在最后）
+  btn = widgetUtils.widgetGetOne(/^欢迎伙伴回家$/, 2000)
+  if (btn) {
+    taskLog('检测到"欢迎伙伴回家"弹窗')
+    automator.clickCenter(btn)
+    sleep(1000)
+    return true
+  }
+
   taskLog('未检测到弹窗')
   return false
 }
 
 /**
- * 处理弹窗：检测"打开|支付宝想要打开xxx"系统弹窗（执行任务用，与每日任务保持一致）
+ * 处理弹窗：检测"打开|支付宝想要打开xxx"系统弹窗
  */
 function handleTaskPopup () {
   taskLog('检查是否有弹窗')
@@ -520,7 +529,7 @@ const SPECIAL_TASKS = [
   { keyword: '逛一逛市集', action: 'marketBrowse' },
   { keyword: '帮好友清理垃圾', action: 'friendClean' },
   { keyword: '答题学海洋知识', action: 'quiz' },
-  { keyword: '逛一逛点淘', action: 'clickTarget', clickTarget: '打开APP' }
+  { keyword: '逛一逛点淘', action: 'clickTarget', clickTarget: '打开APP', waitTime: 15000 }
 ]
 
 // 排除项：按钮同行包含任一关键词则跳过
@@ -704,8 +713,9 @@ function executeQuizTask () {
 }
 
 /**
- * 执行 clickTarget 特殊任务（仿每日任务：控件优先识别，OCR 兜底）
+ * 执行 clickTarget 特殊任务
  * 用于“逛一逛点淘”等需要点击“打开APP”的任务
+ * 点击后按 waitTime 等待
  */
 function executeClickTargetTask (specialTask) {
   taskLog('执行特殊任务: ' + specialTask.keyword)
@@ -730,7 +740,7 @@ function executeClickTargetTask (specialTask) {
 }
 
 /**
- * 等待任务完成并回到奖励页面（与每日任务 waitForTaskComplete 同理）
+ * 等待任务完成并回到奖励页面
  * 1. 先检测当前包是否在支付宝，不在则先切入支付宝
  * 2. 走返回逻辑：先检测是否在奖励页面，不在则back，循环直到回到奖励页面
  * @returns {boolean} 是否成功回到奖励页面
@@ -847,6 +857,9 @@ function findAndExecuteExploreTask () {
         executeQuizTask()
       } else if (specialTask.action === 'clickTarget') {
         executeClickTargetTask(specialTask)
+        if (specialTask.waitTime > 0) {
+          sleep(specialTask.waitTime)
+        }
       }
     } else {
       // 普通任务：同行匹配到 \d+s 则浏览 \d+2s，否则按同行关键词等待（长等待15s，默认2s）

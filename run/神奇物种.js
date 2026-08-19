@@ -308,8 +308,8 @@ function doExchangeFlow () {
     LogFloaty.pushErrorLog('未找到"确认交换"')
     return false
   }
-  widgetUtils.widgetWaiting('^继续抽卡$', '交换完成', 5000) // 等待"继续抽卡"出现（完全匹配），总延时5s
-  sleep(4000)
+  widgetUtils.widgetWaiting('^返回首页$', '返回首页', 5000) // 等待"返回首页"出现（完全匹配），总延时5s
+  sleep(6000)
 
   // 点击"继续抽卡"
   if (!findAndClickByTextVisible(/^继续抽卡$/)) {

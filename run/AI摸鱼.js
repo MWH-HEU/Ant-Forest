@@ -220,6 +220,23 @@ function isOnFishPage () {
   return true
 }
 
+// 判断是否在任务界面（全部文本都检测到才算成功，支持通配符；完全匹配用 ^xxx$）
+// 匹配文本："奖励"(完全) "赠送每日摸鱼次数"(非完全) "去完成"或"已完成"(完全，必须存在一个)
+function isOnTaskPage () {
+  let texts = ['^奖励$', '赠送每日摸鱼次数', '^(去完成|已完成)$']
+  for (let i = 0; i < texts.length; i++) {
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
+    if (!result) {
+      taskLog('未检测到"' + texts[i] + '"，不在任务界面')
+      return false
+    }
+    taskLog('检测到"' + texts[i] + '"')
+  }
+  taskLog('全部文本检测到，确认在任务界面')
+  sleep(4000) // 等待界面加载完成
+  return true
+}
+
 // 全局变量："奖励"按钮的 y 坐标（只能在摸鱼界面获取，由 main 在进入任务界面前赋值，供 findAndExecuteFishTask / useAllFishTimes 使用）
 let rewardY = -1
 
@@ -520,13 +537,11 @@ function claimImmediateReward () {
 }
 
 // 查找并执行摸鱼任务
-// 开头先处理摸鱼循环（loopFishProcess，含"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"分支）和领取奖励（立即领取）；遍历所有节点，匹配 FISH_BUTTONS 按钮；
+// 开头先领取奖励（立即领取）；遍历所有节点，匹配 FISH_BUTTONS 按钮；
 // 遍历所有"奖励"上方的节点：先做排除项判断（FISH_SKIP_KEYWORDS 正则，如 ".*2次摸鱼次数"）同行则跳过，再做同行判断匹配 ".*?(\d+)s.*摸鱼次数"（非贪婪提取秒数），
 // 找到第一个排除项未命中且匹配摸鱼任务的按钮则点击，等待匹配到的时间+2s，然后等待任务完成回到摸鱼界面；被跳过的按钮继续找下一个
+// 注意：摸鱼弹窗（"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"）由 main 循环开头的 loopFishProcess 处理
 function findAndExecuteFishTask () {
-  // 开头先处理摸鱼循环（loopFishProcess 会处理"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"分支）
-  loopFishProcess()
-
   // 领取奖励（立即领取）
   claimImmediateReward()
 
@@ -595,14 +610,33 @@ function findAndExecuteFishTask () {
   return false
 }
 
-// 使用所有的摸鱼次数：先返回，在神奇海洋界面则通过模板匹配进入摸鱼界面，否则重新打开进入；
-// 进入摸鱼界面后处理首次自动摸鱼（含"仅追回"/"仅解救"），再点击固定坐标（x=屏幕中央，y=奖励）后进入摸鱼循环（由 main 循环调用多次）
-function useAllFishTimes () {
-  taskLog('使用所有的摸鱼次数')
+// 重新进入任务界面（保证在任务界面）：进入AI摸鱼界面 → 判断是否在AI摸鱼界面 → 进入任务界面
+// 返回 true 成功进入任务界面，false 失败（需调用方决定报错退出或继续）
+// 注意：rewardY 已在 main 中获取（全局变量），此处无需重新获取
+function enterTaskPageWithCheck () {
+  // 进入AI摸鱼界面
+  if (!enterFishPage()) {
+    LogFloaty.pushErrorLog('无法进入AI摸鱼界面')
+    return false
+  }
 
-  // 先返回一次
-  goBack()
+  // 判断是否在AI摸鱼界面
+  if (!isOnFishPage()) {
+    LogFloaty.pushErrorLog('不在AI摸鱼界面')
+    return false
+  }
 
+  // 进入任务界面
+  if (!enterTaskPage()) {
+    LogFloaty.pushErrorLog('无法进入任务界面')
+    return false
+  }
+  return true
+}
+
+// 重新进入AI摸鱼界面：判断是否在神奇海洋界面，在则通过模板匹配进入摸鱼界面，否则重新打开进入
+// 返回 true 成功进入，false 失败
+function reenterFishPage () {
   // 判断是否在神奇海洋界面
   if (isOnOceanPage()) {
     taskLog('在神奇海洋界面，通过模板匹配进入摸鱼界面')
@@ -621,6 +655,21 @@ function useAllFishTimes () {
       LogFloaty.pushErrorLog('无法进入摸鱼界面')
       return false
     }
+  }
+  return true
+}
+
+// 使用所有的摸鱼次数：先返回，在神奇海洋界面则通过模板匹配进入摸鱼界面，否则重新打开进入；
+// 进入摸鱼界面后处理首次自动摸鱼（含"仅追回"/"仅解救"），再点击固定坐标（x=屏幕中央，y=奖励）后进入摸鱼循环（由 main 循环调用多次）
+function useAllFishTimes () {
+  taskLog('使用所有的摸鱼次数')
+
+  // 先返回一次
+  goBack()
+
+  // 重新进入AI摸鱼界面（判断是否在神奇海洋界面，在则模板匹配进入，否则重新打开进入）
+  if (!reenterFishPage()) {
+    return false
   }
 
   // 进入摸鱼界面后，处理首次进入赠送机会且自动摸鱼的情况（含"仅追回"/"仅解救"处理）
@@ -743,29 +792,65 @@ function main () {
   // 处理每天第一次进入摸鱼界面赠送两次机会且自动摸鱼的情况
   handleFirstEnterAutoFish()
 
-  // 判断是否在AI摸鱼界面
-  if (!isOnFishPage()) {
-    LogFloaty.pushErrorLog('不在AI摸鱼界面')
-    exitScript()
-  }
-
-  // 在摸鱼界面获取"奖励"y坐标（只能在摸鱼界面获取，进入任务界面后无法获取），赋值给全局变量
-  rewardY = getRewardY()
-  if (rewardY < 0) {
-    LogFloaty.pushErrorLog('获取"奖励"y坐标失败，退出脚本')
-    exitScript()
-  }
-
-  // 进入任务界面
-  if (!enterTaskPage()) {
-    LogFloaty.pushErrorLog('无法进入任务界面')
-    exitScript()
+  // 判断是否在任务界面
+  if (isOnTaskPage()) {
+    // 在任务界面：任务界面无法获取"奖励"y坐标，需goBack后重新进入AI摸鱼界面获取
+    taskLog('在任务界面，goBack后重新进入AI摸鱼界面')
+    goBack()
+    sleep(2000)
+    // 重新进入AI摸鱼界面（判断是否在神奇海洋，在则模板匹配进入，否则重新打开进入）
+    if (!reenterFishPage()) {
+      LogFloaty.pushErrorLog('重新进入AI摸鱼界面失败')
+      exitScript()
+    }
+    // 在摸鱼界面获取"奖励"y坐标（只能在摸鱼界面获取，进入任务界面后无法获取），赋值给全局变量
+    rewardY = getRewardY()
+    if (rewardY < 0) {
+      LogFloaty.pushErrorLog('获取"奖励"y坐标失败，退出脚本')
+      exitScript()
+    }
+    // 进入任务界面
+    if (!enterTaskPage()) {
+      LogFloaty.pushErrorLog('无法进入任务界面')
+      exitScript()
+    }
+  } else {
+    // 不在任务界面，基本在AI摸鱼界面
+    if (isOnFishPage()) {
+      // 在AI摸鱼界面：直接获取"奖励"y坐标，然后进入任务界面
+      rewardY = getRewardY()
+      if (rewardY < 0) {
+        LogFloaty.pushErrorLog('获取"奖励"y坐标失败，退出脚本')
+        exitScript()
+      }
+      // 进入任务界面
+      if (!enterTaskPage()) {
+        LogFloaty.pushErrorLog('无法进入任务界面')
+        exitScript()
+      }
+    } else {
+      // 不在AI摸鱼界面：报错退出
+      LogFloaty.pushErrorLog('不在AI摸鱼界面')
+      exitScript()
+    }
   }
 
   // 循环执行摸鱼任务，直到没有更多任务
   let maxRounds = 10
   for (let round = 0; round < maxRounds; round++) {
     taskLog('=== AI摸鱼 第 ' + (round + 1) + ' 轮 ===')
+
+    // 执行摸鱼任务前，保证在任务界面；不在则重新进入任务界面
+    if (!isOnTaskPage()) {
+      taskLog('不在任务界面，重新进入任务界面')
+      if (!enterTaskPageWithCheck()) {
+        LogFloaty.pushErrorLog('重新进入任务界面失败')
+        exitScript()
+      }
+    }
+
+    // 处理摸鱼弹窗（"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"分支）
+    loopFishProcess()
 
     if (findAndExecuteFishTask()) {
       taskLog('摸鱼任务执行完毕，继续下一轮')

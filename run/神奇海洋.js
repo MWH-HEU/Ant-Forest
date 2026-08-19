@@ -270,7 +270,8 @@ function isOnFriendPage () {
 }
 
 /**
- * 处理弹窗：检测"收下|回到我的海洋|返回"（收集垃圾/领取奖励用，与收集垃圾保持一致，不检查系统"打开"弹窗）
+ * 处理弹窗：检测"收下|欢迎伙伴回家|返回|回到我的海洋"（收集垃圾/领取奖励用，不检查系统"打开"弹窗）
+ * 欢迎伙伴回家内部：点击后再检查一次"返回"和"回到我的海洋"，检查到直接返回
  */
 function handleCollectPopup () {
   taskLog('检查是否有弹窗')
@@ -285,6 +286,34 @@ function handleCollectPopup () {
     return true
   }
 
+  // 查找"欢迎伙伴回家"按钮
+  btn = widgetUtils.widgetGetOne(/^欢迎伙伴回家$/, 2000)
+  if (btn) {
+    taskLog('检测到"欢迎伙伴回家"弹窗')
+    automator.clickCenter(btn)
+    sleep(4000)
+
+    // 欢迎伙伴回家内部：再检查一次"返回"，检查到直接返回
+    btn = widgetUtils.widgetGetOne(/^返回$/, 2000)
+    if (btn) {
+      taskLog('检测到"返回"弹窗')
+      automator.clickCenter(btn)
+      sleep(1000)
+      return true
+    }
+
+    // 欢迎伙伴回家内部：再检查一次"回到我的海洋"，检查到直接返回
+    btn = widgetUtils.widgetGetOne(/^回到我的海洋$/, 2000)
+    if (btn) {
+      taskLog('检测到"回到我的海洋"弹窗')
+      automator.clickCenter(btn)
+      sleep(1000)
+      return true
+    }
+
+    return true
+  }
+
   // 查找"返回"按钮
   btn = widgetUtils.widgetGetOne(/^返回$/, 2000)
   if (btn) {
@@ -294,19 +323,10 @@ function handleCollectPopup () {
     return true
   }
 
-  // 查找"回到我的海洋"按钮（放在最后）
+  // 查找"回到我的海洋"按钮
   btn = widgetUtils.widgetGetOne(/^回到我的海洋$/, 2000)
   if (btn) {
     taskLog('检测到"回到我的海洋"弹窗')
-    automator.clickCenter(btn)
-    sleep(1000)
-    return true
-  }
-
-  // 查找"欢迎伙伴回家"按钮（放在最后）
-  btn = widgetUtils.widgetGetOne(/^欢迎伙伴回家$/, 2000)
-  if (btn) {
-    taskLog('检测到"欢迎伙伴回家"弹窗')
     automator.clickCenter(btn)
     sleep(1000)
     return true
@@ -469,8 +489,16 @@ function collectSelfTrash () {
     }
     sleep(1000)
 
-    // 处理弹窗：收下|回到我的海洋
-    let collect = widgetUtils.widgetGetOne('.*(收下|回到我的海洋|清理|.*不.*了.*).*')
+    // 先清理一次"欢迎伙伴回家"弹窗
+    let welcome = widgetUtils.widgetGetOne(/^欢迎伙伴回家$/, 2000)
+    if (welcome) {
+      taskLog('检测到"欢迎伙伴回家"弹窗')
+      clickPoint(welcome.bounds().centerX(), welcome.bounds().centerY())
+      sleep(4000)
+    }
+
+    // 处理弹窗：收下|返回|回到我的海洋|清理
+    let collect = widgetUtils.widgetGetOne('.*(收下|返回|回到我的海洋|清理|.*不.*了.*).*')
     if (collect) {
       clickPoint(collect.bounds().centerX(), collect.bounds().centerY())
       // 递归继续找

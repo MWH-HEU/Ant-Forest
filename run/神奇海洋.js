@@ -8,7 +8,7 @@
  *    - 排除项 SKIP_KEYWORDS 同行则跳过
  *    - 特殊任务 SPECIAL_TASKS 走对应分支
  *    - 浏览数组：同行匹配到 \d+s 则浏览 \d+2s
- *    - 长等待关键词 LONG_WAIT_KEYWORDS 同行命中则等待15s
+ *    - 长等待关键词 LONG_WAIT_KEYWORDS 同行命中则等待25s
  *    - 任务完成后 waitForTaskComplete 回到奖励页面
  *    - 无任务可执行时滑动继续查找，直到检测到"更多任务，敬请期待"或滑动达上限（maxScrolls）退出
  */
@@ -563,7 +563,7 @@ const SPECIAL_TASKS = [
 // 排除项：按钮同行包含任一关键词则跳过
 const SKIP_KEYWORDS = ['去快手看蚂蚁森林', '逛一逛百度地图', '随机获得海洋伙伴线索拼图2块', '连续3天来海洋', '玩一玩得拼图', '随机获得海洋伙伴线索拼图3块']
 
-// 长等待关键词：普通任务同行命中则等待15s
+// 长等待关键词：普通任务同行命中则等待25s
 const LONG_WAIT_KEYWORDS = ['逛一逛闲鱼', '去淘宝看科普视频']
 
 // 探索任务按钮（完全匹配）
@@ -618,7 +618,7 @@ function findBrowseSecondsInSameRow (allNodes, centerY) {
   return -1
 }
 
-// 查找同行内是否命中长等待关键词，命中返回15000，否则返回2000
+// 查找同行内是否命中长等待关键词，命中返回25000，否则返回2000
 function getWaitTimeForSameRow (allNodes, centerY) {
   for (let node of allNodes) {
     let text = node.text
@@ -627,8 +627,8 @@ function getWaitTimeForSameRow (allNodes, centerY) {
       if (text.indexOf(kw) >= 0) {
         let y = node.bounds.centerY()
         if (Math.abs(y - centerY) < 200) {
-          taskLog('附近有"' + text + '"任务，等待15秒')
-          return 15000
+          taskLog('附近有"' + text + '"任务，等待25秒')
+          return 25000
         }
       }
     }
@@ -890,7 +890,7 @@ function findAndExecuteExploreTask () {
         }
       }
     } else {
-      // 普通任务：同行匹配到 \d+s 则浏览 \d+2s，否则按同行关键词等待（长等待15s，默认2s）
+      // 普通任务：同行匹配到 \d+s 则浏览 \d+2s，否则按同行关键词等待（长等待25s，默认2s）
       let browseSeconds = findBrowseSecondsInSameRow(allNodes, centerY)
       if (browseSeconds > 0) {
         let waitTime = (browseSeconds + 2) * 1000

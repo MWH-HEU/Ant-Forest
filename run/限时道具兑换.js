@@ -653,7 +653,7 @@ function clickUseNow () {
 
 // 判断当天是否已使用指定道具（通过森林动态时间线判断）：已使用返回true（退出主函数），未使用返回false
 // usedPattern: 匹配道具使用记录的正则对象，如能量雨/使用了.*能量雨机会/、保护罩/使用了.*保护罩/
-// 逻辑：进入森林动态后下滑搜索，找到"昨天"则判断匹配项是否在昨天上方（在则已使用）；没找到"昨天"时当前页有匹配项即视为已使用；找到"昨天"即停止搜索；下滑超过10次未找到则保守处理视为未使用
+// 逻辑：进入森林动态后，只根据"动态"判断是否在森林动态界面；进入后若未找到"今天"则说明当天未使用，直接返回false；找到"今天"后下滑搜索，找到"昨天"则判断匹配项是否在昨天上方（在则已使用）；没找到"昨天"时当前页有匹配项即视为已使用；找到"昨天"即停止搜索；下滑超过10次未找到则保守处理视为未使用
 function hasUsedItemToday (usedPattern) {
   taskLog('=== 检查当天是否已使用道具: ' + usedPattern + ' ===')
 
@@ -698,16 +698,21 @@ function hasUsedItemToday (usedPattern) {
   }
   sleep(2000)
 
-  // 判断是否在森林动态界面：等待"动态"和"今天"（完全匹配，循环判断；"昨天"非必须）
-  let dongtaiTexts = ['动态', '今天']
-  for (let i = 0; i < dongtaiTexts.length; i++) {
-    let result = widgetUtils.widgetWaiting('^' + dongtaiTexts[i] + '$', dongtaiTexts[i], 2000)
-    if (!result) {
-      taskLog('未检测到"' + dongtaiTexts[i] + '"，不在森林动态界面')
-      return false
-    }
+  // 判断是否在森林动态界面：只根据"动态"判断（完全匹配）；进入后若未找到"今天"则说明当天未使用，直接返回
+  let dongtaiResult = widgetUtils.widgetWaiting('^动态$', '动态', 2000)
+  if (!dongtaiResult) {
+    taskLog('未检测到"动态"，不在森林动态界面')
+    return false
   }
-  taskLog('检测到"动态 今天"，确认在森林动态界面')
+  taskLog('检测到"动态"，确认在森林动态界面')
+
+  // 进入森林动态后，若未找到"今天"则说明当天未使用，直接返回（false）
+  let todayResult = widgetUtils.widgetWaiting('^今天$', '今天', 2000)
+  if (!todayResult) {
+    taskLog('未检测到"今天"，当天未使用该道具')
+    return false
+  }
+  taskLog('检测到"今天"，继续执行使用判断')
 
   // 循环下滑搜索：查找匹配项与"昨天"（找到"昨天"即停止，类似findAndUseCard的hasEnd退出）
   // 找到"昨天"则判断匹配项y是否在其上方；没找到"昨天"时，当前页有匹配项即视为已使用

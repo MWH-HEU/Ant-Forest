@@ -87,7 +87,7 @@ let default_config = {
   group_mode_info: '.*排名奖.*|切换为组队版',
   rain_entry_content: '.*能量雨.*',
   rain_start_content: '再来一次|立即开启',
-  rain_end_content: '找更多能量.*',
+  rain_end_content: '^(今日累计获取|能量拯救日榜)$',
   send_chance_to_friend: '',
   timeout_rain_find_friend: 3000,
   rain_click_top: 450,

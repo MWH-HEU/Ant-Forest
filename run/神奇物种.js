@@ -375,13 +375,16 @@ function synthesizeMedal () {
   }
 
   taskLog('检测到需要合成勋章，点击"去合成"')
+  // 等待"去合成"出现，超时2s，等待后sleep 4s
+  widgetUtils.widgetWaiting('^去合成$', '去合成', 2000)
+  sleep(4000)
   if (!findAndClickByTextVisible(/^去合成$/)) {
     LogFloaty.pushErrorLog('未找到"去合成"，异常退出')
     exitScript()
     return false
   }
 
-  // 等待"点击合成勋章"出现，超时2s
+  // 等待"点击合成勋章"出现，超时2s，等待后sleep 4s
   widgetUtils.widgetWaiting('^点击合成勋章$', '点击合成勋章', 2000)
   sleep(4000)
 
@@ -391,6 +394,10 @@ function synthesizeMedal () {
     return false
   }
 
+  // 等待"确认"出现，超时2s，等待后sleep 4s
+  widgetUtils.widgetWaiting('^确认$', '确认', 2000)
+  sleep(4000)
+
   // 点击"确认"
   if (!findAndClickByTextVisible(/^确认$/)) {
     LogFloaty.pushErrorLog('未找到"确认"，异常退出')
@@ -398,7 +405,7 @@ function synthesizeMedal () {
     return false
   }
 
-  // 等待"关闭"出现（合成完成），超时5s，完全匹配
+  // 等待"关闭"出现（合成完成），超时5s，完全匹配，等待后sleep 4s
   widgetUtils.widgetWaiting('^关闭$', '关闭', 5000)
   sleep(4000)
 

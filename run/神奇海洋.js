@@ -269,6 +269,19 @@ function isOnFriendPage () {
   return true
 }
 
+// 判断当前收集是否已完成：遍历可见控件文本，存在"完成海域解锁还需0种海洋生物"（不完全匹配）
+// 存在则表示收集已完成，无需再执行任务
+function isCollectionComplete () {
+  let result = widgetInspector.detectAllNodesVisible()
+  let found = result.nodes.some(n => n.text && n.text.indexOf('完成海域解锁还需0种海洋生物') >= 0)
+  if (found) {
+    taskLog('检测到"完成海域解锁还需0种海洋生物"，收集已完成')
+    return true
+  }
+  taskLog('未检测到"完成海域解锁还需0种海洋生物"，收集未完成')
+  return false
+}
+
 /**
  * 处理弹窗：检测"收下|欢迎伙伴回家|返回|回到我的海洋"（收集垃圾/领取奖励用，不检查系统"打开"弹窗）
  * 欢迎伙伴回家内部：点击后再检查一次"返回"和"回到我的海洋"，检查到直接返回
@@ -935,6 +948,12 @@ function main () {
 
   // 2. 收集自己的垃圾
   collectSelfTrash()
+
+  // 2.5 判断收集是否已完成（存在"完成海域解锁还需0种海洋生物"），完成则无需再执行任务
+  if (isCollectionComplete()) {
+    taskLog('收集已完成，无需再执行任务，退出神奇海洋')
+    exitScript()
+  }
 
   // 3. 进入奖励页面
   taskLog('进入奖励页面')

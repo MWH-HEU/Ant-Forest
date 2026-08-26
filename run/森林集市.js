@@ -137,8 +137,8 @@ function enterMarket () {
  * 关闭首购红包弹窗，如果识别到首购红包则重新进入森林集市
  */
 function closeFirstPurchaseRedPack () {
-  // 先确认弹窗是否存在（查找"首购红包"或"点击领取"文本）
-  if (!widgetUtils.widgetGetOne('首购红包|点击领取', 2000)) {
+  // 先确认弹窗是否存在（查找"首购红包""点击领取"或"立即领取"文本）
+  if (!widgetUtils.widgetGetOne('首购红包|点击领取|立即领取', 2000)) {
     debugInfo(['未发现首购红包弹窗'])
     return
   }

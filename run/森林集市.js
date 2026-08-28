@@ -4,9 +4,8 @@
  * 本脚本只负责森林集市核心任务。
  *
  * 流程：
- *   1. 打开森林集市（enterMarket，沿用旧脚本 intent 方式），判断是否在页面
- *      （isOnMarketPage：绿色商品、绿色快消、绿色食品、下单得能量），不在则 exitScript 退出；
- *      保留 closeFirstPurchaseRedPack 处理。
+ *   1. 打开森林集市（enterMarket，沿用旧脚本 intent 方式），第一次进入时重新进入一次以刷新页面，
+ *      再判断是否在页面，不在则 exitScript 退出。
  *   2. 始终为真的 while 循环，调用 findAndExecuteTasks 判断任务：
  *      2.1 检测到"浏览商品\d+s得能量" → BrowserExecutor，checkAndClickIfTaskEnd 为真后等待2s继续循环
  *      2.2 检测到"点击"与"即可获得"同行 → ClickExecutor，判断任务完成同2.1
@@ -150,8 +149,8 @@ function closeFirstPurchaseRedPack () {
 }
 
 /**
- * 进入森林集市并确认在页面（完整步骤1）
- * 流程：enterMarket 进入 → 关闭首购红包 → 判断是否在页面
+ * 进入森林集市并确认在页面
+ * 流程：enterMarket 进入 → 判断是否在页面
  * 任一步骤失败则退出脚本
  */
 function enterMarketAndCheck () {
@@ -160,8 +159,6 @@ function enterMarketAndCheck () {
     errorInfo('打开森林集市界面失败，退出脚本')
     exitScript()
   }
-  // 关闭首购红包弹窗，如果识别到则重新进入森林集市
-  closeFirstPurchaseRedPack()
   // 判断是否在森林集市页面，不在则退出
   if (!isOnMarketPage()) {
     errorInfo('不在森林集市页面，退出脚本')
@@ -466,7 +463,15 @@ function main () {
 
   taskLog('====== 开始森林集市流程 ======')
 
-  // 步骤1：进入森林集市并确认在页面（失败直接退出）
+  // 步骤1：进入森林集市（第一次进入需重新进入一次以刷新页面）
+  taskLog('准备打开森林集市')
+  if (!enterMarket()) {
+    errorInfo('打开森林集市界面失败，退出脚本')
+    exitScript()
+  }
+  // 第一次进入，重新进入一次森林集市（先等待5s）
+  taskLog('第一次进入，重新进入森林集市')
+  sleep(5000)
   enterMarketAndCheck()
 
   // 步骤2：始终为真的 while 循环执行任务

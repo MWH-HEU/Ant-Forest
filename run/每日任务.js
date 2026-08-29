@@ -374,7 +374,8 @@ const SPECIAL_TASKS = [
   { keyword: '每日浇水领真绿植', waitTime: 0, action: 'specialScroll', scrollTimes: 24 },
   { keyword: '逛惊喜市集领红包', waitTime: 15000, action: 'scroll', scrollTimes: 16 },
   { keyword: '逛一逛芝麻树兑绿植', waitTime: 15000, action: 'scroll', scrollTimes: 16 },
-  { keyword: '给随机好友一键浇水', waitTime: 0, action: 'clickTarget', clickTarget: '送给TA' }
+  { keyword: '给随机好友一键浇水', waitTime: 0, action: 'clickTarget', clickTarget: '送给TA' },
+  { keyword: '浇水得十周年惊喜好礼', waitTime: 0, action: 'clickTarget', clickTarget: '开始浇水' }
 ]
 
 const SKIP_KEYWORDS = ['玩一场能量雨', '添加1份看病保障', '去淘宝看科普视频', '去蚂蚁阿福健康问答', '添加小荷包能量插件', '添加600万医疗保障']
@@ -460,8 +461,8 @@ function executeSpecialTask (specialTask) {
     }
   } else if (specialTask.action === 'specialScroll') {
     taskLog('执行' + specialTask.keyword + '，检查弹窗')
-    for (let i = 0; i < 7; i++) {
-      sleep(2000)
+    for (let i = 0; i < 2; i++) {
+      sleep(4000)
       if (findAndClickByTextVisible(/^去逛逛$/)) {
         taskLog('找到"去逛逛"，点击')
         sleep(1000)
@@ -492,6 +493,49 @@ function executeSpecialTask (specialTask) {
       let upDuration = 100 + Math.random() * 300
       automator.gestureUp(Math.round(upStart), Math.round(upStart + upDist), upDuration)
       sleep(500)
+    }
+
+    // 上滑直到找到"下单得绿植"（参考主函数找"践行绿色行为"，改为上滑）
+    let maxUpScrolls = 10
+    let upScrollCount = 0
+    let orderNode = null
+    while (true) {
+      let nodes = widgetInspector.detectAllNodesVisible().nodes
+      orderNode = nodes.find(n => /下单得绿植/.test(n.text))
+      if (orderNode) {
+        taskLog('找到"下单得绿植"，跳出循环')
+        break
+      }
+      if (upScrollCount >= maxUpScrolls) {
+        taskLog('上滑已达上限，未找到"下单得绿植"')
+        break
+      }
+      upScrollCount++
+      taskLog('未找到"下单得绿植"，上滑继续查找')
+      let upStart = (0.30 + Math.random() * 0.10) * h
+      let upDist = (0.20 + Math.random() * 0.10) * h
+      let upDuration = 100 + Math.random() * 300
+      automator.gestureUp(Math.round(upStart), Math.round(upStart + upDist), upDuration)
+      sleep(500)
+    }
+
+    // 找到"下单得绿植"后，获取"包邮到家"的 bounds 并点击
+    if (orderNode) {
+      let nodes = widgetInspector.detectAllNodesVisible().nodes
+      let baoNode = nodes.find(n => /包邮到家/.test(n.text))
+      if (baoNode) {
+        let orderBd = orderNode.bounds
+        let baoBd = baoNode.bounds
+        let baoHeight = baoBd.bottom - baoBd.top
+        let clickX = orderBd.centerX()
+        let clickY = baoBd.centerY() - 3 * baoHeight
+        taskLog('点击: (' + Math.round(clickX) + ', ' + Math.round(clickY) + ')')
+        automator.click(Math.round(clickX), Math.round(clickY))
+      } else {
+        taskLog('未找到"包邮到家"')
+      }
+    } else {
+      taskLog('未找到"下单得绿植"，跳过点击')
     }
   } else if (specialTask.action === 'scroll') {
     let scrollRound = specialTask.scrollTimes

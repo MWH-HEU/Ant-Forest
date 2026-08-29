@@ -283,8 +283,8 @@ function isCollectionComplete () {
 }
 
 /**
- * 处理弹窗：检测"收下|欢迎伙伴回家|返回|回到我的海洋"（收集垃圾/领取奖励用，不检查系统"打开"弹窗）
- * 欢迎伙伴回家内部：点击后再检查一次"返回"和"回到我的海洋"，检查到直接返回
+ * 处理弹窗：检测"收下|欢迎伙伴回家/迎回海洋伙伴|返回|回到我的海洋"（收集垃圾/领取奖励用，不检查系统"打开"弹窗）
+ * 欢迎伙伴回家/迎回海洋伙伴内部：点击后再检查一次"返回"和"回到我的海洋"，检查到直接返回
  */
 function handleCollectPopup () {
   taskLog('检查是否有弹窗')
@@ -299,10 +299,10 @@ function handleCollectPopup () {
     return true
   }
 
-  // 查找"欢迎伙伴回家"按钮
-  btn = widgetUtils.widgetGetOne(/^欢迎伙伴回家$/, 2000)
+  // 查找"欢迎伙伴回家"或"迎回海洋伙伴"按钮
+  btn = widgetUtils.widgetGetOne(/^(欢迎伙伴回家|迎回海洋伙伴)$/, 2000)
   if (btn) {
-    taskLog('检测到"欢迎伙伴回家"弹窗')
+    taskLog('检测到"欢迎伙伴回家"或"迎回海洋伙伴"弹窗')
     automator.clickCenter(btn)
     sleep(4000)
 
@@ -420,6 +420,13 @@ function enterRewardPage () {
 
 // ============ 垃圾收集 ============
 
+// 收自己的能量球
+function collectOwnEnergy () {
+  let ReviveBaseScanner = require('../core/BaseScanner.js')
+  let scanner = new ReviveBaseScanner()
+  scanner.collectEnergy(true)
+}
+
 function doFindTrashs (screen) {
   if (YoloDetectionUtil.enabled) {
     let findBalls = YoloDetectionUtil.forward(screen, { labelRegex: 'sea_garbage|collect', confidence: config.yolo_confidence || 0.7 })
@@ -463,20 +470,11 @@ function collectSelfTrash () {
     return
   }
 
+  // 先收自己的能量球
+  collectOwnEnergy()
+
   let findBalls = doFindTrashs(screen)
   taskLog('找到的球：' + JSON.stringify(findBalls))
-
-  // 先收自己的能量球
-  if (!config.not_collect_self) {
-    let energyBalls = findBalls.filter(ball => ball.label == 'collect')
-    if (energyBalls && energyBalls.length > 0) {
-      taskLog('找到能量球：' + JSON.stringify(energyBalls))
-      energyBalls.forEach(ball => {
-        clickPoint(ball.x + ball.width / 2, ball.y + ball.height / 2)
-        sleep(100)
-      })
-    }
-  }
 
   // 过滤垃圾球
   if (YoloDetectionUtil.enabled) {
@@ -502,10 +500,10 @@ function collectSelfTrash () {
     }
     sleep(1000)
 
-    // 先清理一次"欢迎伙伴回家"弹窗
-    let welcome = widgetUtils.widgetGetOne(/^欢迎伙伴回家$/, 2000)
+    // 先清理一次"欢迎伙伴回家"或"迎回海洋伙伴"弹窗
+    let welcome = widgetUtils.widgetGetOne(/^(欢迎伙伴回家|迎回海洋伙伴)$/, 2000)
     if (welcome) {
-      taskLog('检测到"欢迎伙伴回家"弹窗')
+      taskLog('检测到"欢迎伙伴回家"或"迎回海洋伙伴"弹窗')
       clickPoint(welcome.bounds().centerX(), welcome.bounds().centerY())
       sleep(4000)
     }
@@ -570,7 +568,8 @@ const SPECIAL_TASKS = [
   { keyword: '逛一逛市集', action: 'marketBrowse' },
   { keyword: '帮好友清理垃圾', action: 'friendClean' },
   { keyword: '答题学海洋知识', action: 'quiz' },
-  { keyword: '逛一逛点淘', action: 'clickTarget', clickTarget: '打开APP', waitTime: 15000 }
+  { keyword: '逛一逛点淘', action: 'clickTarget', clickTarget: '打开APP', waitTime: 15000 },
+  { keyword: '浇水得十周年惊喜好礼', action: 'clickTarget', clickTarget: '开始浇水', waitTime: 0 }
 ]
 
 // 排除项：按钮同行包含任一关键词则跳过
@@ -755,8 +754,6 @@ function executeQuizTask () {
 
 /**
  * 执行 clickTarget 特殊任务
- * 用于“逛一逛点淘”等需要点击“打开APP”的任务
- * 点击后按 waitTime 等待
  */
 function executeClickTargetTask (specialTask) {
   taskLog('执行特殊任务: ' + specialTask.keyword)

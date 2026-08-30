@@ -373,6 +373,7 @@ function handlePopupDialog () {
 const SPECIAL_TASKS = [
   { keyword: '逛一逛点淘得红包', waitTime: 15000, action: 'clickTarget', clickTarget: '打开APP' },
   { keyword: '每日浇水领真绿植', waitTime: 0, action: 'specialScroll', scrollTimes: 24 },
+  { keyword: '每日浇水免费拿绿植', waitTime: 0, action: 'specialScroll', scrollTimes: 24 },
   { keyword: '逛惊喜市集领红包', waitTime: 15000, action: 'scroll', scrollTimes: 16 },
   { keyword: '逛一逛芝麻树兑绿植', waitTime: 15000, action: 'scroll', scrollTimes: 16 },
   { keyword: '给随机好友一键浇水', waitTime: 0, action: 'clickTarget', clickTarget: '送给TA' },

@@ -464,14 +464,14 @@ function collectSelfTrash () {
   FloatyInstance.setFloatyInfo({ x: config.device_width / 2, y: config.device_height / 2 }, '找垃圾球中...')
   sleep(3000)
 
+  // 先收自己的能量球（在截图前调用，避免其内部回收截图导致后续使用报错）
+  collectOwnEnergy()
+
   let screen = commonFunction.checkCaptureScreenPermission()
   if (!screen) {
     taskLog('截图失败，跳过收集垃圾')
     return
   }
-
-  // 先收自己的能量球
-  collectOwnEnergy()
 
   let findBalls = doFindTrashs(screen)
   taskLog('找到的球：' + JSON.stringify(findBalls))

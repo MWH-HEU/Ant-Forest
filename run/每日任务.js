@@ -380,7 +380,7 @@ const SPECIAL_TASKS = [
   { keyword: '浇水得十周年惊喜好礼', waitTime: 0, action: 'clickTarget', clickTarget: '开始浇水' }
 ]
 
-const SKIP_KEYWORDS = ['玩一场能量雨', '添加1份看病保障', '去淘宝看科普视频', '去蚂蚁阿福健康问答', '添加小荷包能量插件', '添加600万医疗保障', '去逛中国移动']
+const SKIP_KEYWORDS = ['玩一场能量雨', '添加1份看病保障', '去蚂蚁阿福健康问答', '添加小荷包能量插件', '添加600万医疗保障', '去逛中国移动']
 
 const EXPLORE_BUTTONS = ['逛一逛', '去看看', '去参与', '去领取', '去守护', '去完成', '去逛逛', '一键浇水', '去浇水']
 

@@ -43,7 +43,8 @@ function killApps () {
       { pkg: 'com.autonavi.minimap', name: '高德地图' },
       { pkg: 'com.taobao.live', name: '点淘' },
       { pkg: 'com.baidu.searchbox.lite', name: '百度极速版' },
-      { pkg: 'com.jifen.qukan', name: '趣头条' }
+      { pkg: 'com.jifen.qukan', name: '趣头条' },
+      { pkg: 'com.shuqi.controller', name: '书旗小说' }
     ], function(name, success) {
       taskLog(name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
     })

@@ -269,11 +269,11 @@ function handlePopupDialog () {
 
 /**
  * 判断是否在森林寻宝界面
- * 需同时匹配"抽奖明细"与"一键连抽"（含具体次数，用正则一键连抽.*）
+ * 需同时匹配"明细"与"一键连抽"（含具体次数，用正则一键连抽.*）
  * @returns {boolean}
  */
 function isOnForestHuntPage () {
-  let texts = ['抽奖明细', '一键连抽.*']
+  let texts = ['明细', '一键连抽.*']
   for (let i = 0; i < texts.length; i++) {
     let result = widgetUtils.widgetWaiting(texts[i], '森林寻宝页面', 3000)
     if (!result) {
@@ -281,7 +281,7 @@ function isOnForestHuntPage () {
       return false
     }
   }
-  taskLog('检测到"抽奖明细 一键连抽"，确认在森林寻宝界面')
+  taskLog('检测到"明细 一键连抽"，确认在森林寻宝界面')
   return true
 }
 
@@ -508,23 +508,23 @@ function findAndExecuteExploreTask () {
     return false
   }
 
-  // 找到"抽奖明细"的y坐标作为基准线，只处理其下方的按钮/文本
+  // 找到"一键连抽"的y坐标作为基准线，只处理其下方的按钮/文本
   let detailY = -1
   for (let n of allNodes) {
-    if (n.text === '抽奖明细') {
+    if (n.text && n.text.indexOf('一键连抽') >= 0) {
       detailY = n.bounds.centerY()
       break
     }
   }
   if (detailY < 0) {
-    taskLog('未找到"抽奖明细"，不限制任务区域，处理所有按钮')
+    taskLog('未找到"一键连抽"，不限制任务区域，处理所有按钮')
   }
 
   for (let node of allNodes) {
     let text = node.text
     if (!text) continue
 
-    // 只处理"抽奖明细"下方的按钮/文本，在其上方则跳过
+    // 只处理"一键连抽"下方的按钮/文本，在其上方则跳过
     let centerY = node.bounds.centerY()
     if (centerY < detailY) {
       continue
@@ -689,7 +689,7 @@ function scrollUntilEnd () {
   }
 }
 
-// 多次上滑到屏幕最上端（用于切换到第二个Tab前回到顶部）
+// 多次上滑到屏幕最上端（抽奖前回到顶部，界面在底部时先回顶再抽奖）
 function scrollToTop () {
   taskLog('上滑回到屏幕最上端')
   let h = config.device_height
@@ -703,6 +703,8 @@ function scrollToTop () {
 // 返回是否有抽奖机会
 function executeTab () {
   doAutoCollect()
+  // 上滑回到屏幕最上端后再抽奖
+  scrollToTop()
   let hasChance = doDraw()
   return hasChance
 }
@@ -727,8 +729,6 @@ function executeAllTabs () {
   scrollUntilEnd()
   executeTab()
 
-  // 上滑回到屏幕最上端（第一个Tab执行完界面在底部，先回顶部再切Tab）
-  scrollToTop()
   // 点击第2个点（75%）切换到第二个Tab
   taskLog('点击Tab2（75%处）: (' + tabs.point2.x + ',' + tabs.point2.y + ')')
   automator.click(tabs.point2.x, tabs.point2.y)

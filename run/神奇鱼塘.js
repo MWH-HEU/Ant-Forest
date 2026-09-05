@@ -414,14 +414,14 @@ function doBrowseTask () {
     let endY = startY - h * (0.15 + Math.random() * 0.10)
     let duration = 100 + Math.random() * 300
     automator.gestureDown(startY, endY, duration)
-    sleep(1500)
+    sleep(3000)
 
     // 优先匹配"抵"（完全匹配），其次匹配"抵后价..."
     let clickBtn = widgetUtils.widgetGetOne('^抵$|抵后价.*')
     if (clickBtn) {
       taskLog('找到商品，点击')
       clickBtn.click()
-      sleep(1500)
+      sleep(3000)
       taskLog('已点击商品，等待详情页加载后返回')
       goBack()
       sleep(500)

@@ -396,7 +396,10 @@ function checkDialogAndClose () {
 }
 
 /**
- * 执行浏览商品任务：进入商品列表后下滑查找"抵"（完全匹配）或"抵后价..."商品并点击
+ * 执行浏览商品任务：循环3次"滑动→查找并点击商品→返回列表"，
+ * 每次优先匹配"抵"（完全匹配）或"抵后价..."商品并点击；
+ * 循环结束后再返回一次
+ * @returns {boolean} 是否成功点击过商品
  */
 function doBrowseTask () {
   taskLog('执行浏览商品任务')
@@ -405,6 +408,7 @@ function doBrowseTask () {
   sleep(2000)
 
   let maxScroll = 3
+  let clicked = false
   for (let s = 0; s < maxScroll; s++) {
     taskLog('浏览商品 第' + (s + 1) + '次下滑')
 
@@ -422,19 +426,24 @@ function doBrowseTask () {
       taskLog('找到商品，点击')
       clickBtn.click()
       sleep(3000)
-      taskLog('已点击商品，等待详情页加载后返回')
+      clicked = true
+      // 点击后返回商品列表，便于继续滑动
       goBack()
-      sleep(500)
-      goBack()
-      sleep(500)
-      return true
+      sleep(2000)
+    } else {
+      taskLog('未找到商品，继续下滑')
     }
-
-    taskLog('未找到商品，继续下滑')
   }
 
-  taskLog('浏览任务失败：未找到商品')
-  return false
+  // 循环3次后最终返回一次
+  if (clicked) {
+    taskLog('已点击商品，等待详情页加载后返回')
+    goBack()
+    sleep(2000)
+  } else {
+    taskLog('浏览任务失败：未找到商品')
+  }
+  return clicked
 }
 
 /**

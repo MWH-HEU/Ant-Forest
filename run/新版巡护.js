@@ -6,8 +6,8 @@
  * 3. 判断是否在新版巡护界面，不在则报错退出
  * 4. 在新版巡护界面执行探索任务（EXPLORE_BUTTONS）
  *    - 点击"更多步数"进入任务界面
- *    - 判断是否在任务界面（文本 "\d次巡护机会 更多巡护步数"）
- *    - 无特殊任务、无排除项、无长等待（留空）
+ *    - 判断是否在任务界面（文本 ".*\d次巡护机会" "更多巡护步数"）
+ *    - 无特殊任务、无排除项；长等待关键词：让闲置循环起来
  * 5. 探索任务执行完 → 判断是否在任务界面，在则点击"关闭"（多个关闭取y最大）回到巡护界面
  *    不在任务界面则重新进入
  * 6. 判断是否在新版巡护界面，在则执行巡护（doPatrol：点击"GO"等）
@@ -214,7 +214,7 @@ function isOnNewPatrolPage () {
 }
 
 // 判断是否在任务界面（全部文本都检测到才算成功）
-// 匹配文本："\d次巡护机会"（\d表示纯数字，不需要完全匹配） "更多巡护步数"
+// 匹配文本：".*\d次巡护机会"（\d表示纯数字，不需要完全匹配） "更多巡护步数"
 function isOnTaskPage () {
   let texts = ['.*\\d次巡护机会', '更多巡护步数']
   for (let i = 0; i < texts.length; i++) {
@@ -464,7 +464,7 @@ function findAndExecuteExploreTask () {
         sleep(waitTime)
       } else {
         let waitTime = getWaitTimeForSameRow(allNodes, centerY)
-        // 暂时将普通任务等待时间设置为25s
+        // 暂时将普通任务等待时间统一设置为25s
         waitTime = 25000
         taskLog('普通任务，等待' + (waitTime / 1000) + 's')
         sleep(waitTime)
@@ -504,8 +504,25 @@ function closeTaskPage () {
   return false
 }
 
+// 处理巡护弹窗：do...while 循环检测"跳过|追寻踪迹|暂不设置"（完全匹配）或"继续巡护"（前缀匹配），检测到就点击（等8s），没有就 return
+function handleCollectPopup () {
+  taskLog('检查是否有弹窗')
+  sleep(500)
+
+  do {
+    let btn = widgetUtils.widgetGetOne(/(^(跳过|追寻踪迹|暂不设置)$|继续巡护.*)/, 3000)
+    if (!btn) {
+      taskLog('未检测到弹窗，返回')
+      return
+    }
+    taskLog('检测到弹窗，点击')
+    automator.clickCenter(btn)
+    sleep(8000)
+  } while (true)
+}
+
 // 巡护：执行一个3次的循环
-// 点击"GO" → 等待3s → 点击"跳过|继续巡护" → 判断是否在任务界面，在则跳出循环
+// 点击"GO" → 等待6s → handleCollectPopup → 判断是否在任务界面，在则跳出循环
 function doPatrol () {
   taskLog('=== 新版巡护 开始巡护 ===')
   for (let i = 0; i < 3; i++) {
@@ -517,11 +534,11 @@ function doPatrol () {
       break
     }
 
-    // 等待3s
-    sleep(3000)
+    // 等待6s
+    sleep(6000)
 
-    // 点击"跳过 | 继续巡护"
-    findAndClickByTextVisible(/跳过|继续巡护/)
+    // 处理弹窗（跳过 | 追寻踪迹 | 暂不设置 | 继续巡护）
+    handleCollectPopup()
 
     // 判断是否在任务界面，在就跳出循环
     if (isOnTaskPage()) {

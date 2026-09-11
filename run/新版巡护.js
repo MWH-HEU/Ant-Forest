@@ -7,7 +7,7 @@
  * 4. 在新版巡护界面执行探索任务（EXPLORE_BUTTONS）
  *    - 点击"更多步数"进入任务界面
  *    - 判断是否在任务界面（文本 ".*\d次巡护机会" "更多巡护步数"）
- *    - 无特殊任务、无排除项；长等待关键词：让闲置循环起来
+ *    - 无排除项；特殊任务：去兑换（点击立即兑换）；长等待关键词：让闲置循环起来
  * 5. 探索任务执行完 → 判断是否在任务界面，在则点击"关闭"（多个关闭取y最大）回到巡护界面
  *    不在任务界面则重新进入
  * 6. 判断是否在新版巡护界面，在则执行巡护（doPatrol：点击"GO"等）
@@ -256,17 +256,19 @@ function enterTaskPage () {
 
 // ============ 任务常量 ============
 
-// 特殊任务：无，留空
-const SPECIAL_TASKS = []
+// 特殊任务：匹配到则走对应分支（去兑换：点击后弹窗点击"立即兑换"）
+const SPECIAL_TASKS = [
+  { keyword: '去兑换', action: 'clickTarget', clickTarget: '立即兑换', waitTime: 0 }
+]
 
 // 排除项：无，留空
 const SKIP_KEYWORDS = []
 
-// 长等待关键词：无，留空
+// 长等待关键词：让闲置循环起来
 const LONG_WAIT_KEYWORDS = ['让闲置循环起来']
 
 // 探索任务按钮（完全匹配）
-const EXPLORE_BUTTONS = ['去看看', '逛一逛', '去参与']
+const EXPLORE_BUTTONS = ['去看看', '逛一逛', '去参与', '去兑换']
 
 // ============ 任务执行 ============
 
@@ -455,6 +457,16 @@ function findAndExecuteExploreTask () {
 
     if (specialTask) {
       taskLog('走特殊任务分支: ' + specialTask.keyword)
+      if (specialTask.action === 'clickTarget' && specialTask.clickTarget) {
+        if (findAndClickByTextVisible(new RegExp(specialTask.clickTarget))) {
+          taskLog('已点击"' + specialTask.clickTarget + '"')
+        } else {
+          taskLog('未找到"' + specialTask.clickTarget + '"')
+        }
+        if (specialTask.waitTime > 0) {
+          sleep(specialTask.waitTime)
+        }
+      }
     } else {
       // 普通任务：同行匹配到 \d+s 则浏览 \d+2s，否则按同行关键词等待（长等待25s，默认2s）
       let browseSeconds = findBrowseSecondsInSameRow(allNodes, centerY)

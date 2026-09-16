@@ -373,8 +373,8 @@ function handlePopupDialog () {
 
 const SPECIAL_TASKS = [
   { keyword: '逛一逛点淘得红包', waitTime: 15000, action: 'clickTarget', clickTarget: '打开APP' },
-  { keyword: '每日浇水领真绿植', waitTime: 0, action: 'specialScroll', scrollTimes: 24 },
-  { keyword: '每日浇水免费拿绿植', waitTime: 0, action: 'specialScroll', scrollTimes: 24 },
+  { keyword: '每日浇水领真绿植', waitTime: 0, action: 'specialScroll', scrollTimes: 18 },
+  { keyword: '每日浇水免费拿绿植', waitTime: 0, action: 'specialScroll', scrollTimes: 18 },
   { keyword: '逛惊喜市集领红包', waitTime: 15000, action: 'scroll', scrollTimes: 16 },
   { keyword: '逛一逛芝麻树兑绿植', waitTime: 15000, action: 'scroll', scrollTimes: 16 },
   { keyword: '给随机好友一键浇水', waitTime: 0, action: 'clickTarget', clickTarget: '送给TA' },
@@ -499,23 +499,23 @@ function executeSpecialTask (specialTask) {
       sleep(500)
     }
 
-    // 上滑直到找到"下单得绿植"（参考主函数找"践行绿色行为"，改为上滑）
+    // 上滑直到找到"活动时间"（参考主函数找"践行绿色行为"，改为上滑）
     let maxUpScrolls = 10
     let upScrollCount = 0
-    let orderNode = null
+    let activityNode = null
     while (true) {
       let nodes = widgetInspector.detectAllNodesVisible().nodes
-      orderNode = nodes.find(n => /下单得绿植/.test(n.text))
-      if (orderNode) {
-        taskLog('找到"下单得绿植"，跳出循环')
+      activityNode = nodes.find(n => /活动时间/.test(n.text))
+      if (activityNode) {
+        taskLog('找到"活动时间"，跳出循环')
         break
       }
       if (upScrollCount >= maxUpScrolls) {
-        taskLog('上滑已达上限，未找到"下单得绿植"')
+        taskLog('上滑已达上限，未找到"活动时间"')
         break
       }
       upScrollCount++
-      taskLog('未找到"下单得绿植"，上滑继续查找')
+      taskLog('未找到"活动时间"，上滑继续查找')
       let upStart = (0.30 + Math.random() * 0.10) * h
       let upDist = (0.20 + Math.random() * 0.10) * h
       let upDuration = 100 + Math.random() * 300
@@ -523,23 +523,19 @@ function executeSpecialTask (specialTask) {
       sleep(500)
     }
 
-    // 找到"下单得绿植"后，获取"包邮到家"的 bounds 并点击
-    if (orderNode) {
-      let nodes = widgetInspector.detectAllNodesVisible().nodes
-      let baoNode = nodes.find(n => /包邮到家/.test(n.text))
-      if (baoNode) {
-        let orderBd = orderNode.bounds
-        let baoBd = baoNode.bounds
-        let baoHeight = baoBd.bottom - baoBd.top
-        let clickX = orderBd.centerX()
-        let clickY = baoBd.centerY() - 3 * baoHeight
-        taskLog('点击: (' + Math.round(clickX) + ', ' + Math.round(clickY) + ')')
-        automator.click(Math.round(clickX), Math.round(clickY))
-      } else {
-        taskLog('未找到"包邮到家"')
-      }
+    // 无论是否找到"活动时间"都照常点击：x 取"更多"的 centerX（无"更多"则兜底屏宽0.9），y 由"包邮到家"的 bounds 计算
+    let clickNodes = widgetInspector.detectAllNodesVisible().nodes
+    let moreNode = clickNodes.find(n => /^更多$/.test(n.text))
+    let baoNode = clickNodes.find(n => /包邮到家/.test(n.text))
+    if (!baoNode) {
+      taskLog('未找到"包邮到家"，无法确定点击 y')
     } else {
-      taskLog('未找到"下单得绿植"，跳过点击')
+      let baoBd = baoNode.bounds
+      let baoHeight = baoBd.bottom - baoBd.top
+      let clickX = moreNode ? moreNode.bounds.centerX() : Math.round(config.device_width * 0.9)
+      let clickY = baoBd.centerY() - 3 * baoHeight
+      taskLog('点击: (' + Math.round(clickX) + ', ' + Math.round(clickY) + ')')
+      automator.click(Math.round(clickX), Math.round(clickY))
     }
   } else if (specialTask.action === 'scroll') {
     let scrollRound = specialTask.scrollTimes

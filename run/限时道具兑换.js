@@ -772,6 +772,7 @@ function enterVitalityShopByScrollUp () {
   let h = config.device_height
 
   // 循环上滑，每次上滑后等待"活力值积分商店"（起始点65%~70%高度随机，向下滑让上方内容显示，幅度20%~30%随机且结束点不超过95%，持续时间100~400ms随机）
+  // 注意：用可见节点判断而非widgetWaiting（widgetWaiting不检查可见性，会命中已渲染但不可见的节点导致误判）
   let found = false
   for (let i = 0; i < 10; i++) {
     let dist = (0.20 + Math.random() * 0.10) * h
@@ -779,7 +780,9 @@ function enterVitalityShopByScrollUp () {
     let endY = Math.min(startY + dist, h * 0.95)
     automator.gestureUp(Math.round(startY), Math.round(endY), 100 + Math.round(Math.random() * 300))
     sleep(1000)
-    if (widgetUtils.widgetWaiting('活力值积分商店', '活力值积分商店', 2000)) {
+    let visibleNodes = widgetInspector.detectAllNodesVisible().nodes
+    let hasShopEntry = visibleNodes.some(function (n) { return n.text && /活力值积分商店/.test(n.text) && n.bounds })
+    if (hasShopEntry) {
       found = true
       // 检测到后再执行一次上滑，确保商店入口完整显示（重新生成随机起始点/距离/结束点）
       dist = (0.20 + Math.random() * 0.10) * h

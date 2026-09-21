@@ -379,10 +379,10 @@ const SPECIAL_TASKS = [
   { keyword: '逛一逛芝麻树兑绿植', waitTime: 15000, action: 'scroll', scrollTimes: 16 },
   { keyword: '给随机好友一键浇水', waitTime: 0, action: 'clickTarget', clickTarget: '送给TA' },
   { keyword: '浇水得十周年惊喜好礼', waitTime: 0, action: 'clickTarget', clickTarget: '开始浇水' },
-  { keyword: '去书旗看书追剧', waitTime: 15000, action: 'clickTarget', clickTarget: 'APP' }
+  { keyword: '去书旗看书追剧', waitTime: 15000, action: 'clickTarget', clickTarget: '书旗|APP' }
 ]
 
-const SKIP_KEYWORDS = ['玩一场能量雨', '添加1份看病保障', '去蚂蚁阿福健康问答', '添加小荷包能量插件', '添加600万医疗保障', '去逛中国移动']
+const SKIP_KEYWORDS = ['玩一场能量雨', '添加1份看病保障', '去蚂蚁阿福健康问答', '添加小荷包能量插件', '添加600万医疗保障', '去逛中国移动', '到店支付']
 
 const EXPLORE_BUTTONS = ['逛一逛', '去看看', '去参与', '去领取', '去守护', '去完成', '去逛逛', '一键浇水', '去浇水']
 

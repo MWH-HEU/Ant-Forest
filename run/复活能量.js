@@ -6,7 +6,7 @@
  * 流程：
  *   首次：进入蚂蚁森林 → 收取自己能量 → 进入总能量榜
  *   循环（直到复活6次、找不到+5g或进入总榜失败退出）：
- *     1. 查找+5g（优先模板图片匹配 rebirth_5g.data，失败回退findColor找橙色#FF8F00），连续2次没找到检查"没有更多了"
+ *     1. 查找+5g（优先模板图片匹配 rebirth_5g.data，失败回退findColor找橙色#FF8F00），连续2次没找到检查"没有更多了"，找"没有更多了"最多下滑20次
  *        找到后取第一个，进入好友森林复活
  *     2. 进入好友森林后无论复活成功失败，goBack返回，检查是否在总榜（只检查"排行榜"），在则直接继续下一轮；不在则重新进入蚂蚁森林进总榜
  *     3. 复活满6次则退出
@@ -214,7 +214,7 @@ function clickEnergyRankTab() {
 }
 
 /**
- * 进入总能量榜：点击tab + 下滑找"查看更多好友"，确认在总榜，最多重试5次
+ * 进入总能量榜：点击tab + 下滑找"查看更多好友"（最多下滑5次），确认在总榜，最多重试5次
  * 重试时返回后重新进入蚂蚁森林（goBack → 判断支付宝首页 → 点击蚂蚁森林入口）
  * @returns {boolean} 是否成功进入完整排行榜
  */
@@ -226,8 +226,14 @@ function enterEnergyRankFirstTime() {
     if (!clickEnergyRankTab()) {
       return false
     }
-    // 下滑找"查看更多好友"，找到"你每养成一棵树"就停止
+    // 下滑找"查看更多好友"，找到"你每养成一棵树"就停止，最多下滑5次
+    let i = 0
     while (true) {
+      i++
+      if (i > 5) {
+        warnInfo('下滑超过5次未找到"查看更多好友"')
+        break
+      }
       // 先查找点击，找不到再滑动
       if (findAndClickByTextVisible(/查看更多好友/)) {
         sleep(1000)
@@ -546,11 +552,12 @@ function main() {
     roundCount++
     taskLog('第' + roundCount + '轮（已复活' + revivedCount + '次)')
 
-    // 查找+5g，连续2次没找到检查"没有更多了"
+    // 查找+5g，连续2次没找到检查"没有更多了"，找"没有更多了"最多下滑20次
     let markers = []
+    let i = 0
     findcolor:
     while (markers.length === 0) {
-      for (let i = 0; i < 2; i++) {
+      for (let j = 0; j < 2; j++) {
         markers = findOrangeMarkers()
         if (markers.length > 0) break findcolor
       }
@@ -559,6 +566,12 @@ function main() {
       let hasEnd = result.nodes.some(n => /没有更多了/.test(n.text))
       if (hasEnd) {
         warnInfo('已滑到底部未找到+5g，结束脚本')
+        break
+      }
+      // 找"没有更多了"的下滑次数上限，超过则退出
+      i++
+      if (i > 20) {
+        warnInfo('下滑超过20次未找到"没有更多了"，结束脚本')
         break
       }
       let h = config.device_height

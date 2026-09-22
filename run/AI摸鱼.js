@@ -478,17 +478,18 @@ function findSkipKeywordInSameRow (allNodes, centerY) {
   return null
 }
 
-// 判断同行任务类型：匹配 ".*?\d+s.*摸鱼次数"（非贪婪提取完整秒数），提取秒数
+// 判断同行任务类型：含"摸鱼次数"即为摸鱼任务，秒数取不到按 0
 // 返回 { type: 'fish', seconds } 或 { type: 'other' }
 function classifyFishTask (allNodes, centerY) {
   for (let node of allNodes) {
     let text = node.text
     if (!text) continue
-    // 用非贪婪 .*? 保证 \d+ 捕获完整的时间数字（如"看15s视频"应取15而非5）
+    if (Math.abs(node.bounds.centerY() - centerY) >= 100) continue
+    // 同行不含"摸鱼次数"则不是摸鱼任务
+    if (text.indexOf('摸鱼次数') === -1) continue
+    // 非贪婪 .*? 保证 \d+ 取完整秒数（"看15s视频"取15而非5）
     let m = text.match(/.*?(\d+)s.*摸鱼次数/)
-    if (m && Math.abs(node.bounds.centerY() - centerY) < 100) {
-      return { type: 'fish', seconds: parseInt(m[1]) }
-    }
+    return { type: 'fish', seconds: m ? parseInt(m[1]) : 0 }
   }
   return { type: 'other' }
 }
@@ -538,8 +539,8 @@ function claimImmediateReward () {
 
 // 查找并执行摸鱼任务
 // 开头先领取奖励（立即领取）；遍历所有节点，匹配 FISH_BUTTONS 按钮；
-// 遍历所有"奖励"上方的节点：先做排除项判断（FISH_SKIP_KEYWORDS 正则，如 ".*2次摸鱼次数"）同行则跳过，再做同行判断匹配 ".*?(\d+)s.*摸鱼次数"（非贪婪提取秒数），
-// 找到第一个排除项未命中且匹配摸鱼任务的按钮则点击，等待匹配到的时间+2s，然后等待任务完成回到摸鱼界面；被跳过的按钮继续找下一个
+// 遍历所有"奖励"上方的节点：先做排除项判断（FISH_SKIP_KEYWORDS 正则，如 ".*2次摸鱼次数"）同行则跳过，再做同行判断（含"摸鱼次数"即为摸鱼任务，秒数取不到按 0），
+// 找到第一个排除项未命中且匹配摸鱼任务的按钮则点击，等待秒数+2s，然后等待任务完成回到摸鱼界面；被跳过的按钮继续找下一个
 // 注意：摸鱼弹窗（"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"）由 main 循环开头的 loopFishProcess 处理
 function findAndExecuteFishTask () {
   // 领取奖励（立即领取）
@@ -583,7 +584,7 @@ function findAndExecuteFishTask () {
       continue
     }
 
-    // 同行判断：匹配 ".*?(\d+)s.*摸鱼次数"（非贪婪提取秒数），判断是否为摸鱼任务
+    // 同行判断：含"摸鱼次数"即为摸鱼任务
     let cmd = classifyFishTask(allNodes, centerY)
     if (cmd.type !== 'fish') {
       taskLog('按钮"' + text + '"同行未匹配到"摸鱼次数"任务，跳过')
@@ -594,7 +595,7 @@ function findAndExecuteFishTask () {
     automator.click(bd.centerX(), bd.centerY())
     sleep(2000)
 
-    // 等待匹配到的时间+2s
+    // 等待秒数+2s
     let waitTime = (cmd.seconds + 2) * 1000
     taskLog('等待 ' + cmd.seconds + 's 任务，实际等待 ' + (cmd.seconds + 2) + 's')
     sleep(waitTime)

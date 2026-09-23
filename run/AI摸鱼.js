@@ -203,21 +203,21 @@ function enterFishPage () {
   return false
 }
 
-// 判断是否在AI摸鱼界面（全部文本都检测到才算成功，支持通配符；完全匹配用 ^xxx$）
-// 匹配文本："蚂蚁森林.*AI摸鱼"(非完全) "规则"(完全) "奖励"(完全)
+// 判断是否在AI摸鱼界面（任一文本检测到即算在界面，支持通配符；完全匹配用 ^xxx$）
+// 匹配文本（按顺序检测）："规则"(完全) "赠送每日摸鱼次数"(非完全) "蚂蚁森林.*AI摸鱼"(非完全)
 function isOnFishPage () {
-  let texts = ['蚂蚁森林.*AI摸鱼', '^规则$', '^奖励$']
+  let texts = ['^规则$', '赠送每日摸鱼次数', '蚂蚁森林.*AI摸鱼']
   for (let i = 0; i < texts.length; i++) {
     let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
-    if (!result) {
-      taskLog('未检测到"' + texts[i] + '"，不在AI摸鱼界面')
-      return false
+    if (result) {
+      taskLog('检测到"' + texts[i] + '"，确认在AI摸鱼界面')
+      sleep(4000) // 等待界面加载完成
+      return true
     }
-    taskLog('检测到"' + texts[i] + '"')
+    taskLog('未检测到"' + texts[i] + '"')
   }
-  taskLog('全部文本检测到，确认在AI摸鱼界面')
-  sleep(4000) // 等待界面加载完成
-  return true
+  taskLog('未检测到任一文本，不在AI摸鱼界面')
+  return false
 }
 
 // 判断是否在任务界面（全部文本都检测到才算成功，支持通配符；完全匹配用 ^xxx$）

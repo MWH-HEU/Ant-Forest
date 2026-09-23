@@ -861,8 +861,8 @@ function main () {
     break
   }
 
-  // 使用所有的摸鱼次数（循环调用3次）
-  for (let i = 0; i < 3; i++) {
+  // 使用所有的摸鱼次数（循环调用6次）
+  for (let i = 0; i < 6; i++) {
     taskLog('=== 使用所有摸鱼次数 第 ' + (i + 1) + ' 次 ===')
     useAllFishTimes()
   }

@@ -396,23 +396,27 @@ function confirmExchange () {
   return true
 }
 
-// 在背包中查找匹配正则的TextView卡片，找同列可点击的"使用"按钮并点击（检测"没有更多了"停止滑动）
+// 在背包中查找匹配正则的TextView卡片，找同列可点击且可见的"使用"按钮（中心点在屏幕内）并点击（检测"没有更多了"停止滑动）
 function findAndUseCard (pattern) {
   sleep(1000)
 
   while (true) {
     let allNodes = widgetInspector.detectAllNodesVisible().nodes
 
-    // 匹配所有符合条件的TextView卡片
+    // 匹配所有符合条件的TextView卡片（要求中心点在屏幕内，确保可见）
     let cardNodes = allNodes.filter(function (n) {
-      return n.text && n.className === 'android.widget.TextView' && pattern.test(n.text) && n.bounds
+      return n.text && n.className === 'android.widget.TextView' && pattern.test(n.text) && n.bounds &&
+        n.bounds.centerX() >= 0 && n.bounds.centerX() <= config.device_width &&
+        n.bounds.centerY() >= 0 && n.bounds.centerY() <= config.device_height
     })
 
-    // 遍历所有匹配的卡片，找同列可点击的"使用"按钮（X坐标差值<50，卡片在按钮上方且y差值<200）
+    // 遍历所有匹配的卡片，找同列可点击且可见的"使用"按钮（中心点在屏幕内；X坐标差值<50，卡片在按钮上方且y差值<200）
     for (let ci = 0; ci < cardNodes.length; ci++) {
       let cardNode = cardNodes[ci]
       let useNode = allNodes.find(function (n) {
         return n.text === '使用' && n.clickable && n.bounds &&
+          n.bounds.centerX() >= 0 && n.bounds.centerX() <= config.device_width &&
+          n.bounds.centerY() >= 0 && n.bounds.centerY() <= config.device_height &&
           Math.abs(n.bounds.centerX() - cardNode.bounds.centerX()) < 50 &&
           cardNode.bounds.centerY() < n.bounds.centerY() &&
           Math.abs(n.bounds.centerY() - cardNode.bounds.centerY()) < 200

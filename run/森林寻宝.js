@@ -405,7 +405,7 @@ function waitForTaskComplete () {
 }
 
 // 探索任务按钮（完全匹配）
-const EXPLORE_BUTTONS = ['去逛逛', '马上玩', '去支持', '去报名', '逛一逛']
+const EXPLORE_BUTTONS = ['去逛逛', '马上玩', '去支持', '去报名', '逛一逛', '去完成']
 // 排除项：部分文本匹配，如"玩游戏得2次机会"
 const SKIP_KEYWORDS = ['玩游戏']
 
@@ -432,7 +432,7 @@ function claimReward () {
   }
 }
 
-// 判断同行任务类型：浏览市集\d+s / 浏览\d+s / 其他
+// 判断同行任务类型：浏览市集\d+s / 浏览\d+s / 玩任意游戏\d+s / 其他
 function classifyTask (allNodes, centerY) {
   for (let node of allNodes) {
     let text = node.text
@@ -444,6 +444,10 @@ function classifyTask (allNodes, centerY) {
     m = text.match(/浏览(\d+)s/)
     if (m && Math.abs(node.bounds.centerY() - centerY) < 100) {
       return { type: 'browse', seconds: parseInt(m[1]) }
+    }
+    m = text.match(/玩任意游戏(\d+)s/)
+    if (m && Math.abs(node.bounds.centerY() - centerY) < 100) {
+      return { type: 'special', seconds: parseInt(m[1]) }
     }
   }
   return { type: 'other' }
@@ -479,6 +483,40 @@ function executeTimedBrowse (seconds) {
   let waitTime = (seconds + 1) * 1000
   taskLog('浏览 ' + seconds + 's 任务，实际等待 ' + (seconds + 1) + 's')
   sleep(waitTime)
+}
+
+// 玩任意游戏\d+s 特殊任务（逻辑与AI摸鱼一致）：点击后等10s → 找"秒玩/玩游戏得骰子/去游戏领取礼品"
+// （控件优先、OCR兜底，找不到随机下滑，最多5次）→ 等秒数+5s
+// 结束后退出重置（最小化 + 杀进程）并重新进入森林寻宝界面
+function executeSpecialTask (seconds) {
+  sleep(10000)
+  let clicked = false
+  for (let i = 0; i < 5; i++) {
+    clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
+    if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 3000)
+    if (clicked) break
+
+    taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')
+    let h = config.device_height
+    // 随机滑动：从65%-75%高度开始，随机下滑15%-25%距离，延时100-400ms随机
+    let startY = h * (0.65 + Math.random() * 0.10)
+    let endY = startY - h * (0.15 + Math.random() * 0.10)
+    let duration = 100 + Math.random() * 300
+    automator.gestureDown(Math.round(startY), Math.round(endY), duration)
+    sleep(1000)
+  }
+  if (!clicked) taskLog('下滑 5 次仍未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"')
+
+  // 等待秒数+5s
+  sleep((seconds + 5) * 1000)
+
+  // 特殊任务执行完毕：退出重置（最小化 + 杀进程），再重新进入森林寻宝界面
+  taskLog('特殊任务执行完毕，退出重置后重新进入森林寻宝界面')
+  commonFunction.minimize()
+  sleep(500)
+  killApps()
+  sleep(500)
+  enterForestHuntPage()
 }
 
 // 查找同行内是否命中排除项（逐节点判断，阈值100）
@@ -563,6 +601,9 @@ function findAndExecuteExploreTask () {
       taskLog('检测到浏览' + cmd.seconds + 's任务，等待' + (cmd.seconds + 1) + 's')
       executeTimedBrowse(cmd.seconds)
       goBack()
+    } else if (cmd.type === 'special') {
+      taskLog('检测到玩任意游戏' + cmd.seconds + 's特殊任务')
+      executeSpecialTask(cmd.seconds)
     } else {
       taskLog('其他任务，等待2秒后返回')
       sleep(2000)

@@ -6,6 +6,7 @@
  * 3. 收集完进入奖励页面，执行任务
  * 4. 主循环：每5轮重进领奖励页面 → 确认在奖励页面（不在则重进）→ 领取奖励（立即领取）+ 探索任务（EXPLORE_BUTTONS）
  *    - 排除项 SKIP_KEYWORDS 同行则跳过
+ *    - 游戏任务：同行匹配 "玩任意游戏\d+s" 走游戏任务流程（优先）
  *    - 特殊任务 SPECIAL_TASKS 走对应分支
  *    - 浏览数组：同行匹配到 \d+s 则浏览 \d+2s
  *    - 长等待关键词 LONG_WAIT_KEYWORDS 同行命中则等待25s
@@ -600,6 +601,19 @@ function findSkipInSameRow (allNodes, centerY, keywords) {
   return null
 }
 
+// 判断同行是否为游戏任务：匹配 "玩任意游戏\d+s"，提取秒数
+// 返回 { matched, seconds }
+function classifyGameTask (allNodes, centerY) {
+  for (let node of allNodes) {
+    let text = node.text
+    if (!text) continue
+    if (Math.abs(node.bounds.centerY() - centerY) >= 100) continue
+    let m = text.match(/玩任意游戏(\d+)s/)
+    if (m) return { matched: true, seconds: parseInt(m[1]) }
+  }
+  return { matched: false, seconds: 0 }
+}
+
 // 查找同行内是否命中特殊任务（逐节点判断，阈值200）
 function findSpecialTaskInSameRow (allNodes, centerY) {
   for (let node of allNodes) {
@@ -778,6 +792,53 @@ function executeClickTargetTask (specialTask) {
 }
 
 /**
+ * 执行游戏任务（仿 AI摸鱼 特殊任务流程）
+ * 1. 点击后等待10s
+ * 2. 检查"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，控件优先、OCR兜底；没有则下滑一次再判断，最多5次
+ * 3. 等待秒数+5s，再等任务完成回到奖励页面
+ * 4. 任务结束：重启支付宝并重新进入奖励页面（openOcean → enterRewardPage）
+ * 注意：调用前按钮已点击
+ */
+function executeGameTask (seconds) {
+  sleep(10000)
+
+  // 检查"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，控件优先、OCR兜底；没有则下滑一次再判断，最多 5 次
+  let clicked = false
+  for (let i = 0; i < 5; i++) {
+    clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
+    if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 3000)
+    if (clicked) break
+
+    taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')
+    let h = config.device_height
+    // 随机滑动：从65%-75%高度开始，随机下滑15%-25%距离，延时100-400ms随机
+    let startY = h * (0.65 + Math.random() * 0.10)
+    let endY = startY - h * (0.15 + Math.random() * 0.10)
+    let duration = 100 + Math.random() * 300
+    automator.gestureDown(Math.round(startY), Math.round(endY), duration)
+    sleep(1000)
+  }
+  if (!clicked) taskLog('下滑 5 次仍未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"')
+
+  // 等待秒数+5s，再等任务完成回到奖励页面
+  sleep((seconds + 5) * 1000)
+  waitForTaskComplete()
+
+  // 游戏任务结束：重启支付宝并重新进入奖励页面
+  commonFunction.minimize()
+  sleep(500)
+  killApps()
+  sleep(500)
+  if (!openOcean() || !enterRewardPage()) {
+    errorInfo('重新进入奖励页面失败，退出神奇海洋')
+    exitScript()
+  }
+
+  taskLog('游戏任务执行完毕')
+  return true
+}
+
+/**
  * 等待任务完成并回到奖励页面
  * 1. 先检测当前包是否在支付宝，不在则先切入支付宝
  * 2. 走返回逻辑：先检测是否在奖励页面，不在则back，循环直到回到奖励页面
@@ -875,6 +936,15 @@ function findAndExecuteExploreTask () {
     if (skipText) {
       taskLog('跳过"' + skipText + '"行的按钮: "' + text + '"')
       continue
+    }
+
+    // 游戏任务判断（优先，仿 AI摸鱼 特殊任务）：同行匹配 "玩任意游戏\d+s"
+    let gameTask = classifyGameTask(allNodes, centerY)
+    if (gameTask.matched) {
+      taskLog('找到游戏任务按钮: "' + text + '" 点击: (' + bd.centerX() + ', ' + bd.centerY() + ')，任务时长 ' + gameTask.seconds + 's')
+      automator.click(bd.centerX(), bd.centerY())
+      executeGameTask(gameTask.seconds)
+      return true
     }
 
     // 特殊任务判断

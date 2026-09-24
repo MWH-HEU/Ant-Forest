@@ -1,8 +1,9 @@
 /*
  * 自动执行乐园任务
  * 1. enterLimitedBenefitPage进入限时福利页面（打开蚂蚁森林 → 进入乐园 → 进入限时福利）
- * 2. 限时福利页面：循环领取所有能量 → 循环找玩一玩任务
+ * 2. 限时福利页面：循环领取所有能量 → 执行特殊任务 → 循环找玩一玩任务
  * 3. 玩一玩任务完成后退出页面（直接切入支付宝 → 切入失败或不在限时福利页面则重新打开限时福利继续）
+ * 4. 特殊任务完成后退出重置（最小化+杀掉支付宝）再重新进入限时福利页面
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
@@ -216,6 +217,80 @@ function findAndExecuteTask (descText, btnText, taskFn) {
 }
 
 /**
+ * 判断同行是否为特殊任务：匹配 "玩任意一款游戏\d+s"，返回是否匹配及秒数
+ * @returns {{matched: boolean, seconds: number}}
+ */
+function classifySpecialTask (allNodes, centerY) {
+  for (let node of allNodes) {
+    let text = node.text
+    if (!text) continue
+    if (!node.bounds) continue
+    if (Math.abs(node.bounds.centerY() - centerY) >= 100) continue
+    let m = text.match(/玩任意一款游戏(\d+)s/)
+    if (m) return { matched: true, seconds: parseInt(m[1]) }
+  }
+  return { matched: false, seconds: 0 }
+}
+
+/**
+ * 查找并执行特殊任务（同行匹配 "玩任意一款游戏\d+s"，按钮固定为"去完成"）
+ * @returns {boolean} 是否找到并执行了特殊任务
+ */
+function findAndExecuteSpecialTask () {
+  let allNodes = widgetInspector.detectAllNodesVisible().nodes
+  if (!allNodes || allNodes.length === 0) return false
+
+  for (let node of allNodes) {
+    if (node.text !== '去完成') continue
+    let bd = node.bounds
+    if (!bd) continue
+    let centerY = bd.centerY()
+
+    // 同行判断：匹配 "玩任意一款游戏\d+s" 才是特殊任务，否则跳过
+    let special = classifySpecialTask(allNodes, centerY)
+    if (!special.matched) continue
+
+    taskLog('找到特殊任务按钮: "去完成" 点击: (' + bd.centerX() + ', ' + bd.centerY() + ')，任务时长 ' + special.seconds + 's')
+    automator.click(bd.centerX(), bd.centerY())
+    sleep(10000)
+
+    // 检查"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，控件优先、OCR兜底；没有则下滑一次再判断，最多 5 次
+    let clicked = false
+    for (let i = 0; i < 5; i++) {
+      clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
+      if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 3000)
+      if (clicked) break
+
+      taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')
+      let h = config.device_height
+      // 随机滑动：从65%-75%高度开始，随机下滑15%-25%距离，延时100-400ms随机
+      let startY = h * (0.65 + Math.random() * 0.10)
+      let endY = startY - h * (0.15 + Math.random() * 0.10)
+      let duration = 100 + Math.random() * 300
+      automator.gestureDown(Math.round(startY), Math.round(endY), duration)
+      sleep(1000)
+    }
+    if (!clicked) taskLog('下滑 5 次仍未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"')
+
+    // 等待秒数+2s
+    taskLog('等待 ' + special.seconds + 's 任务，实际等待 ' + (special.seconds + 2) + 's')
+    sleep((special.seconds + 2) * 1000)
+
+    // 退出重置（最小化+杀掉支付宝，不退出脚本），再重新进入限时福利页面
+    taskLog('特殊任务执行完毕，退出重置后重新进入限时福利页面')
+    commonFunction.minimize()
+    sleep(500)
+    killApps()
+    sleep(500)
+    enterLimitedBenefitPage()
+    return true
+  }
+
+  taskLog('未找到可执行的特殊任务')
+  return false
+}
+
+/**
  * 判断是否在蚂蚁森林首页（需同时找到"蚂蚁森林"和"森林广场"）
  * @returns {boolean}
  */
@@ -331,28 +406,22 @@ function enterLimitedBenefitPage () {
  */
 function claimAllEnergy () {
   while (findAndClickByTextVisible(/^领取$/)) {
-    sleep(2000)
+    sleep(4000)
   }
 }
 
 /**
  * 等待玩一玩任务完成
- * 1. 先等待5分钟让任务自动完成
- * 2. 每5秒检查一次"已完成"（最多6次）
- * 3. 退出玩一玩页面：直接切入支付宝 → 切入失败或不在限时福利页面则重新打开限时福利页面
+ * 1. 每10秒检查一次"已完成"（最多36次）
+ * 2. 退出玩一玩页面：直接切入支付宝 → 切入失败或不在限时福利页面则重新打开限时福利页面
  * @returns {boolean} 是否成功回到限时福利页面
  */
 function waitForGameComplete () {
-  taskLog('进入玩一玩页面，先等待5分钟，然后每5秒检查一次（最多6次）')
+  taskLog('进入玩一玩页面，每10秒检查一次任务状态')
 
-  // 先等待5分钟（300秒）
-  taskLog('等待300秒让任务自动完成...')
-  sleep(300000)
-
-  let maxChecks = 6
-  for (let check = 1; check <= maxChecks; check++) {
-    sleep(5000)
-    taskLog('第' + check + '/' + maxChecks + '次检查玩一玩状态...')
+  let maxChecks = 36
+  for (let check = 0; check < maxChecks; check++) {
+    sleep(10000)
     let completed = widgetUtils.widgetGetOne('已完成', 1000)
     if (completed) {
       taskLog('检测到已完成')
@@ -405,11 +474,16 @@ function main () {
     exitScript()
   }
 
-  // 2. 限时福利页面：先领所有能量，然后循环做玩一玩任务
+  // 2. 限时福利页面：先领所有能量，然后执行特殊任务，再循环做玩一玩任务
   taskLog('开始执行限时福利任务')
 
   // 先领能量
   claimAllEnergy()
+
+  // 先执行特殊任务
+  while (findAndExecuteSpecialTask()) {
+    claimAllEnergy()
+  }
 
   // 循环找玩一玩任务
   let taskFailed = false

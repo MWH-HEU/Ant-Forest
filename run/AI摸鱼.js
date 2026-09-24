@@ -494,6 +494,19 @@ function classifyFishTask (allNodes, centerY) {
   return { type: 'other' }
 }
 
+// 判断同行是否为特殊任务：匹配 "玩任意一款游戏\d+s"，提取秒数
+// 返回 { matched, seconds }
+function classifySpecialTask (allNodes, centerY) {
+  for (let node of allNodes) {
+    let text = node.text
+    if (!text) continue
+    if (Math.abs(node.bounds.centerY() - centerY) >= 100) continue
+    let m = text.match(/玩任意一款游戏(\d+)s/)
+    if (m) return { matched: true, seconds: parseInt(m[1]) }
+  }
+  return { matched: false, seconds: 0 }
+}
+
 // 领取奖励：完全匹配"立即领取"，只选位于"奖励"上方的按钮，反复点击
 // 保持 while true，但新增计数，最多点击 10 次就退出，防止"立即领取"一直存在导致死循环
 function claimImmediateReward () {
@@ -539,8 +552,9 @@ function claimImmediateReward () {
 
 // 查找并执行摸鱼任务
 // 开头先领取奖励（立即领取）；遍历所有节点，匹配 FISH_BUTTONS 按钮；
-// 遍历所有"奖励"上方的节点：先做排除项判断（FISH_SKIP_KEYWORDS 正则，如 ".*2次摸鱼次数"）同行则跳过，再做同行判断（含"摸鱼次数"即为摸鱼任务，秒数取不到按 0），
-// 找到第一个排除项未命中且匹配摸鱼任务的按钮则点击，等待秒数+2s，然后等待任务完成回到摸鱼界面；被跳过的按钮继续找下一个
+// 遍历所有"奖励"上方的节点：先做排除项判断（FISH_SKIP_KEYWORDS 正则，如 ".*2次摸鱼次数"）同行则跳过
+// 先执行特殊摸鱼任务（同行匹配 "玩任意一款游戏\d+s"），后执行普通摸鱼任务（同行含"摸鱼次数"，秒数取不到按 0）
+// 点击后等秒数+2s，再等待任务完成回到摸鱼界面；被跳过的按钮继续找下一个
 // 注意：摸鱼弹窗（"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"）由 main 循环开头的 loopFishProcess 处理
 function findAndExecuteFishTask () {
   // 领取奖励（立即领取）
@@ -582,6 +596,39 @@ function findAndExecuteFishTask () {
     if (skipKeyword) {
       taskLog('跳过"' + skipKeyword + '"行的按钮: "' + text + '"')
       continue
+    }
+
+    // 特殊任务判断：同行匹配 "玩任意一款游戏\d+s"，优先走特殊任务流程
+    let special = classifySpecialTask(allNodes, centerY)
+    if (special.matched) {
+      taskLog('找到特殊任务按钮: "' + text + '" 点击: (' + bd.centerX() + ', ' + bd.centerY() + ')，任务时长 ' + special.seconds + 's')
+      automator.click(bd.centerX(), bd.centerY())
+      sleep(10000)
+
+      // 检查"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，控件优先、OCR兜底；没有则下滑一次再判断，最多 5 次
+      let clicked = false
+      for (let i = 0; i < 5; i++) {
+        clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
+        if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 3000)
+        if (clicked) break
+
+        taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')
+        let h = config.device_height
+        // 随机滑动：从65%-75%高度开始，随机下滑15%-25%距离，延时100-400ms随机
+        let startY = h * (0.65 + Math.random() * 0.10)
+        let endY = startY - h * (0.15 + Math.random() * 0.10)
+        let duration = 100 + Math.random() * 300
+        automator.gestureDown(Math.round(startY), Math.round(endY), duration)
+        sleep(1000)
+      }
+      if (!clicked) taskLog('下滑 5 次仍未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"')
+
+      // 等待秒数+2s，再等任务完成回到摸鱼界面
+      sleep((special.seconds + 2) * 1000)
+      waitForTaskComplete()
+
+      taskLog('特殊任务执行完毕')
+      return true
     }
 
     // 同行判断：含"摸鱼次数"即为摸鱼任务
@@ -861,10 +908,16 @@ function main () {
     break
   }
 
-  // 使用所有的摸鱼次数（循环调用6次）
+  // 使用所有的摸鱼次数（循环调用6次）；回到任务界面说明摸鱼次数已用完，直接跳出循环
   for (let i = 0; i < 6; i++) {
     taskLog('=== 使用所有摸鱼次数 第 ' + (i + 1) + ' 次 ===')
     useAllFishTimes()
+
+    // 在任务界面说明所有的摸鱼次数已使用完毕，跳出循环
+    if (isOnTaskPage()) {
+      taskLog('已回到任务界面，所有摸鱼次数使用完毕，跳出循环')
+      break
+    }
   }
 
   taskLog('========== AI摸鱼 完成 ==========')

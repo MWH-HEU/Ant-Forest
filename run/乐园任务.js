@@ -272,9 +272,9 @@ function findAndExecuteSpecialTask () {
     }
     if (!clicked) taskLog('下滑 5 次仍未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"')
 
-    // 等待秒数+2s
-    taskLog('等待 ' + special.seconds + 's 任务，实际等待 ' + (special.seconds + 2) + 's')
-    sleep((special.seconds + 2) * 1000)
+    // 等待秒数+5s
+    taskLog('等待 ' + special.seconds + 's 任务，实际等待 ' + (special.seconds + 5) + 's')
+    sleep((special.seconds + 5) * 1000)
 
     // 退出重置（最小化+杀掉支付宝，不退出脚本），再重新进入限时福利页面
     taskLog('特殊任务执行完毕，退出重置后重新进入限时福利页面')

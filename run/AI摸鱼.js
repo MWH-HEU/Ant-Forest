@@ -553,8 +553,8 @@ function claimImmediateReward () {
 // 查找并执行摸鱼任务
 // 开头先领取奖励（立即领取）；遍历所有节点，匹配 FISH_BUTTONS 按钮；
 // 遍历所有"奖励"上方的节点：先做排除项判断（FISH_SKIP_KEYWORDS 正则，如 ".*2次摸鱼次数"）同行则跳过
-// 先执行特殊摸鱼任务（同行匹配 "玩任意一款游戏\d+s"），后执行普通摸鱼任务（同行含"摸鱼次数"，秒数取不到按 0）
-// 点击后等秒数+2s，再等待任务完成回到摸鱼界面；被跳过的按钮继续找下一个
+// 先执行特殊摸鱼任务（同行匹配 "玩任意一款游戏\d+s"，结束后重启支付宝并重进任务界面），后执行普通摸鱼任务（同行含"摸鱼次数"，秒数取不到按 0）
+// 点击后等秒数+2s（特殊任务+5s），再等待任务完成回到摸鱼界面；被跳过的按钮继续找下一个
 // 注意：摸鱼弹窗（"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"）由 main 循环开头的 loopFishProcess 处理
 function findAndExecuteFishTask () {
   // 领取奖励（立即领取）
@@ -623,9 +623,19 @@ function findAndExecuteFishTask () {
       }
       if (!clicked) taskLog('下滑 5 次仍未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"')
 
-      // 等待秒数+2s，再等任务完成回到摸鱼界面
-      sleep((special.seconds + 2) * 1000)
+      // 等待秒数+5s，再等任务完成回到摸鱼界面
+      sleep((special.seconds + 5) * 1000)
       waitForTaskComplete()
+
+      // 特殊任务结束：重启支付宝并重新进入摸鱼任务界面
+      commonFunction.minimize()
+      sleep(500)
+      killApps()
+      sleep(500)
+      if (!enterTaskPageWithCheck()) {
+        LogFloaty.pushErrorLog('重新进入任务界面失败')
+        exitScript()
+      }
 
       taskLog('特殊任务执行完毕')
       return true

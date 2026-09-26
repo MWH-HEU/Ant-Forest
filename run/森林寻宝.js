@@ -89,12 +89,12 @@ function openAntForest () {
 
   // 等待进入首页
   let waitCount = 0
-  while (!widgetUtils.homePageWaiting() && waitCount++ < 10) {
+  while (!widgetUtils.homePageWaiting() && waitCount++ < 6) {
     sleep(1000)
   }
 
-  // while 退出后，waitCount >= 10 说明超时未进入首页
-  if (waitCount >= 10) {
+  // while 退出后，waitCount >= 6 说明超时未进入首页
+  if (waitCount >= 6) {
     errorInfo('进入蚂蚁森林失败')
     return false
   }

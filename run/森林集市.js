@@ -9,7 +9,7 @@
  *   2. 始终为真的 while 循环，调用 findAndExecuteTasks 判断任务：
  *      2.1 检测到"浏览商品\d+s得能量" → BrowserExecutor，checkAndClickIfTaskEnd 为真后等待2s继续循环
  *      2.2 检测到"点击"与"即可获得"同行 → ClickExecutor，判断任务完成同2.1
- *      2.3 同时检测到"任务已完成.*立即领取"与"可领取" → 点击可领取，等待5s继续循环
+ *      2.3 同时检测到"任务已完成.*能量.*"与"可领取" → 点击可领取，等待5s继续循环
  *      2.4 其他情况视为任务完成，退出循环
  *   3. 打开蚂蚁森林收取能量（collectOwnEnergy，循环4次），isOnAntForestPage 判断是否在蚂蚁森林主页
  */
@@ -208,12 +208,12 @@ function isOnAntForestPage () {
 // ============ 任务执行器 ============
 
 /**
- * 检测"任务已完成.*立即领取"，检测到后重新进入森林集市（完整进入流程，重进后自动回到最上方），
+ * 检测"任务已完成.*能量.*"，检测到后重新进入森林集市（完整进入流程，重进后自动回到最上方），
  * 点击"可领取"领取奖励，再等待"奖励已发放.*蚂蚁森林收取"消失（领取完成）
  * @returns {boolean} 是否检测到并处理了任务完成
  */
 function checkAndClickIfTaskEnd () {
-  if (widgetUtils.widgetWaiting('任务已完成.*立即领取', '任务完成', 1000)) {
+  if (widgetUtils.widgetWaiting('任务已完成.*能量.*', '任务完成', 1000)) {
     sleep(1000)
     // 重新进入森林集市（重进后自动回到最上方，可看到"可领取"按钮）
     taskLog('检测到任务已完成，重新进入森林集市')
@@ -337,7 +337,7 @@ function clickGoodDetail () {
  * 查找并执行任务，返回是否执行了任务
  * 2.1 浏览商品\d+s得能量 → BrowserExecutor，checkAndClickIfTaskEnd 为真后等待2s继续循环
  * 2.2 "点击"与"即可获得"同行 → ClickExecutor，判断任务完成同2.1
- * 2.3 同时检测到"任务已完成.*立即领取"与"可领取" → 点击可领取，等待5s继续循环
+ * 2.3 同时检测到"任务已完成.*能量.*"与"可领取" → 点击可领取，等待5s继续循环
  * 2.4 其他情况视为任务完成，返回 false 退出循环
  * @returns {boolean} 是否找到并执行了任务（false 表示任务完成，退出循环）
  */
@@ -348,11 +348,11 @@ function findAndExecuteTasks () {
     return false
   }
 
-  // 2.3 同时检测到"任务已完成.*立即领取"与"可领取"，点击可领取，等待5s继续循环
-  let hasTaskDone = allNodes.some(function (n) { return /任务已完成.*立即领取/.test(n.text) })
+  // 2.3 同时检测到"任务已完成.*能量.*"与"可领取"，点击可领取，等待5s继续循环
+  let hasTaskDone = allNodes.some(function (n) { return /任务已完成.*能量.*/.test(n.text) })
   let hasClaim = allNodes.some(function (n) { return n.text === '可领取' })
   if (hasTaskDone && hasClaim) {
-    taskLog('同时检测到"任务已完成.*立即领取"与"可领取"，点击可领取')
+    taskLog('同时检测到"任务已完成.*能量.*"与"可领取"，点击可领取')
     findAndClickByTextVisible(/^可领取$/)
     sleep(5000)
     // 等待"奖励已发放.*蚂蚁森林收取"消失（领取完成、提示关闭）

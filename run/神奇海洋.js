@@ -11,7 +11,7 @@
  *    - 浏览数组：同行匹配到 \d+s 则浏览 \d+2s
  *    - 长等待关键词 LONG_WAIT_KEYWORDS 同行命中则等待25s
  *    - 任务完成后 waitForTaskComplete 回到奖励页面
- *    - 无任务可执行时滑动继续查找，直到检测到"更多任务，敬请期待"或完全匹配"已完成"，或滑动达上限（maxScrolls）退出
+ *    - 无任务可执行时滑动继续查找，直到检测到"更多任务，敬请期待"或完全匹配"已完成"（y小于总高度），或滑动达上限（maxScrolls）退出
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
@@ -1030,7 +1030,7 @@ function main () {
   }
 
   // 4. 主循环：每5轮重进领奖励页面 → 确认在奖励页面（不在则重进）→ 领取奖励 + 执行任务
-  //    无任务可执行时滑动继续查找，直到检测到"更多任务，敬请期待"或完全匹配"已完成"，或滑动达上限（maxScrolls）退出
+  //    无任务可执行时滑动继续查找，直到检测到"更多任务，敬请期待"或完全匹配"已完成"（y小于总高度），或滑动达上限（maxScrolls）退出
   let maxScrolls = 15   // 滑动上限，防止死循环
   let scrollCount = 0
   let round = 0
@@ -1093,9 +1093,15 @@ function main () {
       }
     }
 
-    // 没有可执行任务：检查是否滑到底部（找到"更多任务，敬请期待"或完全匹配"已完成"）
+    // 没有可执行任务：检查是否滑到底部（找到"更多任务，敬请期待"或完全匹配"已完成"，且y必须小于总高度）
     let result = widgetInspector.detectAllNodesVisible()
-    let hasEnd = result.nodes.some(n => /更多任务，敬请期待/.test(n.text) || /^已完成$/.test(n.text))
+    let deviceHeight = config.device_height
+    let hasEnd = result.nodes.some(n => {
+      if (!n.text || !n.bounds) return false
+      // y必须小于总高度，避免屏幕外的节点被误判为底部
+      if (n.bounds.centerY() >= deviceHeight) return false
+      return /更多任务，敬请期待/.test(n.text) || /^已完成$/.test(n.text)
+    })
     if (hasEnd) {
       taskLog('已滑到底部（找到"更多任务，敬请期待"或"已完成"），退出神奇海洋')
       break

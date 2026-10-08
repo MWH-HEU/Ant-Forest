@@ -1,7 +1,7 @@
 /*
- * @Author: Auto-generated for Ant-Forest
  * @Description: 收自己能量父脚本 - 自动启动收自己能量子脚本
- * 打开蚂蚁森林后等待2s，每隔5s收集一次能量，最多收集30次
+ * 流程：解锁 → 静音 → 倒计时弹窗 → 启动子脚本 → 等待子脚本结束 → 锁屏
+ * 说明：打开蚂蚁森林后等待2s，每隔5s收集一次能量，最多收集30次
  */
 var { default_config, config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let singletonRequire = require('../lib/SingletonRequirer.js')(runtime, global)
@@ -32,8 +32,8 @@ for (let i = 0; i < all.length; i++) {
   if ((all[i].getSource() + '') === childScriptPath) {
     let waitStart = new Date().getTime()
     while (!all[i].isDestroyed()) {
-      if (new Date().getTime() - waitStart > 40 * 60 * 1000) {
-        debugInfo('子脚本执行超时40分钟，强制退出')
+      if (new Date().getTime() - waitStart > 9 * 60 * 1000) {
+        debugInfo('子脚本执行超时9分钟，强制退出')
         all[i].forceStop()
         break
       }

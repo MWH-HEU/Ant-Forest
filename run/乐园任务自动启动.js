@@ -1,3 +1,7 @@
+/*
+ * @Description: 乐园任务父脚本 - 自动启动乐园任务子脚本
+ * 流程：解锁 → 静音 → 倒计时弹窗 → 启动子脚本 → 等待子脚本结束 → 锁屏
+ */
 var { default_config, config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let singletonRequire = require('../lib/SingletonRequirer.js')(runtime, global)
 var configStorage = storages.create(_storage_name)
@@ -14,7 +18,7 @@ if (!commonFunctions.ensureAccessibilityEnabled()) {
 config.mute_exec = true
 let unlocker = require('../lib/Unlock.js')
 unlocker.exec()
-configStorage.put("auto_start_rain", true)
+configStorage.put("auto_start_paradise_task", true)
 toastLog("配置完毕done")
 // 显示5秒倒计时弹窗
 commonFunctions.showCommonDialogAndWait('乐园任务')

@@ -1,7 +1,7 @@
 /*
- * 森林集市父脚本 - 自动启动森林集市子脚本
- * 架构参考神奇鱼塘：父脚本负责解锁、音量控制、静音、倒计时弹窗、启动子脚本、等待子脚本结束、锁屏；
- * 子脚本（森林集市.js）负责纯核心任务代码。
+ * @Description: 森林集市父脚本 - 自动启动森林集市子脚本
+ * 流程：解锁 → 静音 → 倒计时弹窗 → 启动子脚本 → 等待子脚本结束 → 锁屏
+ * 说明：架构参考神奇鱼塘：子脚本（森林集市.js）负责纯核心任务代码
  */
 var { default_config, config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let singletonRequire = require('../lib/SingletonRequirer.js')(runtime, global)
@@ -32,8 +32,8 @@ for (let i = 0; i < all.length; i++) {
   if ((all[i].getSource() + '') === childScriptPath) {
     let waitStart = new Date().getTime()
     while (!all[i].isDestroyed()) {
-      if (new Date().getTime() - waitStart > 40 * 60 * 1000) {
-        debugInfo('子脚本执行超时40分钟，强制退出')
+      if (new Date().getTime() - waitStart > 4 * 60 * 1000) {
+        debugInfo('子脚本执行超时4分钟，强制退出')
         all[i].forceStop()
         break
       }

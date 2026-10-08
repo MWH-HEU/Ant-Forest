@@ -1,3 +1,7 @@
+/*
+ * @Description: 赚能量父脚本 - 自动启动赚能量子脚本
+ * 流程：解锁 → 静音 → 倒计时弹窗 → 启动子脚本 → 等待子脚本结束 → 锁屏
+ */
 var { default_config, config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let singletonRequire = require('../lib/SingletonRequirer.js')(runtime, global)
 var configStorage = storages.create(_storage_name)
@@ -14,7 +18,7 @@ if (!commonFunctions.ensureAccessibilityEnabled()) {
 config.mute_exec = true
 let unlocker = require('../lib/Unlock.js')
 unlocker.exec()
-configStorage.put("auto_start_rain", true)
+configStorage.put("auto_start_earn_energy", true)
 toastLog("配置完毕done")
 // 显示5秒倒计时弹窗
 commonFunctions.showCommonDialogAndWait('赚能量')
@@ -27,8 +31,8 @@ for (let i = 0; i < all.length; i++) {
   if ((all[i].getSource() + '') === childScriptPath) {
     let waitStart = new Date().getTime()
     while (!all[i].isDestroyed()) {
-      if (new Date().getTime() - waitStart > 40 * 60 * 1000) {
-        debugInfo('子脚本执行超时40分钟，强制退出')
+      if (new Date().getTime() - waitStart > 4 * 60 * 1000) {
+        debugInfo('子脚本执行超时4分钟，强制退出')
         all[i].forceStop()
         break
       }

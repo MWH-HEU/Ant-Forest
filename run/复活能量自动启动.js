@@ -1,8 +1,7 @@
 /*
- * @Author: Auto-generated for Ant-Forest
  * @Description: 复活能量父脚本 - 自动启动复活能量子脚本
- * 每天8:00-22:00运行，复活好友能量，每次获得5g
- * 大循环2次，每次内小循环7次
+ * 流程：解锁 → 静音 → 倒计时弹窗 → 启动子脚本 → 等待子脚本结束 → 锁屏
+ * 说明：每天8:00-22:00运行，复活好友能量，每次获得5g；大循环2次，每次内小循环7次
  */
 var { default_config, config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let singletonRequire = require('../lib/SingletonRequirer.js')(runtime, global)
@@ -33,8 +32,8 @@ for (let i = 0; i < all.length; i++) {
   if ((all[i].getSource() + '') === childScriptPath) {
     let waitStart = new Date().getTime()
     while (!all[i].isDestroyed()) {
-      if (new Date().getTime() - waitStart > 40 * 60 * 1000) {
-        debugInfo('子脚本执行超时40分钟，强制退出')
+      if (new Date().getTime() - waitStart > 4 * 60 * 1000) {
+        debugInfo('子脚本执行超时4分钟，强制退出')
         all[i].forceStop()
         break
       }

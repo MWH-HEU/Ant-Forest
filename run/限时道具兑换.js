@@ -447,6 +447,87 @@ function findAndUseCard (pattern) {
   return false
 }
 
+// 挑选最合适的保护罩卡片并使用：先采集背包中所有保护罩卡片文本，取最小过期天数，再重进背包按该天数点击
+// 未采集到过期天数时用通用正则
+function findAndUseBestProtectorCard () {
+  taskLog('=== 采集背包中所有保护罩卡片文本 ===')
+
+  // 阶段1：采集卡片文本（不判断使用按钮位置）
+  let cardTexts = []
+  while (true) {
+    let allNodes = widgetInspector.detectAllNodesVisible().nodes
+
+    // 按文本去重收集
+    for (let n of allNodes) {
+      if (n.text && /.*保护罩.*共\d+个.*使用/.test(n.text) && n.bounds) {
+        if (cardTexts.indexOf(n.text) < 0) {
+          cardTexts.push(n.text)
+          taskLog('采集到保护罩卡片: "' + n.text + '"')
+        }
+      }
+    }
+
+    // 到底则停止采集
+    let hasEnd = allNodes.some(function (n) { return /没有更多了/.test(n.text) })
+    if (hasEnd) {
+      break
+    }
+
+    // 未到底：下滑继续采集（起始85%~95%，距离10%~15%，100~400ms）
+    let dist = (0.10 + Math.random() * 0.05) * config.device_height
+    let startY = config.device_height * (0.85 + Math.random() * 0.10)
+    automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
+    sleep(1000)
+  }
+
+  if (cardTexts.length === 0) {
+    taskLog('背包中未采集到保护罩卡片')
+    return false
+  }
+  taskLog('共采集到 ' + cardTexts.length + ' 种保护罩卡片')
+
+  // 阶段2：取最小过期天数（非贪婪，避免11天取成1）
+  let minDays = null
+  for (let t of cardTexts) {
+    let m = t.match(/.*?(\d+)天后过期/)
+    if (m) {
+      let d = parseInt(m[1])
+      if (minDays === null || d < minDays) {
+        minDays = d
+      }
+    }
+  }
+  taskLog(minDays === null ? '未匹配到"N天后过期"，随机使用一张保护罩' : '最小过期天数: ' + minDays + '天')
+
+  // 阶段3：重进背包，列表回到顶部
+  if (!closeBackpack()) {
+    LogFloaty.pushErrorLog('保护罩：重新进入背包前关闭背包失败')
+    return false
+  }
+  if (!isOnAntForestPage()) {
+    if (!enterAntForest()) {
+      LogFloaty.pushErrorLog('保护罩：重新进入背包时无法进入蚂蚁森林')
+      return false
+    }
+  }
+  sleep(2000)
+  if (!enterBackpack()) {
+    LogFloaty.pushErrorLog('保护罩：重新进入背包失败')
+    return false
+  }
+  if (!isOnBackpackPage()) {
+    LogFloaty.pushErrorLog('保护罩：重新进入背包后未在背包界面')
+    return false
+  }
+  sleep(2000)
+
+  // 阶段4：按天数点击（左边界避免1天误配11天）
+  if (minDays === null) {
+    return findAndUseCard(/.*保护罩.*共\d+个.*使用/)
+  }
+  return findAndUseCard(new RegExp('.*保护罩.*共\\d+个.*(?:^|\\D)' + minDays + '天后过期.*使用'))
+}
+
 // 智能关闭弹窗：先找同列的关闭按钮；找不到时用OCR识别"X"；OCR仍失败则返回键退出弹窗并重新检测背包界面（在则进活力值积分商店）；关闭失败或未找到活力值积分商店时返回false，由调用处决定是否退出脚本
 function smartClosePopup () {
   sleep(1000)
@@ -608,8 +689,8 @@ function exchangeProtectorCard () {
         }
         sleep(2000)
 
-        taskLog('=== 在背包中查找并使用保护罩 ===')
-        if (!findAndUseCard(/.*保护罩.*共\d+个.*使用/)) {
+        taskLog('=== 在背包中挑选并使用保护罩 ===')
+        if (!findAndUseBestProtectorCard()) {
           LogFloaty.pushErrorLog('保护罩：未找到保护罩卡片')
           return false
         }
@@ -929,7 +1010,7 @@ function doProtectorExchange () {
   sleep(2000)
 
   taskLog('=== 检查背包中是否有已有保护罩卡片 ===')
-  let hasProtectorCard = findAndUseCard(/.*保护罩.*共\d+个.*使用/)
+  let hasProtectorCard = findAndUseBestProtectorCard()
 
   if (hasProtectorCard) {
     taskLog('=== 点击"立即使用" ===')

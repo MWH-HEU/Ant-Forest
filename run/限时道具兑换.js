@@ -437,11 +437,12 @@ function findAndUseCard (pattern) {
       diagLeft--
       let path = '/sdcard/debug_protector.log'
       try {
-        files.write(path, '\n=== 本轮诊断 ===\n', 'utf-8')
-        files.append(path, '卡片文本：' + cardNodes[0].text + '\n', 'utf-8')
-        files.append(path, '卡片中心点：cx=' + cardNodes[0].bounds.centerX() + ' cy=' + cardNodes[0].bounds.centerY() + '\n', 'utf-8')
+        let fd = open(path, 'a')
+        fd.writeline('\n=== 本轮诊断 ===')
+        fd.writeline('卡片文本：' + cardNodes[0].text)
+        fd.writeline('卡片中心点：cx=' + cardNodes[0].bounds.centerX() + ' cy=' + cardNodes[0].bounds.centerY())
         let useAll = allNodes.filter(function (m) { return m.text === '使用' })
-        files.append(path, '"使用"节点数量：' + useAll.length + ' 个\n', 'utf-8')
+        fd.writeline('"使用"节点数量：' + useAll.length + ' 个')
         for (let i = 0; i < useAll.length; i++) {
           let n = useAll[i]
           let b = ''
@@ -450,15 +451,17 @@ function findAndUseCard (pattern) {
           } else {
             b = 'null'
           }
-          files.append(path, (i+1) + '. (' + b + ')\n', 'utf-8')
+          fd.writeline((i+1) + '. (' + b + ')')
         }
         let endAll = allNodes.filter(function (m) { return m.text && m.text.indexOf('没有更多') >= 0 })
-        files.append(path, '"没有更多"节点数量：' + endAll.length + ' 个\n', 'utf-8')
+        fd.writeline('"没有更多"节点数量：' + endAll.length + ' 个')
         for (let i = 0; i < endAll.length; i++) {
           let n = endAll[i]
-          files.append(path, '  ' + (i+1) + '. text="' + n.text + '" centerY=' + (n.bounds ? Math.round(n.bounds.centerY()) : 'null') + '\n', 'utf-8')
+          fd.writeline('  ' + (i+1) + '. text="' + n.text + '" centerY=' + (n.bounds ? Math.round(n.bounds.centerY()) : 'null'))
         }
-        files.append(path, '屏幕高度：' + config.device_height + ' bottom 上限:' + Math.round(config.device_height * 0.95) + '\n', 'utf-8')
+        fd.writeline('屏幕高度：' + config.device_height + ' bottom 上限:' + Math.round(config.device_height * 0.95))
+        fd.flush()
+        fd.close()
       } catch (e) {
         taskLog('诊断写入失败：' + e.message)
       }

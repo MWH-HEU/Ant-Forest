@@ -432,33 +432,38 @@ function findAndUseCard (pattern) {
       }
     }
 
-    // 诊断：写入日志文件 /tmp/debug_protector.log
+    // 诊断：写入日志文件 /sdcard/debug_protector.log（方便导出分析为什么点击失败）
     if (diagLeft > 0 && cardNodes.length > 0) {
       diagLeft--
-      let fs = runtime.getPlugin('files').File('/tmp/debug_protector.log', 'a')
-      fs.write('\n=== 本轮诊断 ===\n')
-      fs.write('卡片文本：' + cardNodes[0].text + '\n')
-      fs.write('卡片中心点：cx=' + cardNodes[0].bounds.centerX() + ' cy=' + cardNodes[0].bounds.centerY() + '\n')
-      let useAll = allNodes.filter(function (m) { return m.text === '使用' })
-      fs.write('"使用"节点数量：' + useAll.length + ' 个\n')
-      for (let i = 0; i < useAll.length; i++) {
-        let n = useAll[i]
-        let b = ''
-        if (n.bounds) {
-          b += 'bottom=' + Math.round(n.bounds.bottom) + ',c=' + n.clickable + ',y=' + Math.round(n.bounds.centerY())
-        } else {
-          b = 'null'
+      let path = '/sdcard/debug_protector.log'
+      try {
+        let fd = open(path, 'a')
+        fd.append('\n=== 本轮诊断 ===\n')
+        fd.append('卡片文本：' + cardNodes[0].text + '\n')
+        fd.append('卡片中心点：cx=' + cardNodes[0].bounds.centerX() + ' cy=' + cardNodes[0].bounds.centerY() + '\n')
+        let useAll = allNodes.filter(function (m) { return m.text === '使用' })
+        fd.append('"使用"节点数量：' + useAll.length + ' 个\n')
+        for (let i = 0; i < useAll.length; i++) {
+          let n = useAll[i]
+          let b = ''
+          if (n.bounds) {
+            b += 'bottom=' + Math.round(n.bounds.bottom) + ',c=' + n.clickable + ',y=' + Math.round(n.bounds.centerY())
+          } else {
+            b = 'null'
+          }
+          fd.append((i+1) + '. (' + b + ')\n')
         }
-        fs.write((i+1) + '. ' + b + '\n')
+        let endAll = allNodes.filter(function (m) { return m.text && m.text.indexOf('没有更多') >= 0 })
+        fd.append('"没有更多"节点数量：' + endAll.length + ' 个\n')
+        for (let i = 0; i < endAll.length; i++) {
+          let n = endAll[i]
+          fd.append('  ' + (i+1) + '. text="' + n.text + '" centerY=' + (n.bounds ? Math.round(n.bounds.centerY()) : 'null') + '\n')
+        }
+        fd.append('屏幕高度：' + config.device_height + ' bottom 上限:' + Math.round(config.device_height * 0.95) + '\n')
+        close(fd)
+      } catch (e) {
+        taskLog('诊断写入失败：' + e.message)
       }
-      let endAll = allNodes.filter(function (m) { return m.text && m.text.indexOf('没有更多') >= 0 })
-      fs.write('"没有更多"节点数量：' + endAll.length + ' 个\n')
-      for (let i = 0; i < endAll.length; i++) {
-        let n = endAll[i]
-        fs.write('  ' + (i+1) + '. text="' + n.text + '" centerY=' + (n.bounds ? Math.round(n.bounds.centerY()) : 'null') + '\n')
-      }
-      fs.write('屏幕高度：' + config.device_height + ' bottom 上限:' + Math.round(config.device_height * 0.95) + '\n')
-      fs.close()
     }
     // 检查是否已到底部
     let hasEnd = allNodes.some(function (n) { return /没有更多了/.test(n.text) })

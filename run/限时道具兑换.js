@@ -435,8 +435,8 @@ function findAndUseCard (pattern) {
       break
     }
 
-    // 滑动起始点85%~95%高度随机，滑动距离10%~15%随机，持续时间100~400ms随机
-    let dist = (0.10 + Math.random() * 0.05) * config.device_height
+    // 滑动起始点85%~95%高度随机，滑动距离5%~8%随机，持续时间100~400ms随机
+    let dist = (0.05 + Math.random() * 0.03) * config.device_height
     let startY = config.device_height * (0.85 + Math.random() * 0.10)
     automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
     sleep(1000)

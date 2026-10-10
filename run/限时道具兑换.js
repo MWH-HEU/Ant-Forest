@@ -398,6 +398,7 @@ function confirmExchange () {
 
 // 在背包中查找匹配正则的TextView卡片，找同列可点击且可见的"使用"按钮（X中心点在屏幕内、底边在屏幕95%高度以内）并点击（检测"没有更多了"停止滑动）
 function findAndUseCard (pattern) {
+  let diagLeft = 3   // 诊断日志最多打印 3 次，避免刷屏
   sleep(1000)
 
   while (true) {
@@ -411,6 +412,7 @@ function findAndUseCard (pattern) {
     })
 
     // 遍历所有匹配的卡片，找同列可点击且可见的"使用"按钮（X中心点在屏幕内、底边在屏幕95%高度以内；X坐标差值<50，卡片在按钮上方且y差值<200）
+    taskLog('查找中：匹配到 ' + cardNodes.length + ' 张卡片')
     for (let ci = 0; ci < cardNodes.length; ci++) {
       let cardNode = cardNodes[ci]
       let useNode = allNodes.find(function (n) {
@@ -423,15 +425,45 @@ function findAndUseCard (pattern) {
       })
 
       if (useNode) {
+        taskLog('点击卡片"' + cardNode.text + '"的"使用"按钮: (' + useNode.bounds.centerX() + ', ' + useNode.bounds.centerY() + ')')
         automator.click(useNode.bounds.centerX(), useNode.bounds.centerY())
         sleep(2000)
         return true
       }
     }
 
+    // 诊断：写入日志文件 /tmp/debug_protector.log
+    if (diagLeft > 0 && cardNodes.length > 0) {
+      diagLeft--
+      let fs = runtime.getPlugin('files').File('/tmp/debug_protector.log', 'a')
+      fs.write('\n=== 本轮诊断 ===\n')
+      fs.write('卡片文本：' + cardNodes[0].text + '\n')
+      fs.write('卡片中心点：cx=' + cardNodes[0].bounds.centerX() + ' cy=' + cardNodes[0].bounds.centerY() + '\n')
+      let useAll = allNodes.filter(function (m) { return m.text === '使用' })
+      fs.write('"使用"节点数量：' + useAll.length + ' 个\n')
+      for (let i = 0; i < useAll.length; i++) {
+        let n = useAll[i]
+        let b = ''
+        if (n.bounds) {
+          b += 'bottom=' + Math.round(n.bounds.bottom) + ',c=' + n.clickable + ',y=' + Math.round(n.bounds.centerY())
+        } else {
+          b = 'null'
+        }
+        fs.write((i+1) + '. ' + b + '\n')
+      }
+      let endAll = allNodes.filter(function (m) { return m.text && m.text.indexOf('没有更多') >= 0 })
+      fs.write('"没有更多"节点数量：' + endAll.length + ' 个\n')
+      for (let i = 0; i < endAll.length; i++) {
+        let n = endAll[i]
+        fs.write('  ' + (i+1) + '. text="' + n.text + '" centerY=' + (n.bounds ? Math.round(n.bounds.centerY()) : 'null') + '\n')
+      }
+      fs.write('屏幕高度：' + config.device_height + ' bottom 上限:' + Math.round(config.device_height * 0.95) + '\n')
+      fs.close()
+    }
     // 检查是否已到底部
     let hasEnd = allNodes.some(function (n) { return /没有更多了/.test(n.text) })
     if (hasEnd) {
+      taskLog('检测到"没有更多了"，停止查找')
       break
     }
 
@@ -498,6 +530,14 @@ function findAndUseBestProtectorCard () {
     }
   }
   taskLog(minDays === null ? '未匹配到"N天后过期"，随机使用一张保护罩' : '最小过期天数: ' + minDays + '天')
+  if (minDays !== null) {
+    for (let t of cardTexts) {
+      let m = t.match(/.*?(\d+)天后过期/)
+      if (m && parseInt(m[1]) === minDays) {
+        taskLog('最小天数目标卡片: "' + t + '"')
+      }
+    }
+  }
 
   // 阶段3：重进背包，列表回到顶部
   if (!closeBackpack()) {
@@ -523,9 +563,12 @@ function findAndUseBestProtectorCard () {
 
   // 阶段4：按天数点击（左边界避免1天误配11天）
   if (minDays === null) {
+    taskLog('阶段4：未采集到过期天数，使用通用正则点击')
     return findAndUseCard(/.*保护罩.*共\d+个.*使用/)
   }
-  return findAndUseCard(new RegExp('.*保护罩.*共\\d+个.*(?:^|\\D)' + minDays + '天后过期.*使用'))
+  let targetPattern = new RegExp('.*保护罩.*共\\d+个.*(?:^|\\D)' + minDays + '天后过期.*使用')
+  taskLog('阶段4：最小过期天数 ' + minDays + ' 天，目标正则 ' + targetPattern)
+  return findAndUseCard(targetPattern)
 }
 
 // 智能关闭弹窗：先找同列的关闭按钮；找不到时用OCR识别"X"；OCR仍失败则返回键退出弹窗并重新检测背包界面（在则进活力值积分商店）；关闭失败或未找到活力值积分商店时返回false，由调用处决定是否退出脚本

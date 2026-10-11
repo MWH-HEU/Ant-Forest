@@ -398,7 +398,6 @@ function confirmExchange () {
 
 // 在背包中查找匹配正则的TextView卡片，找同列可点击且可见的"使用"按钮（X中心点在屏幕内、底边在屏幕95%高度以内）并点击（检测"没有更多了"停止滑动）
 function findAndUseCard (pattern) {
-  let diagLeft = 3   // 诊断日志最多打印 3 次，避免刷屏
   sleep(1000)
 
   while (true) {
@@ -412,7 +411,6 @@ function findAndUseCard (pattern) {
     })
 
     // 遍历所有匹配的卡片，找同列可点击且可见的"使用"按钮（X中心点在屏幕内、底边在屏幕95%高度以内；X坐标差值<50，卡片在按钮上方且y差值<200）
-    taskLog('查找中：匹配到 ' + cardNodes.length + ' 张卡片')
     for (let ci = 0; ci < cardNodes.length; ci++) {
       let cardNode = cardNodes[ci]
       let useNode = allNodes.find(function (n) {
@@ -425,51 +423,15 @@ function findAndUseCard (pattern) {
       })
 
       if (useNode) {
-        taskLog('点击卡片"' + cardNode.text + '"的"使用"按钮: (' + useNode.bounds.centerX() + ', ' + useNode.bounds.centerY() + ')')
         automator.click(useNode.bounds.centerX(), useNode.bounds.centerY())
         sleep(2000)
         return true
       }
     }
 
-    // 诊断：写入日志文件（方便导出分析为什么点击失败）
-    if (diagLeft > 0 && cardNodes.length > 0) {
-      diagLeft--
-      let path = '/sdcard/debug_protector.log'
-      try {
-        let fd = open(path, 'a')
-        fd.writeline('\n=== 本轮诊断 ===')
-        fd.writeline('卡片文本：' + cardNodes[0].text)
-        fd.writeline('卡片中心点：cx=' + cardNodes[0].bounds.centerX() + ' cy=' + cardNodes[0].bounds.centerY())
-        let useAll = allNodes.filter(function (m) { return m.text === '使用' })
-        fd.writeline('"使用"节点数量：' + useAll.length + ' 个')
-        for (let i = 0; i < useAll.length; i++) {
-          let n = useAll[i]
-          let b = ''
-          if (n.bounds) {
-            b += 'bottom=' + Math.round(n.bounds.bottom) + ',c=' + n.clickable + ',y=' + Math.round(n.bounds.centerY())
-          } else {
-            b = 'null'
-          }
-          fd.writeline((i+1) + '. (' + b + ')')
-        }
-        let endAll = allNodes.filter(function (m) { return m.text && m.text.indexOf('没有更多') >= 0 })
-        fd.writeline('"没有更多"节点数量：' + endAll.length + ' 个')
-        for (let i = 0; i < endAll.length; i++) {
-          let n = endAll[i]
-          fd.writeline('  ' + (i+1) + '. text="' + n.text + '" centerY=' + (n.bounds ? Math.round(n.bounds.centerY()) : 'null'))
-        }
-        fd.writeline('屏幕高度：' + config.device_height + ' bottom 上限:' + Math.round(config.device_height * 0.95))
-        fd.flush()
-        fd.close()
-      } catch (e) {
-        taskLog('诊断写入失败：' + e.message)
-      }
-    }
     // 检查是否已到底部
     let hasEnd = allNodes.some(function (n) { return /没有更多了/.test(n.text) })
     if (hasEnd) {
-      taskLog('检测到"没有更多了"，停止查找')
       break
     }
 
@@ -485,8 +447,8 @@ function findAndUseCard (pattern) {
   return false
 }
 
-// 挑选最合适的保护罩卡片并使用：先采集背包中所有保护罩卡片文本，取最小过期天数，再重进背包按该天数点击
-// 未采集到过期天数时用通用正则
+// 挑选最合适的保护罩卡片并使用：先采集背包中所有保护罩卡片文本，取最小过期天数，再重进背包按"该天数对应的完整文本"点击（不拼通配符正则）
+// 未提取到过期天数时，直接用采集到的文本定位
 function findAndUseBestProtectorCard () {
   taskLog('=== 采集背包中所有保护罩卡片文本 ===')
 
@@ -535,14 +497,20 @@ function findAndUseBestProtectorCard () {
       }
     }
   }
-  taskLog(minDays === null ? '未匹配到"N天后过期"，随机使用一张保护罩' : '最小过期天数: ' + minDays + '天')
-  if (minDays !== null) {
+  // 取"最小天数"对应的【完整文本】（天数只用来挑选文本；最小天数只有一条文本）
+  let targetText = null
+  if (minDays === null) {
+    targetText = cardTexts[0]
+    taskLog('未匹配到"N天后过期"，用采集到的文本: ' + targetText)
+  } else {
     for (let t of cardTexts) {
       let m = t.match(/.*?(\d+)天后过期/)
       if (m && parseInt(m[1]) === minDays) {
-        taskLog('最小天数目标卡片: "' + t + '"')
+        targetText = t
+        break
       }
     }
+    taskLog('最小过期天数: ' + minDays + '天，目标文本: ' + targetText)
   }
 
   // 阶段3：重进背包，列表回到顶部
@@ -567,13 +535,10 @@ function findAndUseBestProtectorCard () {
   }
   sleep(2000)
 
-  // 阶段4：按天数点击（左边界避免1天误配11天）
-  if (minDays === null) {
-    taskLog('阶段4：未采集到过期天数，使用通用正则点击')
-    return findAndUseCard(/.*保护罩.*共\d+个.*使用/)
-  }
-  let targetPattern = new RegExp('.*保护罩.*共\\d+个.*(?:^|\\D)' + minDays + '天后过期.*使用')
-  taskLog('阶段4：最小过期天数 ' + minDays + ' 天，目标正则 ' + targetPattern)
+  // 阶段4：转义后做"完全匹配"（findAndUseCard 内部用 pattern.test，必须传正则；^…$ 等价于文本完全相等）
+  let escaped = targetText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  let targetPattern = new RegExp('^' + escaped + '$')
+  taskLog('阶段4：按完整文本完全匹配: ' + targetText)
   return findAndUseCard(targetPattern)
 }
 

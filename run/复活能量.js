@@ -5,16 +5,17 @@
  *
  * 流程：
  *   首次：进入蚂蚁森林 → 收取自己能量 → 进入总能量榜
- *   循环（直到复活6次、找不到+5g或进入总榜失败退出）：
+ *   循环（直到今日剩余次数用完、找不到+5g或进入总榜失败退出；解析不到剩余次数时按复活6次兜底）：
  *     1. 查找+5g（优先模板图片匹配 rebirth_5g.data，失败回退findColor找橙色#FF8F00），连续2次没找到检查"没有更多了"，找"没有更多了"最多下滑20次
  *        找到后取第一个，进入好友森林复活
  *     2. 进入好友森林后无论复活成功失败，goBack返回，检查是否在总榜（只检查"排行榜"），在则直接继续下一轮；不在则重新进入蚂蚁森林进总榜
- *     3. 复活满6次则退出
+ *     3. 今日剩余次数用完则退出（解析不到剩余次数时按复活6次兜底）
  *
  * 控件查找：findAndClickByTextVisible（WidgetInspector.detectAllNodesVisible）
  * +5g查找：findOrangeMarkers（优先模板图片匹配 rebirth_5g.data，失败回退findColor找按钮内第一个橙色点，再从右下(x+1,y+1)找相邻点算中心）
  * 帮TA复活能量：clickReviveEnergy（OCR模糊匹配"复活/能量/立得"，限制屏幕上半部）
  * 总榜确认：checkInEnergyRank（widgetWaiting逐个检查"排行榜/日榜/周榜/总榜/总能量榜"，每个等5s）
+ * 剩余次数：主循环内扫描可见控件文本，非贪婪匹配"今日剩余N次"赋值remainCount，确认发送后减1；解析不到时按revivedCount>=6兜底
  *
  * 退出前：再收一次能量 → minimize → killApps（仅退出时） → removeRunningTask → exit
  */
@@ -534,6 +535,7 @@ function main() {
   taskLog('====== 开始复活能量流程 ======')
 
   let revivedCount = 0
+  let remainCount = -1
   let roundCount = 0
 
   // 首次进入：进入蚂蚁森林 → 收取自己的能量 → 进入总能量榜（仅执行一次）
@@ -592,11 +594,33 @@ function main() {
     if (clickAndEnterFriendForest(markers[0])) {
       sleep(1000)
       if (clickReviveEnergy()) {
+        // 扫描可见控件文本，非贪婪匹配"今日剩余N次"（解析成功才覆盖，失败保留上次值）
+        let nodes = widgetInspector.detectAllNodesVisible().nodes
+        for (let n of nodes) {
+          let m = n.text && n.text.match(/今日剩余(\d+?)次/)
+          if (m) {
+            remainCount = parseInt(m[1])
+            taskLog('今日剩余复活次数：' + remainCount)
+            break
+          }
+        }
+        if (remainCount < 0) {
+          warnInfo('未解析到"今日剩余N次"')
+        }
         if (clickConfirmSend()) {
           revivedCount++
-          taskLog('成功复活，累计' + revivedCount + '次)')
-          if (revivedCount >= 6) {
-            taskLog('已复活6次，结束流程')
+          if (remainCount > 0) {
+            remainCount--
+          }
+          taskLog('成功复活，累计' + revivedCount + '次' + (remainCount >= 0 ? '，今日剩余' + remainCount + '次' : ''))
+          // 今日剩余次数用完则结束
+          if (remainCount === 0) {
+            taskLog('剩余复活次数已用完，结束流程')
+            break
+          }
+          // 兜底：解析不到剩余次数时，沿用复活6次上限
+          if (remainCount < 0 && revivedCount >= 6) {
+            taskLog('未获取到今日剩余次数，按兜底6次结束流程')
             break
           }
         } else {

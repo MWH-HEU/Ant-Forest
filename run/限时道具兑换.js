@@ -513,27 +513,56 @@ function findAndUseBestProtectorCard () {
     taskLog('最小过期天数: ' + minDays + '天，目标文本: ' + targetText)
   }
 
-  // 阶段3：重进背包，列表回到顶部
-  if (!closeBackpack()) {
-    LogFloaty.pushErrorLog('保护罩：重新进入背包前关闭背包失败')
-    return false
-  }
-  if (!isOnAntForestPage()) {
-    if (!enterAntForest()) {
-      LogFloaty.pushErrorLog('保护罩：重新进入背包时无法进入蚂蚁森林')
+  // 阶段3：让列表回到顶部（阶段1的反向操作）
+  // 已在背包界面：上滑回顶，最多上滑10次；检测到"活力值积分商店"（说明已到顶部）后再补3次上滑，然后停止
+  // （上滑参数与 enterVitalityShopByScrollUp 的上滑部分一致）
+  // 不在背包界面：走原兜底流程（关闭背包→进入蚂蚁森林→重进背包）
+  if (isOnBackpackPage()) {
+    taskLog('阶段3：已在背包界面，上滑回到列表顶部')
+    let h = config.device_height
+    for (let i = 0; i < 10; i++) {
+      let dist = (0.20 + Math.random() * 0.10) * h
+      let startY = h * (0.65 + Math.random() * 0.05)
+      let endY = Math.min(startY + dist, h * 0.95)
+      automator.gestureUp(Math.round(startY), Math.round(endY), 100 + Math.round(Math.random() * 300))
+      sleep(1000)
+      // 检测到活力值积分商店说明已到列表顶部，再执行3次上滑确保完整显示
+      let visibleNodes = widgetInspector.detectAllNodesVisible().nodes
+      let hasShopEntry = visibleNodes.some(function (n) { return n.text && /活力值积分商店/.test(n.text) && n.bounds })
+      if (hasShopEntry) {
+        taskLog('阶段3：检测到"活力值积分商店"，再执行3次上滑')
+        for (let j = 0; j < 3; j++) {
+          let d = (0.20 + Math.random() * 0.10) * h
+          let sy = h * (0.65 + Math.random() * 0.05)
+          let ey = Math.min(sy + d, h * 0.95)
+          automator.gestureUp(Math.round(sy), Math.round(ey), 100 + Math.round(Math.random() * 300))
+          sleep(1000)
+        }
+        break
+      }
+    }
+  } else {
+    if (!closeBackpack()) {
+      LogFloaty.pushErrorLog('保护罩：重新进入背包前关闭背包失败')
       return false
     }
+    if (!isOnAntForestPage()) {
+      if (!enterAntForest()) {
+        LogFloaty.pushErrorLog('保护罩：重新进入背包时无法进入蚂蚁森林')
+        return false
+      }
+    }
+    sleep(2000)
+    if (!enterBackpack()) {
+      LogFloaty.pushErrorLog('保护罩：重新进入背包失败')
+      return false
+    }
+    if (!isOnBackpackPage()) {
+      LogFloaty.pushErrorLog('保护罩：重新进入背包后未在背包界面')
+      return false
+    }
+    sleep(2000)
   }
-  sleep(2000)
-  if (!enterBackpack()) {
-    LogFloaty.pushErrorLog('保护罩：重新进入背包失败')
-    return false
-  }
-  if (!isOnBackpackPage()) {
-    LogFloaty.pushErrorLog('保护罩：重新进入背包后未在背包界面')
-    return false
-  }
-  sleep(2000)
 
   // 阶段4：转义后做"完全匹配"（findAndUseCard 内部用 pattern.test，必须传正则；^…$ 等价于文本完全相等）
   let escaped = targetText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -865,12 +894,12 @@ function hasUsedItemToday (usedPattern) {
 }
 
 // 通过上滑查找并点击"活力值积分商店"进入商店，点击后判断是否在商店
-// 上滑起始点65%~70%高度随机，滑动距离20%~30%随机（结束点不超过95%），持续时间100~400ms随机；检测到商店后再执行一次上滑确保完整显示
+// 上滑起始点65%~70%高度随机，滑动距离20%~30%随机（结束点不超过95%），持续时间100~400ms随机；检测到商店后再执行3次上滑确保完整显示
 function enterVitalityShopByScrollUp () {
   taskLog('=== 上滑查找并进入活力值积分商店 ===')
   let h = config.device_height
 
-  // 循环上滑，每次上滑后等待"活力值积分商店"（起始点65%~70%高度随机，向下滑让上方内容显示，幅度20%~30%随机且结束点不超过95%，持续时间100~400ms随机）
+  // 循环上滑，每次上滑后检测可见节点中是否出现"活力值积分商店"（起始点65%~70%高度随机，向下滑让上方内容显示，幅度20%~30%随机且结束点不超过95%，持续时间100~400ms随机）
   // 注意：用可见节点判断而非widgetWaiting（widgetWaiting不检查可见性，会命中已渲染但不可见的节点导致误判）
   let found = false
   for (let i = 0; i < 10; i++) {
@@ -883,12 +912,14 @@ function enterVitalityShopByScrollUp () {
     let hasShopEntry = visibleNodes.some(function (n) { return n.text && /活力值积分商店/.test(n.text) && n.bounds })
     if (hasShopEntry) {
       found = true
-      // 检测到后再执行一次上滑，确保商店入口完整显示（重新生成随机起始点/距离/结束点）
-      dist = (0.20 + Math.random() * 0.10) * h
-      startY = h * (0.65 + Math.random() * 0.05)
-      endY = Math.min(startY + dist, h * 0.95)
-      automator.gestureUp(Math.round(startY), Math.round(endY), 100 + Math.round(Math.random() * 300))
-      sleep(1000)
+      // 检测到后再执行3次上滑，确保商店入口完整显示（每次重新生成随机起始点/距离/结束点）
+      for (let j = 0; j < 3; j++) {
+        let d = (0.20 + Math.random() * 0.10) * h
+        let sy = h * (0.65 + Math.random() * 0.05)
+        let ey = Math.min(sy + d, h * 0.95)
+        automator.gestureUp(Math.round(sy), Math.round(ey), 100 + Math.round(Math.random() * 300))
+        sleep(1000)
+      }
       break
     }
   }

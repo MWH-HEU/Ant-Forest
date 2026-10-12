@@ -5,7 +5,7 @@
  *   晚间任务必须在 23:59 之前结束。
  *   · 到达 23:59 后不再启动任何新任务；
  *   · 正在执行的子脚本会被强制终止；
- *   · 随后清理进程、回到桌面、锁屏并退出。
+ *   · 随后清理进程、回到桌面并退出（是否锁屏由父脚本按 needRelock 判断）。
  *   DEADLINE_HOUR / DEADLINE_MINUTE 定义在下方常量区，修改时请同步核对。
  * ------------------------------------------------------------------
  * 设计说明：
@@ -18,7 +18,7 @@
  *   3. 每个子脚本执行结束后：等待 10s → killApps() → 等待 2s；等待期间悬浮窗持续显示当前子脚本并倒计时。
  *   4. 保持亮屏：开头 device.keepScreenOn()，结束时 device.cancelKeepingAwake()。
  *      wake lock 绑定当前引擎，本引擎全程存活，可覆盖子脚本之间的空档期。
- *   5. 本脚本不弹倒计时弹窗（与其它子脚本一致），弹窗由父脚本 晚间任务自动启动.js 统一负责。
+ *   5. 本脚本不弹倒计时弹窗、也不锁屏（与其它子脚本一致），弹窗和锁屏都由父脚本 晚间任务自动启动.js 统一负责。
  *   6. 中断方式：音量上键（keyCode 24）。与各子脚本一样用 events.on('key_down') 监听，
  *      按下即中止整个晚间任务、终止当前子脚本并锁屏退出。
  *   7. 汇总日志只记录每个任务的「次数 / 耗时 / 结果」，结束时输出一条总账。
@@ -31,7 +31,6 @@ let { config, storage_name: _storage_name } = require('../config.js')(runtime, g
 let sRequire = require('../lib/SingletonRequirer.js')(runtime, global)
 let FileUtils = sRequire('FileUtils')
 let commonFunction = sRequire('CommonFunction')
-let automator = sRequire('Automator')
 let { debugInfo, warnInfo, errorInfo, infoLog } = sRequire('LogUtils')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
 
@@ -342,13 +341,9 @@ main()
 toastLog('晚间任务结束')
 showFloaty('晚间任务：已结束')
 device.cancelKeepingAwake()
-// 收尾：回桌面 → 清理进程 → 锁屏
+// 收尾：回桌面 → 清理进程（不锁屏，与其它子脚本一致；锁屏由父脚本按 needRelock 负责）
 commonFunction.minimize()
 sleep(500)
 killApps()
-sleep(AFTER_KILL_WAIT)
-if (config.auto_lock === true) {
-  debugInfo('[晚间任务] 重新锁定屏幕')
-  automator.lockScreen()
-}
+sleep(500)
 exit()

@@ -45,6 +45,9 @@ const DEADLINE_MINUTE = 59
 const AFTER_SCRIPT_WAIT = 10 * 1000   // 结束后等待 10s
 const AFTER_KILL_WAIT = 2 * 1000      // killApps 后等待 2s
 
+// 晚间任务悬浮窗相对子脚本/主脚本悬浮窗下移的像素，避免顶部重叠（详见 showFloaty）
+const FLOATY_Y_OFFSET = 80
+
 // ============================================================
 // 任务数组
 //   name           : 脚本名，默认对应 run/<name>.js
@@ -129,9 +132,11 @@ function formatDuration (ms) {
 }
 
 // 悬浮窗显示当前正在执行的子脚本（等待期间也持续显示，避免误以为脚本已结束）
+// y 在 min_floaty_y 基础上加 FLOATY_Y_OFFSET：子脚本/主脚本的迷你悬浮窗都在左上角，下移一段避免重叠
+// （bang_offset 刘海偏移由 FloatyUtil.setFloatyInfo 内部自动叠加，这里无需再算）
 function showFloaty (text) {
   try {
-    commonFunction.showMiniFloaty(text)
+    commonFunction.showMiniFloaty(text, config.min_floaty_x, (config.min_floaty_y || 20) + FLOATY_Y_OFFSET)
   } catch (e) {
     debugInfo('[晚间任务] 悬浮窗更新失败: ' + e)
   }

@@ -19,8 +19,8 @@
  *   4. 保持亮屏：开头 device.keepScreenOn()，结束时 device.cancelKeepingAwake()。
  *      wake lock 绑定当前引擎，本引擎整夜存活，可覆盖子脚本之间的空档期。
  *   5. 本脚本不弹倒计时弹窗、也不锁屏（与其它子脚本一致），弹窗和锁屏都由父脚本 夜间任务自动启动.js 统一负责。
- *   6. 中断方式：音量上键（keyCode 24）。与各子脚本一样用 events.on('key_down') 监听，
- *      按下即中止整个夜间任务、终止当前子脚本并锁屏退出。
+ *   6. 中断方式：音量上键（keyCode 24）。与各子脚本一样用 events.on('key_down') 监听；
+ *      按下后终止当前子脚本、释放亮屏锁并杀掉后台进程，直接退出（不回桌面、不打印总账）。
  *   7. 汇总日志只记录每个任务的「次数 / 耗时 / 结果」，结束时输出一条总账。
  *   8. 建议通过 run/夜间任务自动启动.js 运行（由它负责解锁、静音、弹窗、锁屏）。
  *   9. 本脚本只管控自己拉起的子脚本；夜间窗口内若还有其他定时任务到点触发，
@@ -254,22 +254,29 @@ function runOnce (task, timeoutMs) {
   return { result: 'finished', duration: new Date().getTime() - start }
 }
 
-// 音量上键退出（与各子脚本一致：按下即结束当前脚本，这里升级为中止整个夜间任务）
+// 音量上键退出（与各子脚本一致：清理必要项后直接退出，不再回到主流程）
 function startVolumeKeyExitListener () {
   infoLog('运行中可按音量上键关闭', true)
   threads.start(function () {
     events.observeKey()
     events.on('key_down', function (keyCode, event) {
       if (keyCode === 24) {
-        userAborted = true
         toastLog('用户按音量上键，退出夜间任务')
+        // 先立标志，防止收尾期间主循环又拉起下一个子脚本
+        userAborted = true
+        // 必须项：终止当前子脚本，避免留下孤儿引擎
         if (currentEngine && !currentEngine.isDestroyed()) {
           try {
             currentEngine.forceStop()
+            waitDestroyed(currentEngine, 5000)
           } catch (e) {
             debugInfo('[夜间任务] 终止当前子脚本失败: ' + e)
           }
         }
+        // 中止路径：不回桌面、不打印总账，释放亮屏锁并杀掉后台进程后直接退出
+        device.cancelKeepingAwake()
+        killApps()
+        exit()
       }
     })
   })
@@ -337,6 +344,16 @@ function main () {
 // ============================================================
 // 执行入口
 // ============================================================
+// 正常结束的收尾：回桌面 → 清理进程（不锁屏，与其它子脚本一致；锁屏由父脚本按 needRelock 负责）
+function exitScript () {
+  device.cancelKeepingAwake()
+  commonFunction.minimize()
+  sleep(500)
+  killApps()
+  sleep(500)
+  exit()
+}
+
 device.keepScreenOn()
 startVolumeKeyExitListener()
 showFloaty('夜间任务：准备中')
@@ -344,10 +361,4 @@ toastLog('夜间任务开始')
 main()
 toastLog('夜间任务结束')
 showFloaty('夜间任务：已结束')
-device.cancelKeepingAwake()
-// 收尾：回桌面 → 清理进程（不锁屏，与其它子脚本一致；锁屏由父脚本按 needRelock 负责）
-commonFunction.minimize()
-sleep(500)
-killApps()
-sleep(500)
-exit()
+exitScript()

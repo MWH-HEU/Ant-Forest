@@ -53,7 +53,7 @@ const FLOATY_Y_OFFSET = 80
 //   file           : 文件名（可选，缺省为 name + '.js'）
 //   count          : 执行次数
 //   timeoutMinutes : 单次执行超时（分钟），超过则强制杀掉该子脚本
-// 顺序即为执行顺序。窗口为 01:00 - 06:55（07:00 后的任务不纳入），能量雨兑换为手动并入（原定时任务中没有）。
+// 顺序即为执行顺序。窗口为 01:00 - 06:55（07:00 后的任务不纳入）；能量雨兑换为手动并入（原定时任务中没有），能量雨在乐园任务前另加跑一次。
 // ============================================================
 const NIGHT_TASK_LIST = [
   { name: '神奇海洋', count: 1, timeoutMinutes: 40 },
@@ -61,9 +61,10 @@ const NIGHT_TASK_LIST = [
   { name: '新版巡护', count: 1, timeoutMinutes: 9 },
   { name: '森林寻宝', count: 2, timeoutMinutes: 9 },
   { name: '森林集市', count: 2, timeoutMinutes: 4 },
-  { name: '能量雨', count: 2, timeoutMinutes: 4 },
+  { name: '能量雨', count: 1, timeoutMinutes: 4 },
   { name: '赚能量', count: 2, timeoutMinutes: 4 },
   { name: 'AI摸鱼', count: 2, timeoutMinutes: 40 },
+  { name: '能量雨', count: 1, timeoutMinutes: 4 },
   { name: '乐园任务', count: 2, timeoutMinutes: 40 },
   { name: '每日任务', count: 2, timeoutMinutes: 40 },
   { name: '神奇鱼塘', count: 2, timeoutMinutes: 4 }

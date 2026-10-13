@@ -111,10 +111,19 @@ function findAndClickByTextVisible (pattern) {
   return false
 }
 
+// 可见控件中是否存在匹配文本（不点击），用于版本判断
+function existsVisibleText (pattern) {
+  let result = widgetInspector.detectAllNodesVisible()
+  for (let node of result.nodes) {
+    if (node.text && pattern.test(node.text)) return true
+  }
+  return false
+}
+
 // 返回上一页
 function goBack () {
   back()
-  sleep(2000)
+  sleep(3000)
 }
 
 // OCR查找并点击指定文字（在指定超时内循环截图识别，找到即点击）
@@ -224,7 +233,7 @@ function closeBackpack () {
     if (n.text === '关闭' && n.clickable && n.className === 'android.widget.Button' && n.bounds) {
       taskLog('找到可点击的"关闭"按钮，点击: (' + n.bounds.centerX() + ', ' + n.bounds.centerY() + ')')
       automator.click(n.bounds.centerX(), n.bounds.centerY())
-      sleep(2000)
+      sleep(3000)
       return true
     }
   }
@@ -290,7 +299,7 @@ function clickExchangeWithVitality () {
       return false
     }
   }
-  sleep(2000)
+  sleep(3000)
 
   // 通过模板匹配/OCR点击"背包"进入背包
   if (!enterBackpack()) {
@@ -302,20 +311,20 @@ function clickExchangeWithVitality () {
     LogFloaty.pushErrorLog('未进入背包界面')
     return false
   }
-  sleep(2000)
+  sleep(3000)
 
   if (!findAndClickByTextVisible(/活力值积分商店/)) {
     LogFloaty.pushErrorLog('未找到"活力值积分商店"')
     return false
   }
-  sleep(2000)
+  sleep(3000)
 
   // 判断是否已进入活力值积分商店
   if (!isOnVitalityShopPage()) {
     LogFloaty.pushErrorLog('未进入活力值积分商店')
     return false
   }
-  sleep(2000)
+  sleep(3000)
   return true
 }
 
@@ -349,7 +358,7 @@ function findAndUseCard (pattern) {
 
       if (useNode) {
         automator.click(useNode.bounds.centerX(), useNode.bounds.centerY())
-        sleep(2000)
+        sleep(3000)
         return true
       }
     }
@@ -367,7 +376,7 @@ function findAndUseCard (pattern) {
     sleep(1000)
   }
 
-  sleep(2000)
+  sleep(3000)
   LogFloaty.pushErrorLog('未找到卡片，可能已使用完或不存在')
   return false
 }
@@ -477,7 +486,7 @@ function findAndUseBestProtectorCard () {
         return false
       }
     }
-    sleep(2000)
+    sleep(3000)
     if (!enterBackpack()) {
       LogFloaty.pushErrorLog('保护罩：重新进入背包失败')
       return false
@@ -486,7 +495,7 @@ function findAndUseBestProtectorCard () {
       LogFloaty.pushErrorLog('保护罩：重新进入背包后未在背包界面')
       return false
     }
-    sleep(2000)
+    sleep(3000)
   }
 
   // 阶段4：转义后做"完全匹配"（findAndUseCard 内部用 pattern.test，必须传正则；^…$ 等价于文本完全相等）
@@ -540,7 +549,7 @@ function smartClosePopup () {
   if (isOnBackpackPage()) {
     taskLog('返回后仍在背包界面，进入活力值积分商店')
     if (findAndClickByTextVisible(/活力值积分商店/)) {
-      sleep(2000)
+      sleep(3000)
       // 判断是否已进入活力值积分商店
       return isOnVitalityShopPage()
     }
@@ -559,7 +568,7 @@ function handleExtendPopup () {
   sleep(1000)
   if (findAndClickByTextVisible(/确认延长/)) {
     taskLog('已点击"确认延长"')
-    sleep(2000)
+    sleep(3000)
     return true
   }
   return false
@@ -580,7 +589,7 @@ function exchangeProtectorCard () {
         let cardNode = cardNodes[ci]
         taskLog('尝试兑换: "' + cardNode.text + '"')
         automator.click(cardNode.bounds.centerX(), cardNode.bounds.centerY())
-        sleep(2000)
+        sleep(3000)
 
         // 先点击"限时3天内使用"（如果有这个选项），触发库存不足/已达上限判断
         findAndClickByTextVisible(/限时3天内使用/)
@@ -615,7 +624,7 @@ function exchangeProtectorCard () {
           }
           continue
         }
-        sleep(2000)
+        sleep(3000)
 
         // 确认兑换流程
         taskLog('兑换成功，执行确认兑换')
@@ -623,7 +632,7 @@ function exchangeProtectorCard () {
           LogFloaty.pushErrorLog('未找到"确认兑换"按钮')
           return false
         }
-        sleep(2000)
+        sleep(3000)
 
         if (!findAndClickByTextVisible(/立即使用/)) {
           LogFloaty.pushErrorLog('未找到"立即使用"按钮')
@@ -643,7 +652,7 @@ function exchangeProtectorCard () {
           if (!isOnAntForestPage()) {
             return false
           }
-          sleep(2000)
+          sleep(3000)
           if (!enterBackpack()) {
             LogFloaty.pushErrorLog('保护罩：重新进入背包失败')
             return false
@@ -653,9 +662,9 @@ function exchangeProtectorCard () {
             LogFloaty.pushErrorLog('保护罩：重新进入背包后未在背包界面')
             return false
           }
-          sleep(2000)
+          sleep(3000)
         }
-        sleep(2000)
+        sleep(3000)
 
         taskLog('=== 在背包中挑选并使用保护罩 ===')
         if (!findAndUseBestProtectorCard()) {
@@ -700,7 +709,7 @@ function clickUseNow () {
     return false
   }
 
-  sleep(2000)
+  sleep(3000)
   return true
 }
 
@@ -719,7 +728,7 @@ function hasUsedItemToday (usedPattern) {
     LogFloaty.pushErrorLog('检查已使用：不在蚂蚁森林界面')
     return false
   }
-  sleep(2000)
+  sleep(3000)
 
   // 最多下滑3次，寻找"森林动态"和"去看全部"（完全匹配）；起始点85%~95%高度随机，滑动距离10%~15%随机，持续时间100~400ms随机
   let foundEntry = false
@@ -749,7 +758,7 @@ function hasUsedItemToday (usedPattern) {
     taskLog('未找到可点击的"去看全部"，视为未使用')
     return false
   }
-  sleep(2000)
+  sleep(3000)
 
   // 判断是否在森林动态界面：只根据"动态"判断（完全匹配）；进入后若未找到"今天"则说明当天未使用，直接返回
   let dongtaiResult = widgetUtils.widgetWaiting('^动态$', '动态', 2000)
@@ -859,7 +868,7 @@ function enterVitalityShopByScrollUp () {
     taskLog('找到但点击"活力值积分商店"失败')
     return false
   }
-  sleep(2000)
+  sleep(3000)
 
   // 判断是否在商店
   return isOnVitalityShopPage()
@@ -884,7 +893,7 @@ function doProtectorExchange () {
   if (!isOnAntForestPage()) {
     return false
   }
-  sleep(2000)
+  sleep(3000)
   if (!enterBackpack()) {
     LogFloaty.pushErrorLog('保护罩：无法进入背包页面')
     return false
@@ -894,7 +903,7 @@ function doProtectorExchange () {
     LogFloaty.pushErrorLog('保护罩：未在背包界面')
     return false
   }
-  sleep(2000)
+  sleep(3000)
 
   taskLog('=== 检查背包中是否有已有保护罩卡片 ===')
   let hasProtectorCard = findAndUseBestProtectorCard()
@@ -937,12 +946,52 @@ function doProtectorExchange () {
   }
 }
 
+// 切换为个人版（组队版下部分控件不存在，如森林动态）
+// 控件文案 = 当前所在版本：存在"切换为个人版"即为个人版，存在"切换为组队版"即为组队版
+// 点击后切到另一个版本；返回 true 表示原本是组队版（任务结束需切回）
+function switchToPersonalVersion () {
+  if (!enterAntForest()) { taskLog('版本检查：无法进入蚂蚁森林'); return false }
+  if (!isOnAntForestPage()) { taskLog('版本检查：不在蚂蚁森林界面'); return false }
+  if (existsVisibleText(/^切换为个人版$/)) { taskLog('版本检查：当前为个人版，无需切换'); return false }
+  if (!existsVisibleText(/^切换为组队版$/)) { taskLog('版本检查：未检测到版本切换控件'); return false }
+  taskLog('版本检查：当前为组队版，切换为个人版')
+  sleep(5000)   // 切换前等待 5s
+  if (!findAndClickByTextVisible(/^切换为组队版$/)) { taskLog('版本检查：点击"切换为组队版"失败'); return true }
+  sleep(3000)
+  findAndClickByTextVisible(/^确定返回$/)   // 可能无弹窗，失败即忽略
+  sleep(3000)
+  return true
+}
+
+// 切换为组队版（原版本为组队版时，在 main 末尾调用）
+function switchToGroupVersion () {
+  if (!enterAntForest()) { taskLog('版本还原：无法进入蚂蚁森林'); return false }
+  if (!isOnAntForestPage()) { taskLog('版本还原：不在蚂蚁森林界面'); return false }
+  taskLog('版本还原：切回组队版')
+  sleep(5000)   // 切换前等待 5s
+  if (!findAndClickByTextVisible(/^切换为个人版$/)) { taskLog('版本还原：点击"切换为个人版"失败'); return false }
+  sleep(3000)
+  findAndClickByTextVisible(/^确定返回$/)   // 可能无弹窗，失败即忽略
+  sleep(3000)
+  return true
+}
+
 // 主流程
 function main () {
   taskLog('========== 保护罩兑换 开始 ==========')
 
-  if (ENABLE_PROTECTOR_EXCHANGE) {
-    doProtectorExchange()
+  // 组队版下部分控件不存在：进入后先切为个人版，记录原版本
+  let wasGroupMode = switchToPersonalVersion()
+
+  try {
+    if (ENABLE_PROTECTOR_EXCHANGE) {
+      doProtectorExchange()
+    }
+  } finally {
+    // 原为组队版则切回组队版
+    if (wasGroupMode) {
+      switchToGroupVersion()
+    }
   }
 
   taskLog('========== 保护罩兑换 完成 ==========')

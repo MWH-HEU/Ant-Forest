@@ -84,7 +84,7 @@ function openAntForest () {
     errorInfo('进入蚂蚁森林失败')
     return false
   }
-  sleep(2000)
+  sleep(4000)
   return true
 }
 
@@ -93,7 +93,7 @@ function openAntForest () {
  */
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 3000)
+  let deadline = new Date().getTime() + (timeout || 4000)
   while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
     sleep(300)
@@ -149,7 +149,7 @@ function clickByTemplateFirst (keyword, templateKey) {
   }
 
   // 方案2：OCR识别（兜底，只执行一次）
-  if (clickByOcr(keyword, 3000)) return true
+  if (clickByOcr(keyword, 4000)) return true
   return false
 }
 
@@ -206,7 +206,7 @@ function findAndExecuteTask (descText, btnText, taskFn) {
       if (Math.abs(y - descY) < 100) {
         taskLog('找到任务: "' + descText + '"，对应按钮: ' + btnText)
         automator.click(node.bounds.centerX(), node.bounds.centerY())
-        sleep(2000)
+        sleep(4000)
         taskFn()
         return true
       }
@@ -258,7 +258,7 @@ function findAndExecuteSpecialTask () {
     let clicked = false
     for (let i = 0; i < 5; i++) {
       clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
-      if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 3000)
+      if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 4000)
       if (clicked) break
 
       taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')
@@ -318,7 +318,7 @@ function isOnParkPage () {
   // 限时福利浮层打开时，乐园控件仍存在，先排除
   if (isOnLimitedBenefitPage()) return false
   // textMatches为全文匹配，需用.*通配匹配包含关键字的完整文本
-  let result = widgetUtils.widgetWaiting('.*每日领取上限.*|.*开宝箱.*绿色能量.*', '乐园页面', 3000)
+  let result = widgetUtils.widgetWaiting('.*每日领取上限.*|.*开宝箱.*绿色能量.*', '乐园页面', 4000)
   if (!result) {
     taskLog('未检测到乐园页面特征控件，不在乐园页面')
     return false
@@ -334,7 +334,7 @@ function isOnParkPage () {
 function isOnLimitedBenefitPage () {
   // 限时福利是浮层，widgetWaiting的findOne可能找不到浮层控件，改用detectAllNodesVisible
   // 先等待页面加载完成
-  sleep(3000)
+  sleep(4000)
   let allNodes = widgetInspector.detectAllNodesVisible().nodes
   for (let node of allNodes) {
     // 完全匹配"每日签到"或"开10个乐园宝箱"
@@ -362,7 +362,7 @@ function ensureOnLimitedBenefitPage () {
   // 3. 在乐园页面，模板优先/OCR兜底进入限时福利
   taskLog('在乐园页面，进入限时福利')
   if (!clickByTemplateFirst('限时福利', 'limited_time_welfare')) return false
-  sleep(2000)
+  sleep(4000)
   return isOnLimitedBenefitPage()
 }
 
@@ -383,14 +383,14 @@ function enterLimitedBenefitPage () {
     taskLog('不在蚂蚁森林首页')
     return false
   }
-  sleep(2000)
+  sleep(4000)
 
   taskLog('查找乐园入口')
   if (!clickByTemplateFirst('乐园', 'paradise_icon')) {
     taskLog('未找到乐园入口')
     return false
   }
-  sleep(2000)
+  sleep(4000)
 
   // 确保在限时福利页面（已在则直接成功，在乐园则模板优先/OCR兜底进入，否则失败）
   if (ensureOnLimitedBenefitPage()) {

@@ -33,9 +33,9 @@ function killApps () {
 
 function exitScript () {
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   killApps()
-  sleep(500)
+  sleep(1000)
   runningQueueDispatcher.removeRunningTask()
   exit()
 }
@@ -66,20 +66,19 @@ function openAntForest () {
     packageName: config.package_name
   })
 
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 1000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
 
-  commonFunction.readyForAlipayWidgets()
 
   // 等待进入首页
   let waitCount = 0
-  while (!widgetUtils.homePageWaiting() && waitCount++ < 6) {
-    sleep(1000)
+  while (!widgetUtils.homePageWaiting() && waitCount++ < 10) {
+    sleep(2000)
   }
 
-  // while 退出后，waitCount >= 6 说明超时未进入首页
+  // while 退出后，waitCount >= 10 说明超时未进入首页
   if (waitCount >= 6) {
     errorInfo('进入蚂蚁森林失败')
     return false
@@ -93,10 +92,10 @@ function openAntForest () {
  */
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 4000)
+  let deadline = new Date().getTime() + (timeout || 10000)
   while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
-    sleep(300)
+    sleep(1000)
     let screen = commonFunction.captureScreen()
     if (screen) {
       let results = localOcrUtil.recognizeWithBounds(screen, null, keyword)
@@ -105,11 +104,11 @@ function clickByOcr (keyword, timeout) {
         let match = results[0]
         taskLog('OCR找到"' + keyword + '"，点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
         automator.click(match.bounds.centerX(), match.bounds.centerY())
-        sleep(500)
+        sleep(1000)
         return true
       }
     }
-    sleep(500)
+    sleep(1000)
   }
   return false
 }
@@ -134,7 +133,7 @@ function clickByTemplateFirst (keyword, templateKey) {
           let centerY = Math.round(match.centerY())
           taskLog('模板匹配找到"' + keyword + '": 点击: (' + centerX + ', ' + centerY + ')')
           automator.click(centerX, centerY)
-          sleep(500)
+          sleep(1000)
           return true
         }
         taskLog('模板匹配未找到"' + keyword + '"，回退到OCR')
@@ -149,7 +148,7 @@ function clickByTemplateFirst (keyword, templateKey) {
   }
 
   // 方案2：OCR识别（兜底，只执行一次）
-  if (clickByOcr(keyword, 4000)) return true
+  if (clickByOcr(keyword, 10000)) return true
   return false
 }
 
@@ -258,7 +257,7 @@ function findAndExecuteSpecialTask () {
     let clicked = false
     for (let i = 0; i < 5; i++) {
       clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
-      if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 4000)
+      if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 10000)
       if (clicked) break
 
       taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')
@@ -268,7 +267,7 @@ function findAndExecuteSpecialTask () {
       let endY = startY - h * (0.15 + Math.random() * 0.10)
       let duration = 100 + Math.random() * 300
       automator.gestureDown(Math.round(startY), Math.round(endY), duration)
-      sleep(1000)
+      sleep(2000)
     }
     if (!clicked) taskLog('下滑 5 次仍未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"')
 
@@ -279,9 +278,9 @@ function findAndExecuteSpecialTask () {
     // 退出重置（最小化+杀掉支付宝，不退出脚本），再重新进入限时福利页面
     taskLog('特殊任务执行完毕，退出重置后重新进入限时福利页面')
     commonFunction.minimize()
-    sleep(500)
+    sleep(1000)
     killApps()
-    sleep(500)
+    sleep(1000)
     enterLimitedBenefitPage()
     return true
   }
@@ -295,12 +294,12 @@ function findAndExecuteSpecialTask () {
  * @returns {boolean}
  */
 function isOnAntForestPage () {
-  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 5000)
+  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 10000)
   if (!result) {
     taskLog('未检测到"蚂蚁森林"，不在蚂蚁森林界面')
     return false
   }
-  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 5000)
+  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 10000)
   if (!squareResult) {
     taskLog('未检测到"森林广场"，不在蚂蚁森林界面')
     return false
@@ -318,7 +317,7 @@ function isOnParkPage () {
   // 限时福利浮层打开时，乐园控件仍存在，先排除
   if (isOnLimitedBenefitPage()) return false
   // textMatches为全文匹配，需用.*通配匹配包含关键字的完整文本
-  let result = widgetUtils.widgetWaiting('.*每日领取上限.*|.*开宝箱.*绿色能量.*', '乐园页面', 4000)
+  let result = widgetUtils.widgetWaiting('.*每日领取上限.*|.*开宝箱.*绿色能量.*', '乐园页面', 10000)
   if (!result) {
     taskLog('未检测到乐园页面特征控件，不在乐园页面')
     return false
@@ -422,7 +421,7 @@ function waitForGameComplete () {
   let maxChecks = 36
   for (let check = 0; check < maxChecks; check++) {
     sleep(10000)
-    let completed = widgetUtils.widgetGetOne('已完成', 1000)
+    let completed = widgetUtils.widgetGetOne('已完成', 10000)
     if (completed) {
       taskLog('检测到已完成')
       break
@@ -431,7 +430,7 @@ function waitForGameComplete () {
 
   // 退出玩一玩页面，与每日任务waitForTaskComplete一致
   taskLog('任务完成，退出页面')
-  sleep(500)
+  sleep(1000)
 
   let pkg = config.package_name || 'com.eg.android.AlipayGphone'
 
@@ -442,7 +441,7 @@ function waitForGameComplete () {
     cardText: '支付宝',
     onLog: taskLog
   })
-  sleep(1000)
+  sleep(2000)
 
   // 2. 切入失败或切入后不在限时福利页面，重新打开限时福利页面
   if (!switched || !isOnLimitedBenefitPage()) {

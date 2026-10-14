@@ -87,29 +87,29 @@ if (executeByTimeTask) {
       data: 'alipays://platformapi/startapp?appId=60000002',
       packageName: config.package_name
     })
-    let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
+    let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
     if (confirm) {
       automator.clickCenter(confirm)
     }
     // 等待进入蚂蚁森林
     taskLog('等待蚂蚁森林页面加载')
+    sleep(4000)
+    widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', '等待蚂蚁森林页面', 10000)
     sleep(2000)
-    widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', '等待蚂蚁森林页面', 6000)
-    sleep(1500)
     // 找「赚能量」入口
     taskLog('查找赚能量入口')
-    let earnEntry = widgetUtils.widgetGetOne('.*赚能量.*', 3000)
+    let earnEntry = widgetUtils.widgetGetOne('.*赚能量.*', 10000)
     if (earnEntry) {
       taskLog('点击赚能量')
       automator.clickCenter(earnEntry)
-      sleep(500)
+      sleep(1000)
       // 找「拼手速」
       taskLog('查找拼手速任务')
-      let speedRace = widgetUtils.widgetGetOne('.*拼手速.*', 2000)
+      let speedRace = widgetUtils.widgetGetOne('.*拼手速.*', 10000)
       if (speedRace) {
         taskLog('点击拼手速任务')
         automator.clickCenter(speedRace)
-        sleep(500)
+        sleep(1000)
       } else {
         warnInfo('未找到拼手速任务，请手动进入')
       }
@@ -177,15 +177,15 @@ let clickThread = threads.start(function () {
         changeButtonInfo()
         if (executeByTimeTask) {
           // 自动模式：点击完毕，先杀支付宝再退出脚本
-          sleep(500)
+          sleep(1000)
           runningQueueDispatcher.removeRunningTask()
           isRunning = false
           commonFunction.minimize()
-          sleep(500)
+          sleep(1000)
           killApps()
           exit()
         }
-        sleep(1000)
+        sleep(2000)
       }
     }
   }
@@ -375,25 +375,25 @@ function openSpeedRacePage () {
     data: 'alipays://platformapi/startapp?appId=60000002',
     packageName: config.package_name
   })
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
+  sleep(4000)
+  widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', '等待蚂蚁森林页面', 10000)
   sleep(2000)
-  widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', '等待蚂蚁森林页面', 6000)
-  sleep(1500)
   taskLog('查找赚能量入口')
-  let earnEntry = widgetUtils.widgetGetOne('.*赚能量.*', 3000)
+  let earnEntry = widgetUtils.widgetGetOne('.*赚能量.*', 10000)
   if (earnEntry) {
     taskLog('点击赚能量')
     automator.clickCenter(earnEntry)
-    sleep(2000)
+    sleep(4000)
     taskLog('查找拼手速任务')
-    let speedRace = widgetUtils.widgetGetOne('.*拼手速.*', 2000)
+    let speedRace = widgetUtils.widgetGetOne('.*拼手速.*', 10000)
     if (speedRace) {
       taskLog('点击拼手速任务')
       automator.clickCenter(speedRace)
-      sleep(1000)
+      sleep(2000)
     } else {
       warnInfo('未找到拼手速任务')
     }

@@ -73,14 +73,14 @@ function taskLog(msg) {
 
 function goBack() {
   back()
-  sleep(2000)
+  sleep(4000)
 }
 
 function exitScript() {
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   killApps()
-  sleep(500)
+  sleep(1000)
   runningQueueDispatcher.removeRunningTask()
   exit()
 }
@@ -153,25 +153,24 @@ function enterAntForest() {
     packageName: config.package_name
   })
 
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 1000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
 
-  commonFunction.readyForAlipayWidgets()
 
   // 等待进入首页
   let waitCount = 0
-  while (!widgetUtils.homePageWaiting() && waitCount++ < 6) {
-    sleep(1000)
+  while (!widgetUtils.homePageWaiting() && waitCount++ < 10) {
+    sleep(2000)
   }
 
-  // while 退出后，waitCount >= 6 说明超时未进入首页
+  // while 退出后，waitCount >= 10 说明超时未进入首页
   if (waitCount >= 6) {
     errorInfo('进入蚂蚁森林失败')
     return false
   }
-  sleep(2000)
+  sleep(4000)
   return true
 }
 
@@ -182,24 +181,24 @@ function enterAntForest() {
  * @returns {boolean} 是否成功切换到总能量榜
  */
 function clickEnergyRankTab() {
-  let energyRank = widgetUtils.widgetGetById('rank-tab-energyRank', 2000)
+  let energyRank = widgetUtils.widgetGetById('rank-tab-energyRank', 10000)
   if (energyRank) {
     debugInfo(['通过ID找到总能量榜按钮: {}', energyRank.text()])
     energyRank.click()
-    sleep(1000)
+    sleep(2000)
     return true
   }
   let limit = 5
   do {
     // 先查找点击，找不到再滑动
     if (findAndClickByTextVisible(/今日能量榜|本周能量榜|总能量榜/)) {
-      sleep(1000)
+      sleep(2000)
       // 再点击"总榜"（完全匹配），点击失败则返回false
       if (!findAndClickByTextVisible(/^总榜$/)) {
         warnInfo('点击"总榜"失败')
         return false
       }
-      sleep(1000)
+      sleep(2000)
       return true
     }
     let h = config.device_height
@@ -208,7 +207,7 @@ function clickEnergyRankTab() {
     let endY = startY - h * (0.15 + Math.random() * 0.10)
     let duration = 100 + Math.random() * 300
     automator.gestureDown(Math.round(startY), Math.round(endY), duration)
-    sleep(1000)
+    sleep(2000)
   } while (--limit > 0)
   warnInfo('切换到总能量榜tab失败')
   return false
@@ -237,7 +236,7 @@ function enterEnergyRankFirstTime() {
       }
       // 先查找点击，找不到再滑动
       if (findAndClickByTextVisible(/查看更多好友/)) {
-        sleep(1000)
+        sleep(2000)
         break
       }
       // 检查是否到底
@@ -253,7 +252,7 @@ function enterEnergyRankFirstTime() {
       let endY = startY - h * (0.15 + Math.random() * 0.10)
       let duration = 100 + Math.random() * 300
       automator.gestureDown(Math.round(startY), Math.round(endY), duration)
-      sleep(1000)
+      sleep(2000)
     }
 
     // 点击"查看更多好友"后，检查是否在总能量榜
@@ -306,7 +305,7 @@ function enterEnergyRankFirstTime() {
 function checkInEnergyRank() {
   let texts = ['排行榜', '日榜', '周榜', '总榜', '总能量榜']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], '总能量榜页面', 5000)
+    let result = widgetUtils.widgetWaiting(texts[i], '总能量榜页面', 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在总能量榜页面')
       return false
@@ -322,7 +321,7 @@ function checkInEnergyRank() {
 function isOnAlipayHomePage() {
   let texts = ['扫一扫', '收付款', '出行', '卡包', '蚂蚁森林']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], '支付宝首页', 5000)
+    let result = widgetUtils.widgetWaiting(texts[i], '支付宝首页', 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在支付宝首页')
       return false
@@ -336,12 +335,12 @@ function isOnAlipayHomePage() {
  * 判断是否在蚂蚁森林首页（需同时找到"蚂蚁森林"和"森林广场"）
  */
 function isOnAntForestPage() {
-  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 5000)
+  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 10000)
   if (!result) {
     taskLog('未检测到"蚂蚁森林"，不在蚂蚁森林界面')
     return false
   }
-  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 5000)
+  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 10000)
   if (!squareResult) {
     taskLog('未检测到"森林广场"，不在蚂蚁森林界面')
     return false
@@ -458,7 +457,7 @@ function clickReviveEnergy() {
   // OCR识别"帮TA复活能量"，模糊匹配"复活""帮TA""立得"，限制在屏幕上半部
   if (localOcrUtil.enabled) {
     commonFunction.requestScreenCaptureOrRestart()
-    sleep(500)
+    sleep(1000)
     let screen = commonFunction.captureScreen()
     if (screen) {
       let ocrResult = localOcrUtil.recognizeWithBounds(screen)
@@ -474,7 +473,7 @@ function clickReviveEnergy() {
               let cx = Math.round((bd.left + bd.right) / 2)
               debugInfo(['OCR找到"帮TA复活能量" 位置: ({}, {})', cx, cy])
               automator.click(cx, cy)
-              sleep(1500)
+              sleep(2000)
               return true
             }
           }
@@ -493,7 +492,7 @@ function clickReviveEnergy() {
 function clickConfirmSend() {
   if (findAndClickByTextVisible(/确认发送/)) {
     debugInfo('找到"确认发送"按钮')
-    sleep(1000)
+    sleep(2000)
     return true
   }
 
@@ -544,7 +543,7 @@ function main() {
     exitScript()
   }
   collectOwnEnergy()
-  sleep(1000)
+  sleep(2000)
   if (!enterEnergyRankFirstTime()) {
     errorInfo('进入总能量榜失败，结束脚本')
     exitScript()
@@ -582,7 +581,7 @@ function main() {
       let endY = startY - h * (0.15 + Math.random() * 0.10)
       let duration = 100 + Math.random() * 300
       automator.gestureDown(Math.round(startY), Math.round(endY), duration)
-      sleep(1000)
+      sleep(2000)
     }
 
     if (markers.length === 0) {
@@ -592,7 +591,7 @@ function main() {
 
     // 取第一个+5g进入好友森林复活
     if (clickAndEnterFriendForest(markers[0])) {
-      sleep(1000)
+      sleep(2000)
       if (clickReviveEnergy()) {
         // 扫描可见控件文本，非贪婪匹配"今日剩余N次"（解析成功才覆盖，失败保留上次值）
         let nodes = widgetInspector.detectAllNodesVisible().nodes
@@ -632,7 +631,7 @@ function main() {
       // 无论成功失败，此时都在好友页面，goBack返回总榜
       goBack()
       // 检查是否回到总榜（只检查"排行榜"）
-      let inRank = widgetUtils.widgetWaiting('排行榜', '总能量榜页面', 1000)
+      let inRank = widgetUtils.widgetWaiting('排行榜', '总能量榜页面', 10000)
       if (!inRank) {
         // 不在总榜，重新进入蚂蚁森林进总榜
         taskLog('goBack后不在总榜，重新进入蚂蚁森林')
@@ -657,11 +656,11 @@ function main() {
   // 退出前再收取自己的能量
   enterAntForest()
   collectOwnEnergy()
-  sleep(1000)
+  sleep(2000)
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   killApps()
-  sleep(500)
+  sleep(1000)
   runningQueueDispatcher.removeRunningTask()
   exit()
 }

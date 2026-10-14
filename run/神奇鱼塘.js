@@ -58,9 +58,9 @@ function killAlipayGphone () {
  */
 function exitScript () {
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   killApps()
-  sleep(500)
+  sleep(1000)
   runningQueueDispatcher.removeRunningTask()
   exit()
 }
@@ -109,7 +109,7 @@ commonFunction.registerOnEngineRemoved(function () {
  */
 function goBack () {
   back()
-  sleep(2000)
+  sleep(4000)
 }
 
 /**
@@ -191,7 +191,7 @@ function openFishPoolByIntent () {
     data: "https://pages.goofish.com/sharexy?url=https%3A%2F%2Fssr.m.goofish.com%2Fwow%2Fmoyu%2Fmoyu-project%2Ffish-pool%2Fpages%2Fhome%3Fx-ssr%3Dtrue%26_from__%3Dmain%26x-cur%3DCNY%26x-lang%3Dzh-CN%26x-tz%3DAsia%252FShanghai%26x-cs%3DCN",
       packageName: "com.taobao.idlefish"
   })
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 2000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
@@ -214,14 +214,14 @@ function openFishPool () {
     packageName: "com.taobao.idlefish",
     className: "com.taobao.idlefish.maincontainer.activity.MainActivity"
   })
-  sleep(3000)
+  sleep(4000)
 
   // 等待"神奇鱼塘"入口出现
-  widgetUtils.widgetWaiting('神奇鱼塘', '神奇鱼塘入口', 5000)
+  widgetUtils.widgetWaiting('神奇鱼塘', '神奇鱼塘入口', 10000)
 
   // 通过控件点击"神奇鱼塘"进入
   findAndClickByTextVisible(/神奇鱼塘/)
-  sleep(2000)
+  sleep(4000)
 
   // 进入鱼塘后处理"领取并投喂"弹窗（原步骤2已移入此处）
   handleFeedDialog()
@@ -234,8 +234,8 @@ function openFishPool () {
  */
 function waitForFishPoolPage () {
   taskLog("等待神奇鱼塘页面加载")
-  sleep(3000)
-  let checkResult = widgetUtils.widgetWaiting(".*(神奇鱼塘|得能量|鱼塘绿色度|投喂).*", "神奇鱼塘页面", 5000)
+  sleep(4000)
+  let checkResult = widgetUtils.widgetWaiting(".*(神奇鱼塘|得能量|鱼塘绿色度|投喂).*", "神奇鱼塘页面", 10000)
   if (checkResult) {
     taskLog("神奇鱼塘页面已加载")
     return true
@@ -264,13 +264,13 @@ function handleFeedDialog () {
   taskLog('处理"领取并投喂"弹窗')
 
   // 等待"领取并投喂"弹窗出现
-  widgetUtils.widgetWaiting('领取并投喂', '领取并投喂弹窗', 2000)
+  widgetUtils.widgetWaiting('领取并投喂', '领取并投喂弹窗', 10000)
 
   if (findAndClickByTextVisible(/领取并投喂/)) {
     taskLog('已点击"领取并投喂"，返回上一页')
-    sleep(1000)
+    sleep(2000)
     goBack()
-    sleep(1000)
+    sleep(2000)
     findAndClickByTextVisible(/神奇鱼塘/)
     return true
   }
@@ -286,7 +286,7 @@ function handleFeedDialog () {
  */
 function clickGetEnergy () {
   taskLog('点击"得能量"')
-  sleep(2000)
+  sleep(4000)
 
   // 方案1：模板图片匹配（优先）
   if (config.image_config && config.image_config.get_energy_icon) {
@@ -299,7 +299,7 @@ function clickGetEnergy () {
           let centerY = Math.round(match.centerY())
           taskLog('模板匹配找到"得能量": 点击: (' + centerX + ', ' + centerY + ')')
           automator.click(centerX, centerY)
-          sleep(2000)
+          sleep(4000)
           return true
         }
         taskLog('模板匹配未找到"得能量"，回退到OCR')
@@ -336,10 +336,10 @@ function clickGetEnergy () {
  */
 function waitForTaskPage () {
   taskLog('等待任务页面加载')
-  let checkResult = widgetUtils.widgetWaiting('.*(每天提醒我收绿色打卡能量|点击1个商品进入详情页|参与绿色科普答题|去蚂蚁森林收更多能量).*', '任务页面', 5000)
+  let checkResult = widgetUtils.widgetWaiting('.*(每天提醒我收绿色打卡能量|点击1个商品进入详情页|参与绿色科普答题|去蚂蚁森林收更多能量).*', '任务页面', 10000)
   if (checkResult) {
     taskLog('任务页面已加载')
-    sleep(1000)
+    sleep(2000)
     return true
   }
   taskLog('任务页面加载超时')
@@ -383,7 +383,7 @@ function checkDialogAndClose () {
       if (bd.top > feedBounds.bottom + 400) continue
       taskLog('找到关闭按钮，点击关闭')
       automator.click(bd.centerX(), bd.centerY())
-      sleep(500)
+      sleep(1000)
       return true
     }
 
@@ -405,16 +405,16 @@ function doBrowseTask () {
   taskLog('执行浏览商品任务')
 
   // 入口先判断"做任务领奖励"弹窗
-  let dlg = widgetUtils.widgetWaiting('做任务领奖励', '做任务领奖励弹窗', 2000)
+  let dlg = widgetUtils.widgetWaiting('做任务领奖励', '做任务领奖励弹窗', 10000)
   if (dlg) {
     taskLog('检测到"做任务领奖励"，点击')
     findAndClickByTextVisible(/做任务领奖励/)
-    sleep(2000)
+    sleep(4000)
     return
   }
 
   // 等待商品列表页面加载
-  sleep(2000)
+  sleep(4000)
 
   let maxScroll = 3
   let clicked = false
@@ -430,7 +430,7 @@ function doBrowseTask () {
     sleep(3000)
 
     // 优先匹配"抵"（完全匹配），其次匹配"抵后价..."
-    let clickBtn = widgetUtils.widgetGetOne('^抵$|抵后价.*')
+    let clickBtn = widgetUtils.widgetGetOne('^抵$|抵后价.*', 10000)
     if (clickBtn) {
       taskLog('找到商品，点击')
       clickBtn.click()
@@ -448,7 +448,7 @@ function doBrowseTask () {
   if (clicked) {
     taskLog('已点击商品，等待详情页加载后返回')
     goBack()
-    sleep(2000)
+    sleep(4000)
   } else {
     taskLog('浏览任务失败：未找到商品')
   }
@@ -462,8 +462,8 @@ function doQuizTask () {
   taskLog('执行答题任务')
 
   taskLog('等待答题弹窗加载')
-  widgetUtils.widgetWaiting('.*(绿色答题|提交答案).*', '答题弹窗', 1000)
-  sleep(1000)
+  widgetUtils.widgetWaiting('.*(绿色答题|提交答案).*', '答题弹窗', 10000)
+  sleep(2000)
 
   // 点击第一个选项 A.
   taskLog('选择第一个选项')
@@ -471,21 +471,21 @@ function doQuizTask () {
     taskLog('答题失败：未找到A.选项')
     return false
   }
-  sleep(500)
+  sleep(1000)
 
   // 点击提交答案
   taskLog('点击"提交答案"')
   findAndClickByTextVisible(/提交答案/)
-  sleep(500)
+  sleep(1000)
 
   // 等待提交完成，再点击立即收能量
   taskLog('等待提交结果')
-  sleep(500)
+  sleep(1000)
 
   // 点击立即收能量
   taskLog('点击"立即收能量"')
   findAndClickByTextVisible(/立即收能量/)
-  sleep(500)
+  sleep(1000)
 
   return true
 }
@@ -497,17 +497,17 @@ function doAntForestTask () {
   taskLog('执行蚂蚁森林任务')
 
   taskLog('等待进入蚂蚁森林')
-  let entered = widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', '蚂蚁森林页面', 5000)
+  let entered = widgetUtils.widgetWaiting('.*(蚂蚁森林|森林|收集能量|浇水|去保护|找能量|森林广场).*', '蚂蚁森林页面', 10000)
   if (!entered) {
     taskLog('未检测到蚂蚁森林页面，直接返回')
     return false
   }
   taskLog('已在蚂蚁森林，等待3s后返回')
-  sleep(3000)
+  sleep(4000)
 
   taskLog('杀掉支付宝进程')
   killAlipayGphone()
-  sleep(1000)
+  sleep(2000)
 
   return true
 }
@@ -567,7 +567,7 @@ function doMainPageTasks () {
         if (Math.abs(x - targetX) < 50) {
           taskLog('找到同列"' + text + '"，点击: (' + node.bounds.centerX() + ', ' + node.bounds.centerY() + ')')
           automator.click(node.bounds.centerX(), node.bounds.centerY())
-          sleep(500)
+          sleep(1000)
           clicked = true
           break
         }
@@ -630,7 +630,7 @@ function main () {
       openFishPool()
       sleep(2000)
       collectOwnEnergy()
-      sleep(1000)
+      sleep(2000)
       clickGetEnergy()
       sleep(2000)
       waitForTaskPage()
@@ -640,15 +640,15 @@ function main () {
       taskLog('三个任务都找不到，视为已完成，退出')
       break
     }
-    sleep(1000)
+    sleep(2000)
   }
 
   taskLog('所有任务执行完毕')
   // 重新进入鱼塘，收取能量后杀掉进程
   openFishPool()
-  sleep(2000)
+  sleep(4000)
   collectOwnEnergy()
-  sleep(1000)
+  sleep(2000)
   exitScript()
 }
 

@@ -126,16 +126,16 @@ function existsVisibleText (pattern) {
 // 返回上一页
 function goBack () {
   back()
-  sleep(3000)
+  sleep(4000)
 }
 
 // OCR查找并点击指定文字（在指定超时内循环截图识别，找到即点击）
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 3000)
+  let deadline = new Date().getTime() + (timeout || 10000)
   while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
-    sleep(300)
+    sleep(1000)
     let screen = commonFunction.captureScreen()
     if (screen) {
       let results = localOcrUtil.recognizeWithBounds(screen, null, keyword)
@@ -144,11 +144,11 @@ function clickByOcr (keyword, timeout) {
         let match = results[0]
         taskLog('OCR找到"' + keyword + '"，点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
         automator.click(match.bounds.centerX(), match.bounds.centerY())
-        sleep(1000)
+        sleep(2000)
         return true
       }
     }
-    sleep(1000)
+    sleep(2000)
   }
   return false
 }
@@ -165,19 +165,18 @@ function enterAntForest () {
     packageName: config.package_name
   })
 
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 1000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
 
-  commonFunction.readyForAlipayWidgets()
 
   let waitCount = 0
-  while (!widgetUtils.homePageWaiting() && waitCount++ < 6) {
-    sleep(1000)
+  while (!widgetUtils.homePageWaiting() && waitCount++ < 10) {
+    sleep(2000)
   }
 
-  // while 退出后，waitCount >= 6 说明超时未进入首页
+  // while 退出后，waitCount >= 10 说明超时未进入首页
   if (waitCount >= 6) {
     errorInfo('进入蚂蚁森林失败')
     return false
@@ -189,7 +188,7 @@ function enterAntForest () {
 // 进入背包：优先模板匹配backpack_icon，失败时OCR兜底（需确保已在蚂蚁森林首页）
 function enterBackpack () {
   taskLog('点击"背包"进入背包')
-  sleep(1000)
+  sleep(2000)
 
   // 方案1：模板图片匹配（优先）
   if (config.image_config && config.image_config.backpack_icon) {
@@ -203,7 +202,7 @@ function enterBackpack () {
           let centerY = Math.round(match.centerY())
           taskLog('模板匹配找到"背包": 点击: (' + centerX + ', ' + centerY + ')')
           automator.click(centerX, centerY)
-          sleep(1000)
+          sleep(2000)
           return true
         }
         taskLog('模板匹配未找到"背包"，回退到OCR')
@@ -218,7 +217,7 @@ function enterBackpack () {
   }
 
   // 方案2：OCR识别（兜底）
-  if (!clickByOcr('背包', 5000)) {
+  if (!clickByOcr('背包', 10000)) {
     LogFloaty.pushErrorLog('OCR未找到背包入口')
     return false
   }
@@ -227,7 +226,7 @@ function enterBackpack () {
 
 // 关闭背包：用detectAllNodesVisible查找可点击的Button类型且文本完全匹配"关闭"的按钮并点击
 function closeBackpack () {
-  sleep(1000)
+  sleep(2000)
 
   let allNodes = widgetInspector.detectAllNodesVisible().nodes
 
@@ -247,12 +246,12 @@ function closeBackpack () {
 
 // 判断是否在蚂蚁森林界面（需同时找到"蚂蚁森林"和"森林广场"）
 function isOnAntForestPage () {
-  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 3000)
+  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 10000)
   if (!result) {
     taskLog('未检测到"蚂蚁森林"，不在蚂蚁森林界面')
     return false
   }
-  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 3000)
+  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 10000)
   if (!squareResult) {
     taskLog('未检测到"森林广场"，不在蚂蚁森林界面')
     return false
@@ -265,7 +264,7 @@ function isOnAntForestPage () {
 function isOnBackpackPage () {
   let texts = ['道具', '伙伴', '套装', '皮肤', '挂件', '背景']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], '背包页面', 3000)
+    let result = widgetUtils.widgetWaiting(texts[i], '背包页面', 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在背包界面')
       return false
@@ -279,7 +278,7 @@ function isOnBackpackPage () {
 function isOnVitalityShopPage () {
   let texts = ['活力值兑换', '获取更多活力值', '推荐']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 3000)
+    let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在活力值积分商店')
       return false
@@ -302,7 +301,7 @@ function clickExchangeWithVitality () {
       return false
     }
   }
-  sleep(3000)
+  sleep(4000)
 
   // 通过模板匹配/OCR点击"背包"进入背包
   if (!enterBackpack()) {
@@ -314,20 +313,20 @@ function clickExchangeWithVitality () {
     LogFloaty.pushErrorLog('未进入背包界面')
     return false
   }
-  sleep(3000)
+  sleep(4000)
 
   if (!findAndClickByTextVisible(/活力值积分商店/)) {
     LogFloaty.pushErrorLog('未找到"活力值积分商店"')
     return false
   }
-  sleep(3000)
+  sleep(4000)
 
   // 判断是否已进入活力值积分商店
   if (!isOnVitalityShopPage()) {
     LogFloaty.pushErrorLog('未进入活力值积分商店')
     return false
   }
-  sleep(3000)
+  sleep(4000)
   return true
 }
 
@@ -335,14 +334,14 @@ function clickExchangeWithVitality () {
 
 // 点击"能量雨次卡"，检查是否已达上限
 function clickEnergyRainCard () {
-  sleep(1000)
+  sleep(2000)
 
   if (!findAndClickByTextVisible(/能量雨次卡/)) {
     LogFloaty.pushErrorLog('未找到"能量雨次卡"卡片')
     return false
   }
 
-  sleep(3000)
+  sleep(4000)
 
   // 点击后检查是否弹出"已达上限"（每天已兑换过）
   let checkResult = widgetInspector.detectAllNodesVisible()
@@ -357,27 +356,27 @@ function clickEnergyRainCard () {
 
 // 兑换确认流程：立即兑换 -> 确认兑换 -> 立即使用
 function confirmExchange () {
-  sleep(1000)
+  sleep(2000)
 
   if (!findAndClickByTextVisible(/立即兑换/)) {
     LogFloaty.pushErrorLog('未找到"立即兑换"按钮')
     return false
   }
-  sleep(3000)
+  sleep(4000)
 
   if (!findAndClickByTextVisible(/确认兑换/)) {
     LogFloaty.pushErrorLog('未找到"确认兑换"按钮')
     return false
   }
-  sleep(3000)
+  sleep(4000)
 
   if (!findAndClickByTextVisible(/立即使用/)) {
     LogFloaty.pushErrorLog('未找到"立即使用"按钮')
     return false
   }
 
-  // 点击立即使用后等待3s，再判断是否已回到背包界面
-  sleep(3000)
+  // 点击立即使用后等待4s，再判断是否已回到背包界面
+  sleep(4000)
 
   // 判断是否已回到背包界面，不在则重新进入蚂蚁森林并进背包
   if (!isOnBackpackPage()) {
@@ -389,7 +388,7 @@ function confirmExchange () {
     if (!isOnAntForestPage()) {
       return false
     }
-    sleep(3000)
+    sleep(4000)
     if (!enterBackpack()) {
       LogFloaty.pushErrorLog('重新进入背包失败')
       return false
@@ -399,7 +398,7 @@ function confirmExchange () {
       LogFloaty.pushErrorLog('重新进入背包后未在背包界面')
       return false
     }
-    sleep(3000)
+    sleep(4000)
   }
 
   return true
@@ -407,7 +406,7 @@ function confirmExchange () {
 
 // 在背包中查找匹配正则的TextView卡片，找同列可点击且可见的"使用"按钮（X中心点在屏幕内、底边在屏幕95%高度以内）并点击（检测"没有更多了"停止滑动）
 function findAndUseCard (pattern) {
-  sleep(1000)
+  sleep(2000)
 
   while (true) {
     let allNodes = widgetInspector.detectAllNodesVisible().nodes
@@ -448,10 +447,10 @@ function findAndUseCard (pattern) {
     let dist = (0.05 + Math.random() * 0.03) * config.device_height
     let startY = config.device_height * (0.85 + Math.random() * 0.10)
     automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
-    sleep(1000)
+    sleep(2000)
   }
 
-  sleep(3000)
+  sleep(4000)
   LogFloaty.pushErrorLog('未找到卡片，可能已使用完或不存在')
   return false
 }
@@ -486,7 +485,7 @@ function findAndUseBestProtectorCard () {
     let dist = (0.10 + Math.random() * 0.05) * config.device_height
     let startY = config.device_height * (0.85 + Math.random() * 0.10)
     automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
-    sleep(1000)
+    sleep(2000)
   }
 
   if (cardTexts.length === 0) {
@@ -534,7 +533,7 @@ function findAndUseBestProtectorCard () {
       let startY = h * (0.65 + Math.random() * 0.05)
       let endY = Math.min(startY + dist, h * 0.95)
       automator.gestureUp(Math.round(startY), Math.round(endY), 100 + Math.round(Math.random() * 300))
-      sleep(1000)
+      sleep(2000)
       // 检测到活力值积分商店说明已到列表顶部，再执行3次上滑确保完整显示
       let visibleNodes = widgetInspector.detectAllNodesVisible().nodes
       let hasShopEntry = visibleNodes.some(function (n) { return n.text && /活力值积分商店/.test(n.text) && n.bounds })
@@ -545,7 +544,7 @@ function findAndUseBestProtectorCard () {
           let sy = h * (0.65 + Math.random() * 0.05)
           let ey = Math.min(sy + d, h * 0.95)
           automator.gestureUp(Math.round(sy), Math.round(ey), 100 + Math.round(Math.random() * 300))
-          sleep(1000)
+          sleep(2000)
         }
         break
       }
@@ -561,7 +560,7 @@ function findAndUseBestProtectorCard () {
         return false
       }
     }
-    sleep(3000)
+    sleep(4000)
     if (!enterBackpack()) {
       LogFloaty.pushErrorLog('保护罩：重新进入背包失败')
       return false
@@ -570,7 +569,7 @@ function findAndUseBestProtectorCard () {
       LogFloaty.pushErrorLog('保护罩：重新进入背包后未在背包界面')
       return false
     }
-    sleep(3000)
+    sleep(4000)
   }
 
   // 阶段4：转义后做"完全匹配"（findAndUseCard 内部用 pattern.test，必须传正则；^…$ 等价于文本完全相等）
@@ -582,7 +581,7 @@ function findAndUseBestProtectorCard () {
 
 // 智能关闭弹窗：先找同列的关闭按钮；找不到时用OCR识别"X"；OCR仍失败则返回键退出弹窗并重新检测背包界面（在则进活力值积分商店）；关闭失败或未找到活力值积分商店时返回false，由调用处决定是否退出脚本
 function smartClosePopup () {
-  sleep(1000)
+  sleep(2000)
 
   let allNodes = widgetInspector.detectAllNodesVisible().nodes
 
@@ -603,7 +602,7 @@ function smartClosePopup () {
       if (n.clickable && n.bounds && n.text !== '关闭' && Math.abs(n.bounds.centerX() - closeX) < 50) {
         taskLog('找到关闭按钮: "' + n.text + '"，点击: (' + n.bounds.centerX() + ', ' + n.bounds.centerY() + ')')
         automator.click(n.bounds.centerX(), n.bounds.centerY())
-        sleep(1000)
+        sleep(2000)
         return true
       }
     }
@@ -611,8 +610,8 @@ function smartClosePopup () {
 
   // 兜底：OCR识别"X"；识别不到则返回键退出弹窗，再重新检测背包界面
   taskLog('未找到关闭按钮，尝试OCR识别X')
-  if (clickByOcr('X', 2000)) {
-    sleep(1000)
+  if (clickByOcr('X', 10000)) {
+    sleep(2000)
     return true
   }
 
@@ -624,7 +623,7 @@ function smartClosePopup () {
   if (isOnBackpackPage()) {
     taskLog('返回后仍在背包界面，进入活力值积分商店')
     if (findAndClickByTextVisible(/活力值积分商店/)) {
-      sleep(3000)
+      sleep(4000)
       // 判断是否已进入活力值积分商店
       return isOnVitalityShopPage()
     }
@@ -640,10 +639,10 @@ function smartClosePopup () {
 
 // 点击使用后处理"确认延长"弹窗（保护罩特有）
 function handleExtendPopup () {
-  sleep(1000)
+  sleep(2000)
   if (findAndClickByTextVisible(/确认延长/)) {
     taskLog('已点击"确认延长"')
-    sleep(3000)
+    sleep(4000)
     return true
   }
   return false
@@ -651,7 +650,7 @@ function handleExtendPopup () {
 
 // 在活力值积分商店中遍历保护罩卡片进行兑换（检测"没有更多了"停止滑动）
 function exchangeProtectorCard () {
-  sleep(1000)
+  sleep(2000)
 
   while (true) {
     let allNodes = widgetInspector.detectAllNodesVisible().nodes
@@ -668,7 +667,7 @@ function exchangeProtectorCard () {
 
         // 先点击"限时3天内使用"（如果有这个选项），触发库存不足/已达上限判断
         findAndClickByTextVisible(/限时3天内使用/)
-        sleep(1000)
+        sleep(2000)
 
         // 检查是否弹出"库存不足"或"已达上限"
         let checkResult = widgetInspector.detectAllNodesVisible()
@@ -768,7 +767,7 @@ function exchangeProtectorCard () {
     let dist = (0.10 + Math.random() * 0.05) * config.device_height
     let startY = config.device_height * (0.85 + Math.random() * 0.10)
     automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
-    sleep(1000)
+    sleep(2000)
   }
 
   LogFloaty.pushErrorLog('所有保护罩卡片兑换失败（库存不足或未找到）')
@@ -777,14 +776,14 @@ function exchangeProtectorCard () {
 
 // 点击"立即使用"弹窗
 function clickUseNow () {
-  sleep(1000)
+  sleep(2000)
 
   if (!findAndClickByTextVisible(/立即使用/)) {
     LogFloaty.pushErrorLog('未找到"立即使用"按钮')
     return false
   }
 
-  sleep(3000)
+  sleep(4000)
   return true
 }
 
@@ -803,7 +802,7 @@ function hasUsedItemToday (usedPattern) {
     LogFloaty.pushErrorLog('检查已使用：不在蚂蚁森林界面')
     return false
   }
-  sleep(3000)
+  sleep(4000)
 
   // 最多下滑3次，寻找"森林动态"和"去看全部"（完全匹配）；起始点85%~95%高度随机，滑动距离10%~15%随机，持续时间100~400ms随机
   let foundEntry = false
@@ -813,10 +812,10 @@ function hasUsedItemToday (usedPattern) {
     let dist = (0.10 + Math.random() * 0.05) * h
     let startY = h * (0.85 + Math.random() * 0.10)
     automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
-    sleep(1000)
+    sleep(2000)
 
-    let hasForest = widgetUtils.widgetWaiting('^森林动态$', '森林动态', 2000)
-    let hasSeeAll = widgetUtils.widgetWaiting('^去看全部$', '去看全部', 2000)
+    let hasForest = widgetUtils.widgetWaiting('^森林动态$', '森林动态', 10000)
+    let hasSeeAll = widgetUtils.widgetWaiting('^去看全部$', '去看全部', 10000)
     if (hasForest && hasSeeAll) {
       foundEntry = true
       break
@@ -833,10 +832,10 @@ function hasUsedItemToday (usedPattern) {
     taskLog('未找到可点击的"去看全部"，视为未使用')
     return false
   }
-  sleep(3000)
+  sleep(4000)
 
   // 判断是否在森林动态界面：只根据"动态"判断（完全匹配）；进入后若未找到"今天"则说明当天未使用，直接返回
-  let dongtaiResult = widgetUtils.widgetWaiting('^动态$', '动态', 2000)
+  let dongtaiResult = widgetUtils.widgetWaiting('^动态$', '动态', 10000)
   if (!dongtaiResult) {
     taskLog('未检测到"动态"，不在森林动态界面')
     return false
@@ -844,7 +843,7 @@ function hasUsedItemToday (usedPattern) {
   taskLog('检测到"动态"，确认在森林动态界面')
 
   // 进入森林动态后，若未找到"今天"则说明当天未使用，直接返回（false）
-  let todayResult = widgetUtils.widgetWaiting('^今天$', '今天', 2000)
+  let todayResult = widgetUtils.widgetWaiting('^今天$', '今天', 10000)
   if (!todayResult) {
     taskLog('未检测到"今天"，当天未使用该道具')
     return false
@@ -898,7 +897,7 @@ function hasUsedItemToday (usedPattern) {
     let dist = (0.10 + Math.random() * 0.05) * h
     let startY = h * (0.85 + Math.random() * 0.10)
     automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
-    sleep(1000)
+    sleep(2000)
   }
 }
 
@@ -916,7 +915,7 @@ function enterVitalityShopByScrollUp () {
     let startY = h * (0.65 + Math.random() * 0.05)
     let endY = Math.min(startY + dist, h * 0.95)
     automator.gestureUp(Math.round(startY), Math.round(endY), 100 + Math.round(Math.random() * 300))
-    sleep(1000)
+    sleep(2000)
     let visibleNodes = widgetInspector.detectAllNodesVisible().nodes
     let hasShopEntry = visibleNodes.some(function (n) { return n.text && /活力值积分商店/.test(n.text) && n.bounds })
     if (hasShopEntry) {
@@ -927,7 +926,7 @@ function enterVitalityShopByScrollUp () {
         let sy = h * (0.65 + Math.random() * 0.05)
         let ey = Math.min(sy + d, h * 0.95)
         automator.gestureUp(Math.round(sy), Math.round(ey), 100 + Math.round(Math.random() * 300))
-        sleep(1000)
+        sleep(2000)
       }
       break
     }
@@ -943,7 +942,7 @@ function enterVitalityShopByScrollUp () {
     taskLog('找到但点击"活力值积分商店"失败')
     return false
   }
-  sleep(3000)
+  sleep(4000)
 
   // 判断是否在商店
   return isOnVitalityShopPage()
@@ -968,7 +967,7 @@ function doEnergyRainExchange () {
   if (!isOnAntForestPage()) {
     return false
   }
-  sleep(3000)
+  sleep(4000)
   if (!enterBackpack()) {
     LogFloaty.pushErrorLog('能量雨：无法进入背包页面')
     return false
@@ -978,7 +977,7 @@ function doEnergyRainExchange () {
     LogFloaty.pushErrorLog('能量雨：未在背包界面')
     return false
   }
-  sleep(3000)
+  sleep(4000)
 
   taskLog('=== 检查背包中是否有已有能量雨卡片 ===')
   let hasRainCard = findAndUseCard(/.*能量雨.*共\d+个.*使用/)
@@ -1051,7 +1050,7 @@ function doProtectorExchange () {
   if (!isOnAntForestPage()) {
     return false
   }
-  sleep(3000)
+  sleep(4000)
   if (!enterBackpack()) {
     LogFloaty.pushErrorLog('保护罩：无法进入背包页面')
     return false
@@ -1061,7 +1060,7 @@ function doProtectorExchange () {
     LogFloaty.pushErrorLog('保护罩：未在背包界面')
     return false
   }
-  sleep(3000)
+  sleep(4000)
 
   taskLog('=== 检查背包中是否有已有保护罩卡片 ===')
   let hasProtectorCard = findAndUseBestProtectorCard()
@@ -1115,9 +1114,9 @@ function switchToPersonalVersion () {
   taskLog('版本检查：当前为组队版，切换为个人版')
   sleep(5000)   // 切换前等待 5s
   if (!findAndClickByTextVisible(/^切换为组队版$/)) { taskLog('版本检查：点击"切换为组队版"失败'); return true }
-  sleep(3000)
+  sleep(4000)
   findAndClickByTextVisible(/^确定返回$/)   // 可能无弹窗，失败即忽略
-  sleep(3000)
+  sleep(4000)
   return true
 }
 
@@ -1128,9 +1127,9 @@ function switchToGroupVersion () {
   taskLog('版本还原：切回组队版')
   sleep(5000)   // 切换前等待 5s
   if (!findAndClickByTextVisible(/^切换为个人版$/)) { taskLog('版本还原：点击"切换为个人版"失败'); return false }
-  sleep(3000)
+  sleep(4000)
   findAndClickByTextVisible(/^确定返回$/)   // 可能无弹窗，失败即忽略
-  sleep(3000)
+  sleep(4000)
   return true
 }
 
@@ -1163,9 +1162,9 @@ function main () {
 // 退出脚本：返回桌面并清理运行状态
 function exitScript () {
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   killApps()
-  sleep(500)
+  sleep(1000)
   runningQueueDispatcher.removeRunningTask()
   exit()
 }

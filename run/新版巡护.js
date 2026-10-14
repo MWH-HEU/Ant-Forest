@@ -65,9 +65,9 @@ function killApps () {
  */
 function exitScript () {
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   killApps()
-  sleep(500)
+  sleep(1000)
   runningQueueDispatcher.removeRunningTask()
   exit()
 }
@@ -97,7 +97,7 @@ function clickPoint (x, y) {
 
 function goBack () {
   back()
-  sleep(2000)
+  sleep(4000)
 }
 
 function sleepIfNeeded (time) {
@@ -126,10 +126,10 @@ function findAndClickByTextVisible (pattern) {
 // 在 timeout 时间内循环截屏识别，命中即点击返回 true
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 3000)
+  let deadline = new Date().getTime() + (timeout || 10000)
   while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
-    sleep(300)
+    sleep(1000)
     let screen = commonFunction.captureScreen()
     if (screen) {
       let results = localOcrUtil.recognizeWithBounds(screen, null, keyword)
@@ -138,11 +138,11 @@ function clickByOcr (keyword, timeout) {
         let match = results[0]
         taskLog('OCR找到"' + keyword + '"，点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
         automator.click(match.bounds.centerX(), match.bounds.centerY())
-        sleep(500)
+        sleep(1000)
         return true
       }
     }
-    sleep(500)
+    sleep(1000)
   }
   return false
 }
@@ -162,15 +162,14 @@ function openPatrol () {
   })
 
   // 处理"打开"确认弹窗
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 1000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
 
-  commonFunction.readyForAlipayWidgets()
 
   // 等待进入保护地页面
-  sleep(2000)
+  sleep(4000)
   if (!isOnProtectedArea()) {
     LogFloaty.pushErrorLog('不在保护地页面，退出脚本')
     return false
@@ -184,7 +183,7 @@ function openPatrol () {
 function isOnProtectedArea () {
   let texts = ['路线', '图鉴']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在保护地')
       return false
@@ -201,7 +200,7 @@ function isOnProtectedArea () {
 function isOnNewPatrolPage () {
   let texts = ['累计步数', '累计能量', '更多步数', '排行榜']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在新版巡护界面')
       return false
@@ -218,7 +217,7 @@ function isOnNewPatrolPage () {
 function isOnTaskPage () {
   let texts = ['.*\\d次巡护机会', '更多巡护步数']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在任务界面')
       return false
@@ -235,7 +234,7 @@ function enterNewPatrol () {
   taskLog('点击"新版巡护"')
   if (findAndClickByTextVisible(/新版巡护/)) {
     taskLog('已点击"新版巡护"')
-    sleep(3000)
+    sleep(4000)
     return true
   }
   LogFloaty.pushErrorLog('未找到"新版巡护"入口')
@@ -247,7 +246,7 @@ function enterTaskPage () {
   taskLog('点击"更多步数"进入任务界面')
   if (findAndClickByTextVisible(/更多步数/)) {
     taskLog('已点击"更多步数"')
-    sleep(3000)
+    sleep(4000)
     return true
   }
   LogFloaty.pushErrorLog('未找到"更多步数"入口')
@@ -340,12 +339,12 @@ function getWaitTimeForSameRow (allNodes, centerY) {
 // 处理弹窗：检测"打开|支付宝想要打开xxx"系统弹窗
 function handleTaskPopup () {
   taskLog('检查是否有弹窗')
-  sleep(500)
-  let openBtn = widgetUtils.widgetGetOne(/^打开$/, 2000)
+  sleep(1000)
+  let openBtn = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (openBtn) {
     taskLog('检测到系统弹窗，点击"打开"')
     automator.clickCenter(openBtn)
-    sleep(2000)
+    sleep(4000)
     return true
   }
   taskLog('未检测到弹窗')
@@ -360,7 +359,7 @@ function handleTaskPopup () {
  */
 function waitForTaskComplete () {
   taskLog('任务完成，退出页面')
-  sleep(2000)
+  sleep(4000)
 
   let pkg = config.package_name || 'com.eg.android.AlipayGphone'
 
@@ -375,14 +374,14 @@ function waitForTaskComplete () {
     if (!switched) {
       taskLog('切入支付宝失败，重新进入')
       commonFunction.minimize()
-      sleep(500)
+      sleep(1000)
       if (!openPatrol() || !enterNewPatrol() || !enterTaskPage()) {
         taskLog('重新进入任务界面失败')
         return false
       }
       return isOnTaskPage()
     }
-    sleep(2000)
+    sleep(4000)
   }
 
   // 2. 返回逻辑：先检测后back，循环直到回到任务界面
@@ -399,7 +398,7 @@ function waitForTaskComplete () {
 
   taskLog('多次back后仍未回到任务界面，重新进入')
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   if (!openPatrol() || !enterNewPatrol() || !enterTaskPage()) {
     taskLog('重新进入任务界面失败')
     return false
@@ -509,7 +508,7 @@ function closeTaskPage () {
   if (target) {
     taskLog('找到"关闭"，点击: (' + target.centerX() + ', ' + target.centerY() + ')')
     automator.click(target.centerX(), target.centerY())
-    sleep(3000)
+    sleep(4000)
     return true
   }
   taskLog('未找到"关闭"按钮')
@@ -519,10 +518,10 @@ function closeTaskPage () {
 // 处理巡护弹窗：do...while 循环检测"跳过|追寻踪迹|暂不设置"（完全匹配）或"继续巡护"（前缀匹配），检测到就点击（等8s），没有就 return
 function handleCollectPopup () {
   taskLog('检查是否有弹窗')
-  sleep(500)
+  sleep(1000)
 
   do {
-    let btn = widgetUtils.widgetGetOne(/(^(跳过|追寻踪迹|暂不设置)$|继续巡护.*)/, 3000)
+    let btn = widgetUtils.widgetGetOne(/(^(跳过|追寻踪迹|暂不设置)$|继续巡护.*)/, 10000)
     if (!btn) {
       taskLog('未检测到弹窗，返回')
       return
@@ -659,7 +658,7 @@ function main () {
     let downDist = (0.15 + Math.random() * 0.05) * h
     let downDuration = 100 + Math.random() * 300
     automator.gestureDown(Math.round(downStart), Math.round(downStart - downDist), downDuration)
-    sleep(1000)
+    sleep(2000)
   }
 
   // 5. 探索任务执行完 → 判断是否在任务界面，在则点击"关闭"回到巡护界面，不在则重新进入
@@ -668,7 +667,7 @@ function main () {
   } else {
     taskLog('不在任务界面，重新进入')
     commonFunction.minimize()
-    sleep(500)
+    sleep(1000)
     if (!openPatrol() || !enterNewPatrol()) {
       errorInfo('重新进入新版巡护失败，退出新版巡护')
       exitScript()

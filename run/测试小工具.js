@@ -92,7 +92,7 @@ function checkDialogAndClose () {
     let msg = '找到关闭弹窗按钮, 位置: (' + bd.centerX() + ',' + bd.centerY() + ') bounds=(' + bd.left + ',' + bd.top + ',' + bd.right + ',' + bd.bottom + ')'
     taskLog(msg)
     automator.clickCenter(targetCloseBtn)
-    sleep(500)
+    sleep(1000)
   } else {
     taskLog('未找到关闭弹窗按钮')
   }

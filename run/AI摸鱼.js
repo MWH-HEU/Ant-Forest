@@ -82,7 +82,7 @@ function findAndClickByTextVisible (pattern) {
 // 返回上一页
 function goBack () {
   back()
-  sleep(2000)
+  sleep(4000)
 }
 
 /**
@@ -104,7 +104,7 @@ function clickByTemplateOrOcr (templateKey, ocrText) {
           let centerY = Math.round(match.centerY())
           taskLog('模板匹配找到"' + ocrText + '"(' + templateKey + '): 点击: (' + centerX + ', ' + centerY + ')')
           automator.click(centerX, centerY)
-          sleep(2000)
+          sleep(4000)
           return true
         }
         taskLog('模板匹配未找到"' + ocrText + '"(' + templateKey + ')，回退到OCR')
@@ -120,7 +120,7 @@ function clickByTemplateOrOcr (templateKey, ocrText) {
 
   // 方案2：OCR识别（兜底，直接调用 clickByOcr，带重试机制）
   taskLog('通过OCR识别"' + ocrText + '"')
-  return clickByOcr(ocrText, 3000)
+  return clickByOcr(ocrText, 10000)
 }
 
 // 打开进入神奇海洋的函数（形如 openAntForest）
@@ -140,15 +140,14 @@ function openOcean () {
   })
 
   // 处理"打开"确认弹窗
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 1000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
 
-  commonFunction.readyForAlipayWidgets()
 
   // 等待进入神奇海洋页面
-  sleep(2000)
+  sleep(4000)
   if (!isOnOceanPage()) {
     LogFloaty.pushErrorLog('不在神奇海洋页面，退出脚本')
     return false
@@ -162,7 +161,7 @@ function openOcean () {
 function isOnOceanPage () {
   let texts = ['蚂蚁森林.*神奇海洋', '.*前去参与保护项目', '^返回$']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在神奇海洋界面')
       return false
@@ -208,7 +207,7 @@ function enterFishPage () {
 function isOnFishPage () {
   let texts = ['^规则$', '赠送每日摸鱼次数', '蚂蚁森林.*AI摸鱼']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 10000)
     if (result) {
       taskLog('检测到"' + texts[i] + '"，确认在AI摸鱼界面')
       sleep(4000) // 等待界面加载完成
@@ -225,7 +224,7 @@ function isOnFishPage () {
 function isOnTaskPage () {
   let texts = ['^奖励$', '赠送每日摸鱼次数', '^(去完成|已完成)$']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在任务界面')
       return false
@@ -312,7 +311,7 @@ function enterTaskPage () {
           let centerY = Math.round(match.centerY())
           taskLog('模板匹配找到"奖励"，点击: (' + centerX + ', ' + centerY + ')')
           automator.click(centerX, centerY)
-          sleep(2000)
+          sleep(4000)
           return true
         }
         taskLog('模板匹配未找到"奖励"，尝试OCR')
@@ -328,9 +327,9 @@ function enterTaskPage () {
 
   // 方案2：OCR识别"奖励"（第二）
   taskLog('通过OCR识别"奖励"')
-  if (clickByOcr('奖励', 3000)) {
+  if (clickByOcr('奖励', 10000)) {
     taskLog('OCR点击"奖励"成功')
-    sleep(2000)
+    sleep(4000)
     return true
   }
   taskLog('OCR未识别到"奖励"，尝试控件')
@@ -338,7 +337,7 @@ function enterTaskPage () {
   // 方案3：控件点击"奖励"（完全匹配，最后）
   if (findAndClickByTextVisible(/^奖励$/)) {
     taskLog('控件点击"奖励"成功')
-    sleep(2000)
+    sleep(4000)
     return true
   }
 
@@ -350,10 +349,10 @@ function enterTaskPage () {
 // 在 timeout 时间内循环截屏识别，命中即点击返回 true
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 3000)
+  let deadline = new Date().getTime() + (timeout || 10000)
   while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
-    sleep(300)
+    sleep(1000)
     let screen = commonFunction.captureScreen()
     if (screen) {
       let results = localOcrUtil.recognizeWithBounds(screen, null, keyword)
@@ -362,11 +361,11 @@ function clickByOcr (keyword, timeout) {
         let match = results[0]
         taskLog('OCR找到"' + keyword + '"，点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
         automator.click(match.bounds.centerX(), match.bounds.centerY())
-        sleep(500)
+        sleep(1000)
         return true
       }
     }
-    sleep(500)
+    sleep(1000)
   }
   return false
 }
@@ -380,14 +379,14 @@ function loopFishProcess () {
     taskLog('摸鱼循环 第 ' + (round + 1) + ' 轮')
 
     // 分支1：检查"继续摸鱼"（完全匹配 ^继续摸鱼$），有则点击并等待
-    if (clickByOcr('^继续摸鱼$', 3000)) {
+    if (clickByOcr('^继续摸鱼$', 10000)) {
       taskLog('已点击"继续摸鱼"，等待8s')
       sleep(8000)
       continue
     }
 
     // 分支2：检查OCR点击"收下并涂鸦"（完全匹配 ^收下并涂鸦$），有则处理"提交并继续摸鱼"/"确认涂鸦"分支
-    if (clickByOcr('^收下并涂鸦$', 3000)) {
+    if (clickByOcr('^收下并涂鸦$', 10000)) {
       // 判断"提交并继续摸鱼"/"确认涂鸦"分支：这两个按钮任何一个都表示提交涂鸦，存在则处理
       let submitNode = null
       let allNodes = widgetInspector.detectAllNodesVisible().nodes
@@ -397,7 +396,7 @@ function loopFishProcess () {
           break
         }
       }
-      sleep(1000)
+      sleep(2000)
       if (submitNode) {
         // 存在则点击一个坐标：x与它一样，y是centerY - 4*高度（向上偏移4倍控件高度）
         let bd = submitNode.bounds
@@ -405,7 +404,7 @@ function loopFishProcess () {
         let sy = Math.round(bd.centerY() - 4 * bd.height())
         taskLog('找到"提交并继续摸鱼"/"确认涂鸦"，点击其上方坐标: (' + sx + ', ' + sy + ')')
         automator.click(sx, sy)
-        sleep(1000)
+        sleep(2000)
 
         // 接着点击"提交并继续摸鱼"或"确认涂鸦"（完全匹配，任一即可）
         if (!findAndClickByTextVisible(/^(提交并继续摸鱼|确认涂鸦)$/)) {
@@ -421,7 +420,7 @@ function loopFishProcess () {
       taskLog('检测到"仅解救"，点击"仅解救"')
       sleep(2000)
       // 点击"继续摸鱼"，自动使用当前所有摸鱼次数
-      if (!clickByOcr('^继续摸鱼$', 3000)) {
+      if (!clickByOcr('^继续摸鱼$', 10000)) {
         taskLog('点击"仅解救"后未识别到"继续摸鱼"，退出循环')
         break
       }
@@ -435,7 +434,7 @@ function loopFishProcess () {
     if (findAndClickByTextVisible(/^仅追回$/)) {
       taskLog('检测到"仅追回"，点击"仅追回"')
       rescued = true
-    } else if (clickByOcr('^仅追回$', 3000)) {
+    } else if (clickByOcr('^仅追回$', 10000)) {
       taskLog('OCR点击"仅追回"')
       rescued = true
     }
@@ -609,7 +608,7 @@ function findAndExecuteFishTask () {
       let clicked = false
       for (let i = 0; i < 5; i++) {
         clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
-        if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 3000)
+        if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 10000)
         if (clicked) break
 
         taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')
@@ -619,7 +618,7 @@ function findAndExecuteFishTask () {
         let endY = startY - h * (0.15 + Math.random() * 0.10)
         let duration = 100 + Math.random() * 300
         automator.gestureDown(Math.round(startY), Math.round(endY), duration)
-        sleep(1000)
+        sleep(2000)
       }
       if (!clicked) taskLog('下滑 5 次仍未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"')
 
@@ -629,9 +628,9 @@ function findAndExecuteFishTask () {
 
       // 特殊任务结束：重启支付宝并重新进入摸鱼任务界面
       commonFunction.minimize()
-      sleep(500)
+      sleep(1000)
       killApps()
-      sleep(500)
+      sleep(1000)
       if (!enterTaskPageWithCheck()) {
         LogFloaty.pushErrorLog('重新进入任务界面失败')
         exitScript()
@@ -781,12 +780,12 @@ function waitForTaskComplete () {
     if (!switched) {
       taskLog('切入支付宝失败，重新进入摸鱼界面')
       commonFunction.minimize()
-      sleep(500)
+      sleep(1000)
       // 先回到摸鱼界面，再进入任务界面
       if (!enterFishPage()) return false
       return enterTaskPage()
     }
-    sleep(2000)
+    sleep(4000)
   }
 
   // 2. 返回逻辑：先检测后back，循环直到回到摸鱼界面
@@ -805,7 +804,7 @@ function waitForTaskComplete () {
 
   taskLog('多次back后仍未回到摸鱼界面，重新进入')
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   // 先回到摸鱼界面，再进入任务界面
   if (!enterFishPage()) return false
   return enterTaskPage()
@@ -814,9 +813,9 @@ function waitForTaskComplete () {
 // 退出脚本：返回桌面并清理运行状态
 function exitScript () {
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   killApps()
-  sleep(500)
+  sleep(1000)
   runningQueueDispatcher.removeRunningTask()
   exit()
 }
@@ -855,7 +854,7 @@ function main () {
     // 在任务界面：任务界面无法获取"奖励"y坐标，需goBack后重新进入AI摸鱼界面获取
     taskLog('在任务界面，goBack后重新进入AI摸鱼界面')
     goBack()
-    sleep(2000)
+    sleep(4000)
     // 重新进入AI摸鱼界面（判断是否在神奇海洋，在则模板匹配进入，否则重新打开进入）
     if (!reenterFishPage()) {
       LogFloaty.pushErrorLog('重新进入AI摸鱼界面失败')

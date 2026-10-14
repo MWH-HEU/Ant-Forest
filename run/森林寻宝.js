@@ -48,9 +48,9 @@ function killApps () {
  */
 function exitScript () {
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   killApps()
-  sleep(500)
+  sleep(1000)
   runningQueueDispatcher.removeRunningTask()
   exit()
 }
@@ -80,25 +80,24 @@ function openAntForest () {
     packageName: config.package_name
   })
 
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 1000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
 
-  commonFunction.readyForAlipayWidgets()
 
   // 等待进入首页
   let waitCount = 0
-  while (!widgetUtils.homePageWaiting() && waitCount++ < 6) {
-    sleep(1000)
+  while (!widgetUtils.homePageWaiting() && waitCount++ < 10) {
+    sleep(2000)
   }
 
-  // while 退出后，waitCount >= 6 说明超时未进入首页
+  // while 退出后，waitCount >= 10 说明超时未进入首页
   if (waitCount >= 6) {
     errorInfo('进入蚂蚁森林失败')
     return false
   }
-  sleep(2000)
+  sleep(4000)
   return true
 }
 
@@ -118,12 +117,12 @@ function findAndClickByTextVisible (pattern) {
 }
 
 function isOnRewardPage () {
-  let result = widgetUtils.widgetWaiting('我的活力值', '领奖励页面', 3000)
+  let result = widgetUtils.widgetWaiting('我的活力值', '领奖励页面', 10000)
   if (!result) {
     taskLog('未检测到"我的活力值"，不在领奖励页面')
     return false
   }
-  let closeResult = widgetUtils.widgetWaiting('关闭奖励弹窗', '领奖励页面', 3000)
+  let closeResult = widgetUtils.widgetWaiting('关闭奖励弹窗', '领奖励页面', 10000)
   if (!closeResult) {
     taskLog('未检测到"关闭奖励弹窗"，不在领奖励页面')
     return false
@@ -137,12 +136,12 @@ function isOnRewardPage () {
  * @returns {boolean}
  */
 function isOnAntForestPage () {
-  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 5000)
+  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 10000)
   if (!result) {
     taskLog('未检测到"蚂蚁森林"，不在蚂蚁森林界面')
     return false
   }
-  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 5000)
+  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 10000)
   if (!squareResult) {
     taskLog('未检测到"森林广场"，不在蚂蚁森林界面')
     return false
@@ -156,10 +155,10 @@ function isOnAntForestPage () {
  */
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 3000)
+  let deadline = new Date().getTime() + (timeout || 10000)
   while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
-    sleep(300)
+    sleep(1000)
     let screen = commonFunction.captureScreen()
     if (screen) {
       let results = localOcrUtil.recognizeWithBounds(screen, null, keyword)
@@ -168,11 +167,11 @@ function clickByOcr (keyword, timeout) {
         let match = results[0]
         taskLog('OCR找到"' + keyword + '"，点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
         automator.click(match.bounds.centerX(), match.bounds.centerY())
-        sleep(500)
+        sleep(1000)
         return true
       }
     }
-    sleep(500)
+    sleep(1000)
   }
   return false
 }
@@ -184,7 +183,7 @@ function clickByOcr (keyword, timeout) {
  */
 function clickSignReward () {
   taskLog('点击"领奖励"')
-  sleep(2000)
+  sleep(4000)
 
   // 方案1：模板图片匹配（优先）
   if (config.image_config && config.image_config.sign_reward_icon) {
@@ -197,7 +196,7 @@ function clickSignReward () {
           let centerY = Math.round(match.centerY())
           taskLog('模板匹配找到"领奖励": 点击: (' + centerX + ', ' + centerY + ')')
           automator.click(centerX, centerY)
-          sleep(2000)
+          sleep(4000)
           return true
         }
         taskLog('模板匹配未找到"领奖励"，回退到OCR')
@@ -213,7 +212,7 @@ function clickSignReward () {
 
   // 方案2：OCR识别（兜底）
   taskLog('通过OCR识别"领奖励"')
-  if (clickByOcr('领奖励', 5000)) {
+  if (clickByOcr('领奖励', 10000)) {
     return true
   }
 
@@ -223,12 +222,12 @@ function clickSignReward () {
 
 function handlePopupDialog () {
   taskLog('检查是否有弹窗')
-  sleep(500)
-  let openBtn = widgetUtils.widgetGetOne(/^打开$/, 2000)
+  sleep(1000)
+  let openBtn = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (openBtn) {
     taskLog('检测到系统弹窗，点击"打开"')
     automator.clickCenter(openBtn)
-    sleep(2000)
+    sleep(4000)
     return true
   }
   try {
@@ -256,7 +255,7 @@ function handlePopupDialog () {
       if (hasAlipayText && hasOpenButton && openButton) {
         taskLog('检测到"支付宝想要打开xxx"弹窗，点击"打开"')
         automator.clickCenter(openButton)
-        sleep(2000)
+        sleep(4000)
         return true
       }
     }
@@ -275,7 +274,7 @@ function handlePopupDialog () {
 function isOnForestHuntPage () {
   let texts = ['明细', '一键连抽.*']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], '森林寻宝页面', 3000)
+    let result = widgetUtils.widgetWaiting(texts[i], '森林寻宝页面', 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在森林寻宝界面')
       return false
@@ -327,7 +326,7 @@ function enterForestHuntPage () {
 
   // 通过"我的活力值"反推进入森林寻宝
   taskLog('通过"我的活力值"反推进入森林寻宝')
-  let vitality = widgetUtils.widgetGetOne('我的活力值', 2000)
+  let vitality = widgetUtils.widgetGetOne('我的活力值', 10000)
   if (!vitality) {
     taskLog('未找到"我的活力值"')
     return false
@@ -337,7 +336,7 @@ function enterForestHuntPage () {
   let clickY = bounds.centerY()
   taskLog('"我的活力值" center: (' + bounds.centerX() + ', ' + bounds.centerY() + ')，点击反推位置: (' + clickX + ', ' + clickY + ')')
   automator.click(clickX, clickY)
-  sleep(3000)
+  sleep(4000)
 
   // 判断是否在森林寻宝界面
   if (!isOnForestHuntPage()) {
@@ -348,10 +347,10 @@ function enterForestHuntPage () {
   return true
 }
 
-// 返回上一页，等待2s
+// 返回上一页，等待4s
 function goBack () {
   back()
-  sleep(2000)
+  sleep(4000)
 }
 
 /**
@@ -363,7 +362,7 @@ function goBack () {
  */
 function waitForTaskComplete () {
   taskLog('任务完成，退出页面')
-  sleep(2000)
+  sleep(4000)
 
   let pkg = config.package_name || 'com.eg.android.AlipayGphone'
 
@@ -378,10 +377,10 @@ function waitForTaskComplete () {
     if (!switched) {
       taskLog('切入支付宝失败，重新进入森林寻宝')
       commonFunction.minimize()
-      sleep(500)
+      sleep(1000)
       return enterForestHuntPage()
     }
-    sleep(2000)
+    sleep(4000)
   }
 
   // 2. 返回逻辑：先检测后back，循环直到回到森林寻宝界面
@@ -400,7 +399,7 @@ function waitForTaskComplete () {
 
   taskLog('多次back后仍未回到森林寻宝界面，重新进入')
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   return enterForestHuntPage()
 }
 
@@ -457,7 +456,7 @@ function classifyTask (allNodes, centerY) {
 function executeMarketBrowse () {
   taskLog('开始自动滑动浏览')
   // while中等待"滑动浏览得抽奖机会"，检测不到则视为任务已完成，退出循环
-  while (widgetUtils.widgetGetOne('滑动浏览得抽奖机会', 1000)) {
+  while (widgetUtils.widgetGetOne('滑动浏览得抽奖机会', 10000)) {
     // 滑动10轮
     for (let s = 10; s > 0; s--) {
       let start = new Date().getTime()
@@ -467,13 +466,13 @@ function executeMarketBrowse () {
       } else {
         automator.randomScrollUp()
       }
-      // 每次滑动后检查弹窗（用OCR识别"放弃奖励"，短超时控制阻塞）
-      clickByOcr('放弃奖励', 800)
+      // 每次滑动后检查弹窗（用OCR识别"放弃奖励"，超时控制阻塞）
+      clickByOcr('放弃奖励', 10000)
       sleepIfNeeded(1000 - (new Date().getTime() - start))
     }
     // 滑动结束后再检查一次弹窗（用OCR识别"放弃奖励"）
     taskLog('检查是否有弹窗需要关闭')
-    clickByOcr('放弃奖励', 2000)
+    clickByOcr('放弃奖励', 10000)
     // 下一轮while会重新检测"滑动浏览得抽奖机会"，检测不到则退出（视为已完成）
   }
 }
@@ -493,7 +492,7 @@ function executeSpecialTask (seconds) {
   let clicked = false
   for (let i = 0; i < 5; i++) {
     clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
-    if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 3000)
+    if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 10000)
     if (clicked) break
 
     taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')
@@ -503,7 +502,7 @@ function executeSpecialTask (seconds) {
     let endY = startY - h * (0.15 + Math.random() * 0.10)
     let duration = 100 + Math.random() * 300
     automator.gestureDown(Math.round(startY), Math.round(endY), duration)
-    sleep(1000)
+    sleep(2000)
   }
   if (!clicked) taskLog('下滑 5 次仍未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"')
 
@@ -513,9 +512,9 @@ function executeSpecialTask (seconds) {
   // 特殊任务执行完毕：退出重置（最小化 + 杀进程），再重新进入森林寻宝界面
   taskLog('特殊任务执行完毕，退出重置后重新进入森林寻宝界面')
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   killApps()
-  sleep(500)
+  sleep(1000)
   enterForestHuntPage()
 }
 
@@ -648,21 +647,21 @@ function doDraw () {
   while (drawCount < 15) {
     drawCount++
     // 抽完判断1：出现"明日再来"（抽奖机会已用完）
-    let tomorrowTarget = widgetUtils.widgetGetOne('明日再来', 1000)
+    let tomorrowTarget = widgetUtils.widgetGetOne('明日再来', 10000)
     if (tomorrowTarget) {
       taskLog('检测到"明日再来"，抽奖机会已用完')
       return false
     }
 
     // 抽完判断2：出现"还有0次机会"（抽奖机会已用完）
-    let noChance = widgetUtils.widgetGetOne('还有0次机会', 1000)
+    let noChance = widgetUtils.widgetGetOne('还有0次机会', 10000)
     if (noChance) {
       taskLog('检测到"还有0次机会"，抽奖机会已用完')
       return false
     }
 
     // 找"还有"后面的剩余次数（还有机会时是"还有" + \d + "次机会"三个独立节点）
-    let target = widgetUtils.widgetGetOne('还有')
+    let target = widgetUtils.widgetGetOne('还有', 10000)
     if (!target) {
       taskLog('未找到抽奖按钮')
       return false
@@ -686,19 +685,19 @@ function doDraw () {
     sleep(3000)
 
     // 点击后通过OCR识别点击弹窗按钮："继续抽" | "做任务继续抽" | "开心收下"
-    if (clickByOcr('继续抽', 3000)) {
+    if (clickByOcr('继续抽', 10000)) {
       taskLog('点击"继续抽"关闭弹窗')
       sleep(2000)
-    } else if (clickByOcr('做任务继续抽', 3000)) {
+    } else if (clickByOcr('做任务继续抽', 10000)) {
       taskLog('点击"做任务继续抽"')
       sleep(2000)
-    } else if (clickByOcr('开心收下', 3000)) {
+    } else if (clickByOcr('开心收下', 10000)) {
       taskLog('点击"开心收下"')
       sleep(2000)
     }
 
     // 继续循环抽下一次
-    sleep(1000)
+    sleep(2000)
   }
   // 达到15次上限，视为本次抽奖结束
   return false
@@ -726,7 +725,7 @@ function scrollUntilEnd () {
     let dist = (0.15 + Math.random() * 0.05) * h
     let duration = 100 + Math.random() * 1000 % 300
     automator.gestureDown(Math.round(startY), Math.round(startY - dist), duration)
-    sleep(1000)
+    sleep(2000)
   }
 }
 
@@ -736,7 +735,7 @@ function scrollToTop () {
   let h = config.device_height
   for (let i = 0; i < 10; i++) {
     automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
-    sleep(500)
+    sleep(1000)
   }
 }
 
@@ -765,7 +764,7 @@ function executeAllTabs () {
   // 点击第1个点（25%）切换到第一个Tab
   taskLog('点击Tab1（25%处）: (' + tabs.point1.x + ',' + tabs.point1.y + ')')
   automator.click(tabs.point1.x, tabs.point1.y)
-  sleep(1000)
+  sleep(2000)
   // 循环下滑到任务列表底部（检测到"每日24点更新任务列表"停止）
   scrollUntilEnd()
   executeTab()
@@ -773,7 +772,7 @@ function executeAllTabs () {
   // 点击第2个点（75%）切换到第二个Tab
   taskLog('点击Tab2（75%处）: (' + tabs.point2.x + ',' + tabs.point2.y + ')')
   automator.click(tabs.point2.x, tabs.point2.y)
-  sleep(1000)
+  sleep(2000)
   // 循环下滑到任务列表底部（检测到"每日24点更新任务列表"停止）
   scrollUntilEnd()
   executeTab()

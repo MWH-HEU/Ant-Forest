@@ -111,7 +111,7 @@ function findAndClickByTextVisible (pattern) {
 // 返回上一页
 function goBack () {
   back()
-  sleep(2000)
+  sleep(4000)
 }
 
 // 打开进入神奇物种的函数
@@ -122,7 +122,7 @@ function openMagicSpecies () {
 
   // 先杀掉支付宝进程，强制冷启动进入神奇物种主页面（避免停留在好友的卡等子页面）
   killApps()
-  sleep(1000)
+  sleep(2000)
 
   app.startActivity({
     action: 'VIEW',
@@ -131,18 +131,17 @@ function openMagicSpecies () {
   })
 
   // 处理"打开"确认弹窗
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 1000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
 
-  commonFunction.readyForAlipayWidgets()
 
   // 每天第一次进入会自动抽取一张卡片，点击"收下"（可能不是第一次进入，无"收下"则跳过，不退出）
   collectFirstCard()
 
   // 等待进入神奇物种页面
-  sleep(2000)
+  sleep(4000)
 
   if (!isOnMagicSpeciesPage()) {
     LogFloaty.pushErrorLog('不在神奇物种页面，退出脚本')
@@ -156,7 +155,7 @@ function openMagicSpecies () {
 function isOnMagicSpeciesPage () {
   let texts = ['奖励', '当前图鉴', '抽好友卡片']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 3000)
+    let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 10000)
     if (result) {
       taskLog('检测到"' + texts[i] + '"，确认在神奇物种界面')
       sleep(4000) // 等待界面加载完成
@@ -171,7 +170,7 @@ function isOnMagicSpeciesPage () {
 function isOnFriendCardPage () {
   let texts = ['好友的卡', '点击抽卡']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 3000)
+    let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 10000)
     if (result) {
       taskLog('检测到"' + texts[i] + '"，确认在好友的卡页面')
       sleep(4000) // 等待界面加载完成
@@ -186,7 +185,7 @@ function isOnFriendCardPage () {
 function isOnExchangePage () {
   let texts = ['你将获得', '你将换出']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 3000)
+    let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 10000)
     if (result) {
       taskLog('检测到"' + texts[i] + '"，确认在交换页面')
       sleep(4000) // 等待界面加载完成
@@ -213,7 +212,7 @@ function clickExchangeCardByPosition () {
   let y = parseInt(config.device_height * 0.7)
   taskLog('方案一：点击屏幕(' + x + ', ' + y + ')')
   automator.click(x, y)
-  sleep(2000)
+  sleep(4000)
   return true
 }
 
@@ -255,7 +254,7 @@ function clickExchangeCardByMaxNumber () {
   if (maxNode) {
     taskLog('方案二：点击最大数字 ' + maxNum + '，位置：(' + maxNode.bounds.centerX() + ', ' + maxNode.bounds.centerY() + ')')
     automator.click(maxNode.bounds.centerX(), maxNode.bounds.centerY())
-    sleep(2000)
+    sleep(4000)
     return true
   }
 
@@ -272,14 +271,14 @@ function doExchangeFlow () {
     LogFloaty.pushErrorLog('未找到"通知好友"或"获得交换机会"')
     return false
   }
-  sleep(2000)
+  sleep(4000)
 
   // 点击发送
   if (!findAndClickByTextVisible(/^发送$/)) {
     LogFloaty.pushErrorLog('未找到"发送"')
     return false
   }
-  sleep(2000)
+  sleep(4000)
 
   // 进入交换页面，判断是否在交换页面
   if (!isOnExchangePage()) {
@@ -301,14 +300,14 @@ function doExchangeFlow () {
     LogFloaty.pushErrorLog('未找到"交换"')
     return false
   }
-  sleep(2000)
+  sleep(4000)
 
   // 点击"确认交换"
   if (!findAndClickByTextVisible(/^确认交换$/)) {
     LogFloaty.pushErrorLog('未找到"确认交换"')
     return false
   }
-  widgetUtils.widgetWaiting('^返回首页$', '返回首页', 5000) // 等待"返回首页"出现（完全匹配），总延时5s
+  widgetUtils.widgetWaiting('^返回首页$', '返回首页', 10000) // 等待"返回首页"出现（完全匹配），总延时10s
   sleep(6000)
 
   // 点击"继续抽卡"
@@ -316,7 +315,7 @@ function doExchangeFlow () {
     LogFloaty.pushErrorLog('未找到"继续抽卡"')
     return false
   }
-  sleep(2000)
+  sleep(4000)
   return true
 }
 
@@ -329,14 +328,14 @@ function doGiveUpFlow () {
     LogFloaty.pushErrorLog('未找到"放弃"')
     return false
   }
-  sleep(2000)
+  sleep(4000)
 
   // 点击"确定放弃"
   if (!findAndClickByTextVisible(/^确定放弃$/)) {
     LogFloaty.pushErrorLog('未找到"确定放弃"')
     return false
   }
-  sleep(2000)
+  sleep(4000)
   return true
 }
 
@@ -375,8 +374,8 @@ function synthesizeMedal () {
   }
 
   taskLog('检测到需要合成勋章，点击"去合成"')
-  // 等待"去合成"出现，超时2s，等待后sleep 4s
-  widgetUtils.widgetWaiting('^去合成$', '去合成', 2000)
+  // 等待"去合成"出现，超时10s，等待后sleep 4s
+  widgetUtils.widgetWaiting('^去合成$', '去合成', 10000)
   sleep(4000)
   if (!findAndClickByTextVisible(/^去合成$/)) {
     LogFloaty.pushErrorLog('未找到"去合成"，异常退出')
@@ -384,8 +383,8 @@ function synthesizeMedal () {
     return false
   }
 
-  // 等待"点击合成勋章"出现，超时2s，等待后sleep 4s
-  widgetUtils.widgetWaiting('^点击合成勋章$', '点击合成勋章', 2000)
+  // 等待"点击合成勋章"出现，超时10s，等待后sleep 4s
+  widgetUtils.widgetWaiting('^点击合成勋章$', '点击合成勋章', 10000)
   sleep(4000)
 
   if (!findAndClickByTextVisible(/^点击合成勋章$/)) {
@@ -394,8 +393,8 @@ function synthesizeMedal () {
     return false
   }
 
-  // 等待"确认"出现，超时2s，等待后sleep 4s
-  widgetUtils.widgetWaiting('^确认$', '确认', 2000)
+  // 等待"确认"出现，超时10s，等待后sleep 4s
+  widgetUtils.widgetWaiting('^确认$', '确认', 10000)
   sleep(4000)
 
   // 点击"确认"
@@ -405,8 +404,8 @@ function synthesizeMedal () {
     return false
   }
 
-  // 等待"关闭"出现（合成完成），超时5s，完全匹配，等待后sleep 4s
-  widgetUtils.widgetWaiting('^关闭$', '关闭', 5000)
+  // 等待"关闭"出现（合成完成），超时10s，完全匹配，等待后sleep 4s
+  widgetUtils.widgetWaiting('^关闭$', '关闭', 10000)
   sleep(4000)
 
   if (!findAndClickByTextVisible(/^关闭$/)) {
@@ -415,7 +414,7 @@ function synthesizeMedal () {
     return false
   }
 
-  sleep(2000)
+  sleep(4000)
   taskLog('合成勋章完成，任务结束')
   return true
 }
@@ -490,7 +489,7 @@ function main () {
     LogFloaty.pushErrorLog('未找到"抽好友卡片"')
     return false
   }
-  sleep(2000)
+  sleep(4000)
 
   // 循环抽卡，直到今日次数为0（每轮处理完结果后都会回到好友的卡页面）
   while (true) {
@@ -504,7 +503,7 @@ function main () {
           return false
         }
       }
-      sleep(1000)
+      sleep(2000)
       if (!findAndClickByTextVisible(/^抽好友卡片$/)) {
         LogFloaty.pushErrorLog('重进后未找到"抽好友卡片"')
         return false
@@ -527,7 +526,7 @@ function main () {
       LogFloaty.pushErrorLog('未找到"点击抽卡"')
       return false
     }
-    widgetUtils.widgetWaiting('^放弃$', '抽卡结果', 5000) // 等待"放弃"出现（完全匹配），总延时5s
+    widgetUtils.widgetWaiting('^放弃$', '抽卡结果', 10000) // 等待"放弃"出现（完全匹配），总延时10s
     sleep(4000)
 
     // 检查抽卡结果
@@ -564,9 +563,9 @@ function main () {
 // 退出脚本：返回桌面并清理运行状态
 function exitScript () {
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   killApps()
-  sleep(500)
+  sleep(1000)
   runningQueueDispatcher.removeRunningTask()
   exit()
 }

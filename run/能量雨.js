@@ -129,7 +129,7 @@ let clickThread = threads.start(function () {
         taskLog('暴力点击完毕')
         clickRunning = false
         floatyBtnInstance.changeButtonText('changeStatus', '检查是否还有机会')
-        sleep(1000)
+        sleep(2000)
         checkAndStartCollect()
         changeButtonInfo()
       }
@@ -255,12 +255,12 @@ function checkAndSendChance () {
   }
   taskLog('正在校验是否存在 “更多好友”，请稍等')
   // 设置至少十秒的查找时间
-  let endDateForCheck = new Date().getTime() + 10000 + (config.timeout_rain_find_friend || 3000)
+  let endDateForCheck = new Date().getTime() + 10000 + (config.timeout_rain_find_friend || 10000)
   targetEndTime = endDateForCheck > targetEndTime ? endDateForCheck : targetEndTime
-  let showMoreFriend = widgetUtils.widgetGetById('J_moreGrant', 1000)
+  let showMoreFriend = widgetUtils.widgetGetById('J_moreGrant', 10000)
   if (showMoreFriend && targetSendName) {
     // 尝试获取目标好友
-    let targetFriend = widgetUtils.widgetGetOne(targetSendName, config.timeout_rain_find_friend || 3000)
+    let targetFriend = widgetUtils.widgetGetOne(targetSendName, config.timeout_rain_find_friend || 10000)
     if (targetFriend) {
       taskLog('快捷界面找到了目标好友')
       targetFriend.parent().child(1).click()
@@ -268,10 +268,10 @@ function checkAndSendChance () {
       taskLog('点击了送ta机会')
       let newEnd = new Date().getTime() + 25000
       targetEndTime = newEnd > targetEndTime ? newEnd : targetEndTime
-      sleep(1000)
+      sleep(2000)
       // 点击空白区域 触发关闭蒙层
       automator.click(violentClickPoints[0][0], violentClickPoints[0][1])
-      sleep(2000)
+      sleep(4000)
       checkAndStartCollect()
       return true
     }
@@ -279,9 +279,9 @@ function checkAndSendChance () {
     taskLog('点击了更多好友')
     taskLog('点击了更多好友，校验是否存在目标好友:' + targetSendName)
     setDisplayText('点击了更多好友，校验是否存在目标好友:' + targetSendName, showMoreFriend.bounds().centerX(), showMoreFriend.bounds().centerY())
-    sleep(2000)
+    sleep(4000)
     taskLog('查找目标好友中:' + targetSendName)
-    let targetFriends = widgetUtils.widgetGetAll(targetSendName, config.timeout_rain_find_friend || 3000, false, null, { algorithm: 'PDFS' })
+    let targetFriends = widgetUtils.widgetGetAll(targetSendName, config.timeout_rain_find_friend || 10000, false, null, { algorithm: 'PDFS' })
     if (targetFriends) {
       let matched = false
       // 从尾部开始 避开默认显示的值
@@ -302,10 +302,10 @@ function checkAndSendChance () {
           taskLog('点击了送ta机会')
           let newEnd = new Date().getTime() + 25000
           targetEndTime = newEnd > targetEndTime ? newEnd : targetEndTime
-          sleep(1000)
+          sleep(2000)
           // 点击空白区域 触发关闭蒙层
           automator.click(violentClickPoints[0][0], violentClickPoints[0][1])
-          sleep(2000)
+          sleep(4000)
           checkAndStartCollect()
           matched = true
         }
@@ -314,7 +314,7 @@ function checkAndSendChance () {
     } else {
       warnInfo(['未找到赠送对象'], true)
       LogFloaty.pushWarningLog('未找到赠送对象')
-      sleep(1000)
+      sleep(2000)
       if (autoStartCollect) {
         targetEndTime = new Date().getTime()
       }
@@ -331,9 +331,9 @@ function checkAndSendChance () {
 
 function checkAndStartCollect () {
   config._execute_finding = true
-  let startBtn = widgetUtils.widgetGetOne(config.rain_start_content || '开始拯救绿色能量|再来一次|立即开启|开始能量.*', 1000)
+  let startBtn = widgetUtils.widgetGetOne(config.rain_start_content || '开始拯救绿色能量|再来一次|立即开启|开始能量.*', 10000)
   if (startBtn) {
-    let ended = widgetUtils.widgetGetOne(config.rain_end_content || '.*去蚂蚁森林看看.*', 1000)
+    let ended = widgetUtils.widgetGetOne(config.rain_end_content || '.*去蚂蚁森林看看.*', 10000)
     if (ended) {
       warnInfo(['今日机会已用完或者需要好友助力'], true)
       checkAndSendChance()
@@ -347,7 +347,7 @@ function checkAndStartCollect () {
       ui.post(() => {
         clickButtonWindow.setPosition(-cvt(150), config.device_height * 0.65)
       })
-      sleep(250)
+      sleep(1000)
       automator.clickCenter(startBtn)
       startTimestamp = new Date().getTime()
       clickRunning = true
@@ -490,11 +490,11 @@ function openRainPage (reopen) {
     data: 'alipays://platformapi/startapp?appId=20000067&url=' + encodeURIComponent('https://68687791.h5app.alipay.com/www/index.html'),
     packageName: config.package_name
   })
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
-  if (!widgetUtils.widgetWaiting('.*(返回蚂蚁森林|本场机会由好友|本场机会由道具生成|去蚂蚁森林看看|立即开启|找更多能量).*') || !commonFunction.myCurrentPackage() == config.package_name) {
+  if (!widgetUtils.widgetWaiting('.*(返回蚂蚁森林|本场机会由好友|本场机会由道具生成|去蚂蚁森林看看|立即开启|找更多能量).*', null, 10000) || !commonFunction.myCurrentPackage() == config.package_name) {
     errorInfo(['打开能量雨界面失败'], true)
     LogFloaty.pushWarningLog('打开能量雨界面失败')
     if (reopen) {
@@ -506,9 +506,9 @@ function openRainPage (reopen) {
     }
     taskLog('关闭支付宝，再次打开能量雨界面')
     app.launch(config.package_name)
-    sleep(1000)
+    sleep(2000)
     commonFunction.killCurrentApp()
-    sleep(1000)
+    sleep(2000)
     starting = false
     return openRainPage(true)
   }
@@ -535,7 +535,7 @@ function setDisplayText (textContent, x, y) {
 }
 
 function checkHasValidation () {
-  let validationWidget = widgetUtils.widgetGetOne('.*请进行验证|服务器开小差了.*', 1000)
+  let validationWidget = widgetUtils.widgetGetOne('.*请进行验证|服务器开小差了.*', 10000)
   if (validationWidget || config._mock_verify) {
     LogFloaty.pushWarningLog('有验证，请手动执行')
     NotificationHelper.createNotification('能量雨执行异常', '存在人机验证，请手动执行')
@@ -564,7 +564,7 @@ function checkHasValidation () {
 // 关闭震动
 function checkAndCloseVibrate () {
   taskLog('准备检查并关闭震动')
-  let moreIcon = widgetUtils.widgetGetById('com.alipay.multiplatform.phone.xriver_integration:id/imageButton_rightButton1', 1000)
+  let moreIcon = widgetUtils.widgetGetById('com.alipay.multiplatform.phone.xriver_integration:id/imageButton_rightButton1', 10000)
   if (moreIcon) {
     moreIcon.click()
     let closedOrOpen = widgetUtils.alternativeWidget('关闭震动', '打开震动', 1000, true)

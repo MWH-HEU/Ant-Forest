@@ -8,7 +8,7 @@
  *      再判断是否在页面，不在则 exitScript 退出。
  *   2. 始终为真的 while 循环，调用 findAndExecuteTasks 判断任务：
  *      2.1 检测到"浏览商品\d+s得能量" → BrowserExecutor，checkAndClickIfTaskEnd 为真后等待2s继续循环
- *      2.2 检测到"点击"与"即可获得"同行 → ClickExecutor，判断任务完成同2.1
+ *      2.2 检测到"点击"与"即可获得"同行 → ClickExecutor，判断任务完成后等待4s继续循环
  *      2.3 同时检测到"任务已完成.*能量.*"与"可领取" → 点击可领取，等待5s继续循环
  *      2.4 其他情况视为任务完成，退出循环
  *   3. 打开蚂蚁森林收取能量（collectOwnEnergy，循环4次），isOnAntForestPage 判断是否在蚂蚁森林主页
@@ -62,7 +62,7 @@ function taskLog (msg) {
 
 function goBack () {
   back()
-  sleep(2000)
+  sleep(4000)
 }
 
 /**
@@ -71,9 +71,9 @@ function goBack () {
  */
 function exitScript () {
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   killApps()
-  sleep(500)
+  sleep(1000)
   runningQueueDispatcher.removeRunningTask()
   exit()
 }
@@ -116,15 +116,14 @@ function enterMarket () {
     packageName: config.package_name
   })
 
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 1000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
 
-  commonFunction.readyForAlipayWidgets()
 
   // 校验"绿色商品"，确认进入森林集市页面
-  if (!widgetUtils.widgetWaiting('绿色商品', '森林集市页面', 5000)) {
+  if (!widgetUtils.widgetWaiting('绿色商品', '森林集市页面', 10000)) {
     warnInfo('无法校验 绿色商品 控件，可能没有正确打开')
     return false
   }
@@ -137,14 +136,14 @@ function enterMarket () {
  */
 function closeFirstPurchaseRedPack () {
   // 先确认弹窗是否存在（查找"首购红包""点击领取"或"立即领取"文本）
-  if (!widgetUtils.widgetGetOne('首购红包|点击领取|立即领取', 2000)) {
+  if (!widgetUtils.widgetGetOne('首购红包|点击领取|立即领取', 10000)) {
     debugInfo(['未发现首购红包弹窗'])
     return
   }
   taskLog('发现首购红包弹窗，重新进入森林集市')
   // 重新进入森林集市
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   enterMarket()
 }
 
@@ -176,7 +175,7 @@ function enterMarketAndCheck () {
 function isOnMarketPage () {
   let texts = ['绿色商品', '绿色快消', '绿色食品', '下单得能量']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], '森林集市页面', 3000)
+    let result = widgetUtils.widgetWaiting(texts[i], '森林集市页面', 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在森林集市页面')
       return false
@@ -191,12 +190,12 @@ function isOnMarketPage () {
  * @returns {boolean} 是否在蚂蚁森林首页
  */
 function isOnAntForestPage () {
-  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 5000)
+  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 10000)
   if (!result) {
     taskLog('未检测到"蚂蚁森林"，不在蚂蚁森林界面')
     return false
   }
-  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 5000)
+  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 10000)
   if (!squareResult) {
     taskLog('未检测到"森林广场"，不在蚂蚁森林界面')
     return false
@@ -213,8 +212,8 @@ function isOnAntForestPage () {
  * @returns {boolean} 是否检测到并处理了任务完成
  */
 function checkAndClickIfTaskEnd () {
-  if (widgetUtils.widgetWaiting('任务已完成.*能量.*', '任务完成', 1000)) {
-    sleep(1000)
+  if (widgetUtils.widgetWaiting('任务已完成.*能量.*', '任务完成', 10000)) {
+    sleep(2000)
     // 重新进入森林集市（重进后自动回到最上方，可看到"可领取"按钮）
     taskLog('检测到任务已完成，重新进入森林集市')
     enterMarketAndCheck()
@@ -222,8 +221,8 @@ function checkAndClickIfTaskEnd () {
     findAndClickByTextVisible(/^可领取$/)
     sleep(5000)
     // 等待"奖励已发放.*蚂蚁森林收取"消失（领取完成、提示关闭）
-    while (widgetUtils.widgetWaiting('奖励已发放.*蚂蚁森林收取', '奖励已发放', 1000)) {
-      sleep(1000)
+    while (widgetUtils.widgetWaiting('奖励已发放.*蚂蚁森林收取', '奖励已发放', 10000)) {
+      sleep(2000)
     }
     return true
   }
@@ -235,12 +234,12 @@ function checkAndClickIfTaskEnd () {
  */
 function BrowserExecutor () {
   taskLog('找到了倒计时控件，开始浏览商品')
-  while (widgetUtils.widgetGetOne('浏览商品\\d+s得能量', 1000)) {
+  while (widgetUtils.widgetGetOne('浏览商品\\d+s得能量', 10000)) {
     // 只保持在 greenItem 中
-    let target = widgetUtils.widgetGetById('greenItem', 1000)
+    let target = widgetUtils.widgetGetById('greenItem', 10000)
     if (target) {
       target.click()
-      sleep(1000)
+      sleep(2000)
     }
     // 先下滑再上滑，循环8次
     let scrollRound = 8
@@ -248,15 +247,15 @@ function BrowserExecutor () {
       let h = config.device_height
       // 下滑
       automator.randomScrollDown(0.7 * h, 0.8 * h, 0.2 * h, 0.3 * h)
-      sleep(500)
+      sleep(1000)
       // 上滑
       automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
-      sleep(500)
+      sleep(1000)
     }
     // 8次滑动结束后，上滑到最上面
     let h = config.device_height
     automator.randomScrollUp(0.2 * h, 0.3 * h, 0.7 * h, 0.8 * h)
-    sleep(500)
+    sleep(1000)
     // 判断任务是否完成
     checkAndClickIfTaskEnd()
   }
@@ -267,16 +266,16 @@ function BrowserExecutor () {
  */
 function ClickExecutor () {
   taskLog('点击商品进行浏览')
-  while (widgetUtils.widgetGetOne('点击', 1000)) {
+  while (widgetUtils.widgetGetOne('点击', 10000)) {
     // 每轮点击3次商品
     let clickCount = 3
     while (clickCount-- > 0) {
       if (!clickGoodDetail()) {
         LogFloaty.pushWarningLog('点击商品失败，尝试切换到其他tab')
-        let greenfood = widgetUtils.widgetGetById('greenFood', 1000)
+        let greenfood = widgetUtils.widgetGetById('greenFood', 10000)
         if (greenfood) {
           greenfood.click()
-          sleep(1000)
+          sleep(2000)
           clickGoodDetail()
         }
       }
@@ -320,11 +319,11 @@ function isClickTaskSameLine () {
  * @returns {boolean} 是否成功点击商品
  */
 function clickGoodDetail () {
-  let clickBtn = widgetUtils.widgetGetOne('到手价|入会价|优惠后|补贴后|天猫加补后|绿色制造|绿色运输|绿色有机')
+  let clickBtn = widgetUtils.widgetGetOne('到手价|入会价|优惠后|补贴后|天猫加补后|绿色制造|绿色运输|绿色有机', 10000)
   if (clickBtn) {
     taskLog('随机点击一个商品')
     clickBtn.click()
-    sleep(2000)
+    sleep(4000)
     goBack()
     return true
   } else {
@@ -336,7 +335,7 @@ function clickGoodDetail () {
 /**
  * 查找并执行任务，返回是否执行了任务
  * 2.1 浏览商品\d+s得能量 → BrowserExecutor，checkAndClickIfTaskEnd 为真后等待2s继续循环
- * 2.2 "点击"与"即可获得"同行 → ClickExecutor，判断任务完成同2.1
+ * 2.2 "点击"与"即可获得"同行 → ClickExecutor，判断任务完成后等待4s继续循环
  * 2.3 同时检测到"任务已完成.*能量.*"与"可领取" → 点击可领取，等待5s继续循环
  * 2.4 其他情况视为任务完成，返回 false 退出循环
  * @returns {boolean} 是否找到并执行了任务（false 表示任务完成，退出循环）
@@ -356,8 +355,8 @@ function findAndExecuteTasks () {
     findAndClickByTextVisible(/^可领取$/)
     sleep(5000)
     // 等待"奖励已发放.*蚂蚁森林收取"消失（领取完成、提示关闭）
-    while (widgetUtils.widgetWaiting('奖励已发放.*蚂蚁森林收取', '奖励已发放', 1000)) {
-      sleep(1000)
+    while (widgetUtils.widgetWaiting('奖励已发放.*蚂蚁森林收取', '奖励已发放', 10000)) {
+      sleep(2000)
     }
     return true
   }
@@ -379,9 +378,9 @@ function findAndExecuteTasks () {
   if (isClickTaskSameLine()) {
     taskLog('检测到"点击"与"即可获得"同行，执行点击任务')
     ClickExecutor()
-    // checkAndClickIfTaskEnd 为真（已点击"任务已完成"）后等待2s继续循环
+    // checkAndClickIfTaskEnd 为真（已点击"任务已完成"）后等待4s继续循环
     if (checkAndClickIfTaskEnd()) {
-      sleep(2000)
+      sleep(4000)
     }
     return true
   }
@@ -408,19 +407,18 @@ function enterAntForest () {
     packageName: config.package_name
   })
 
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 1000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
 
-  commonFunction.readyForAlipayWidgets()
 
   let waitCount = 0
-  while (!widgetUtils.homePageWaiting() && waitCount++ < 6) {
-    sleep(1000)
+  while (!widgetUtils.homePageWaiting() && waitCount++ < 10) {
+    sleep(2000)
   }
 
-  // while 退出后，waitCount >= 6 说明超时未进入首页
+  // while 退出后，waitCount >= 10 说明超时未进入首页
   if (waitCount >= 6) {
     errorInfo('进入蚂蚁森林失败')
     return false

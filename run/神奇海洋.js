@@ -69,9 +69,9 @@ function killApps () {
  */
 function exitScript () {
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   killApps()
-  sleep(500)
+  sleep(1000)
   runningQueueDispatcher.removeRunningTask()
   exit()
 }
@@ -101,7 +101,7 @@ function clickPoint (x, y) {
 
 function goBack () {
   back()
-  sleep(2000)
+  sleep(4000)
 }
 
 function sleepIfNeeded (time) {
@@ -130,10 +130,10 @@ function findAndClickByTextVisible (pattern) {
 // 在 timeout 时间内循环截屏识别，命中即点击返回 true
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 3000)
+  let deadline = new Date().getTime() + (timeout || 10000)
   while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
-    sleep(300)
+    sleep(1000)
     let screen = commonFunction.captureScreen()
     if (screen) {
       let results = localOcrUtil.recognizeWithBounds(screen, null, keyword)
@@ -142,11 +142,11 @@ function clickByOcr (keyword, timeout) {
         let match = results[0]
         taskLog('OCR找到"' + keyword + '"，点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')')
         automator.click(match.bounds.centerX(), match.bounds.centerY())
-        sleep(500)
+        sleep(1000)
         return true
       }
     }
-    sleep(500)
+    sleep(1000)
   }
   return false
 }
@@ -170,7 +170,7 @@ function clickByTemplateOrOcr (templateKey, ocrText) {
           let centerY = Math.round(match.centerY())
           taskLog('模板匹配找到"' + ocrText + '"(' + templateKey + '): 点击: (' + centerX + ', ' + centerY + ')')
           automator.click(centerX, centerY)
-          sleep(2000)
+          sleep(4000)
           return true
         }
         taskLog('模板匹配未找到"' + ocrText + '"(' + templateKey + ')，回退到OCR')
@@ -186,7 +186,7 @@ function clickByTemplateOrOcr (templateKey, ocrText) {
 
   // 方案2：OCR识别（兜底，直接调用 clickByOcr，带重试机制）
   taskLog('通过OCR识别"' + ocrText + '"')
-  return clickByOcr(ocrText, 3000)
+  return clickByOcr(ocrText, 10000)
 }
 
 // 打开进入神奇海洋的函数
@@ -202,15 +202,14 @@ function openOcean () {
   })
 
   // 处理"打开"确认弹窗
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 1000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
 
-  commonFunction.readyForAlipayWidgets()
 
   // 等待进入神奇海洋页面
-  sleep(2000)
+  sleep(4000)
   if (!isOnOceanPage()) {
     LogFloaty.pushErrorLog('不在神奇海洋页面，退出脚本')
     return false
@@ -224,7 +223,7 @@ function openOcean () {
 function isOnOceanPage () {
   let texts = ['蚂蚁森林.*神奇海洋', '.*前去参与保护项目', '^返回$']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在神奇海洋界面')
       return false
@@ -241,7 +240,7 @@ function isOnOceanPage () {
 function isOnRewardPage () {
   let texts = ['蚂蚁森林.*神奇海洋', '关闭', '任务图标']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在奖励页面')
       return false
@@ -258,7 +257,7 @@ function isOnRewardPage () {
 function isOnFriendPage () {
   let texts = ['蚂蚁森林.*神奇海洋', '.*的神奇海洋']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在好友神奇海洋界面')
       return false
@@ -266,7 +265,7 @@ function isOnFriendPage () {
     taskLog('检测到"' + texts[i] + '"')
   }
   taskLog('全部文本检测到，确认在好友神奇海洋界面')
-  sleep(3000) // 等待界面加载完成
+  sleep(4000) // 等待界面加载完成
   return true
 }
 
@@ -289,39 +288,39 @@ function isCollectionComplete () {
  */
 function handleCollectPopup () {
   taskLog('检查是否有弹窗')
-  sleep(500)
+  sleep(1000)
 
   // 查找"收下"按钮
-  let btn = widgetUtils.widgetGetOne(/^收下$/, 2000)
+  let btn = widgetUtils.widgetGetOne(/^收下$/, 10000)
   if (btn) {
     taskLog('检测到"收下"弹窗')
     automator.clickCenter(btn)
-    sleep(1000)
+    sleep(2000)
     return true
   }
 
   // 查找"欢迎伙伴回家"或"迎回海洋伙伴"按钮
-  btn = widgetUtils.widgetGetOne(/^(欢迎伙伴回家|迎回海洋伙伴)$/, 2000)
+  btn = widgetUtils.widgetGetOne(/^(欢迎伙伴回家|迎回海洋伙伴)$/, 10000)
   if (btn) {
     taskLog('检测到"欢迎伙伴回家"或"迎回海洋伙伴"弹窗')
     automator.clickCenter(btn)
     sleep(4000)
 
     // 欢迎伙伴回家内部：再检查一次"返回"，检查到直接返回
-    btn = widgetUtils.widgetGetOne(/^返回$/, 2000)
+    btn = widgetUtils.widgetGetOne(/^返回$/, 10000)
     if (btn) {
       taskLog('检测到"返回"弹窗')
       automator.clickCenter(btn)
-      sleep(1000)
+      sleep(2000)
       return true
     }
 
     // 欢迎伙伴回家内部：再检查一次"回到我的海洋"，检查到直接返回
-    btn = widgetUtils.widgetGetOne(/^回到我的海洋$/, 2000)
+    btn = widgetUtils.widgetGetOne(/^回到我的海洋$/, 10000)
     if (btn) {
       taskLog('检测到"回到我的海洋"弹窗')
       automator.clickCenter(btn)
-      sleep(1000)
+      sleep(2000)
       return true
     }
 
@@ -329,20 +328,20 @@ function handleCollectPopup () {
   }
 
   // 查找"返回"按钮
-  btn = widgetUtils.widgetGetOne(/^返回$/, 2000)
+  btn = widgetUtils.widgetGetOne(/^返回$/, 10000)
   if (btn) {
     taskLog('检测到"返回"弹窗')
     automator.clickCenter(btn)
-    sleep(1000)
+    sleep(2000)
     return true
   }
 
   // 查找"回到我的海洋"按钮
-  btn = widgetUtils.widgetGetOne(/^回到我的海洋$/, 2000)
+  btn = widgetUtils.widgetGetOne(/^回到我的海洋$/, 10000)
   if (btn) {
     taskLog('检测到"回到我的海洋"弹窗')
     automator.clickCenter(btn)
-    sleep(1000)
+    sleep(2000)
     return true
   }
 
@@ -355,12 +354,12 @@ function handleCollectPopup () {
  */
 function handleTaskPopup () {
   taskLog('检查是否有弹窗')
-  sleep(500)
-  let openBtn = widgetUtils.widgetGetOne(/^打开$/, 2000)
+  sleep(1000)
+  let openBtn = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (openBtn) {
     taskLog('检测到系统弹窗，点击"打开"')
     automator.clickCenter(openBtn)
-    sleep(2000)
+    sleep(4000)
     return true
   }
   try {
@@ -388,7 +387,7 @@ function handleTaskPopup () {
       if (hasAlipayText && hasOpenButton && openButton) {
         taskLog('检测到"支付宝想要打开xxx"弹窗，点击"打开"')
         automator.clickCenter(openButton)
-        sleep(2000)
+        sleep(4000)
         return true
       }
     }
@@ -463,7 +462,7 @@ function doFindTrashs (screen) {
 function collectSelfTrash () {
   taskLog('开始收集自己的垃圾')
   FloatyInstance.setFloatyInfo({ x: config.device_width / 2, y: config.device_height / 2 }, '找垃圾球中...')
-  sleep(3000)
+  sleep(4000)
 
   // 先收自己的能量球（在截图前调用，避免其内部回收截图导致后续使用报错）
   collectOwnEnergy()
@@ -488,21 +487,21 @@ function collectSelfTrash () {
 
     let ball = findBalls[0]
     FloatyInstance.setFloatyInfo({ x: ball.x, y: ball.y }, '找到了垃圾')
-    sleep(500)
+    sleep(1000)
 
     if (!YoloDetectionUtil.enabled) {
       let clickPos = { x: ball.x - ball.radius * 1.5, y: ball.y + ball.radius * 1.5 }
       FloatyInstance.setFloatyInfo(clickPos, '点击位置')
-      sleep(2000)
+      sleep(4000)
       clickPoint(clickPos.x, clickPos.y)
     } else {
       FloatyInstance.setFloatyInfo({ x: ball.centerX, y: ball.centerY }, '点击位置')
       clickPoint(ball.centerX, ball.centerY)
     }
-    sleep(1000)
+    sleep(2000)
 
     // 先清理一次"欢迎伙伴回家"或"迎回海洋伙伴"弹窗
-    let welcome = widgetUtils.widgetGetOne(/^(欢迎伙伴回家|迎回海洋伙伴)$/, 2000)
+    let welcome = widgetUtils.widgetGetOne(/^(欢迎伙伴回家|迎回海洋伙伴)$/, 10000)
     if (welcome) {
       taskLog('检测到"欢迎伙伴回家"或"迎回海洋伙伴"弹窗')
       clickPoint(welcome.bounds().centerX(), welcome.bounds().centerY())
@@ -510,11 +509,11 @@ function collectSelfTrash () {
     }
 
     // 处理弹窗：收下|返回|回到我的海洋|清理
-    let collect = widgetUtils.widgetGetOne('.*(收下|返回|回到我的海洋|清理|.*不.*了.*).*')
+    let collect = widgetUtils.widgetGetOne('.*(收下|返回|回到我的海洋|清理|.*不.*了.*).*', 10000)
     if (collect) {
       clickPoint(collect.bounds().centerX(), collect.bounds().centerY())
       // 递归继续找
-      sleep(1500)
+      sleep(2000)
       collectSelfTrash()
     }
   } else {
@@ -529,7 +528,7 @@ function collectSelfTrash () {
  */
 function collectFriendTrashOnce () {
   taskLog('开始收集垃圾（仅一次）')
-  sleep(2000)
+  sleep(4000)
 
   let screen = commonFunction.checkCaptureScreenPermission()
   if (!screen) {
@@ -548,13 +547,13 @@ function collectFriendTrashOnce () {
     } else {
       clickPoint(ball.centerX, ball.centerY)
     }
-    sleep(1000)
+    sleep(2000)
 
     // 处理弹窗：收下|回到我的海洋|清理掉
-    let collect = widgetUtils.widgetGetOne('.*(收下|回到我的海洋|清理掉|.*不.*了.*).*')
+    let collect = widgetUtils.widgetGetOne('.*(收下|回到我的海洋|清理掉|.*不.*了.*).*', 10000)
     if (collect) {
       clickPoint(collect.bounds().centerX(), collect.bounds().centerY())
-      sleep(1000)
+      sleep(2000)
     }
   } else {
     taskLog('未找到垃圾球')
@@ -666,7 +665,7 @@ function getWaitTimeForSameRow (allNodes, centerY) {
 function executeMarketBrowse () {
   taskLog('开始自动滑动浏览')
   // while中等待"滑动浏览得拼图"，检测不到则视为任务已完成，退出循环
-  while (widgetUtils.widgetGetOne('滑动浏览得拼图', 1000)) {
+  while (widgetUtils.widgetGetOne('滑动浏览得拼图', 10000)) {
     // 滑动10轮
     for (let s = 10; s > 0; s--) {
       let start = new Date().getTime()
@@ -675,13 +674,13 @@ function executeMarketBrowse () {
       } else {
         automator.randomScrollUp()
       }
-      // 每次滑动后检查弹窗（用OCR识别"放弃奖励"，短超时控制阻塞）
-      clickByOcr('放弃奖励', 800)
+      // 每次滑动后检查弹窗（用OCR识别"放弃奖励"，超时控制阻塞）
+      clickByOcr('放弃奖励', 10000)
       sleepIfNeeded(1000 - (new Date().getTime() - start))
     }
     // 滑动结束后再检查一次弹窗（用OCR识别"放弃奖励"）
     taskLog('检查是否有弹窗需要关闭')
-    clickByOcr('放弃奖励', 2000)
+    clickByOcr('放弃奖励', 10000)
     // 下一轮while会重新检测"滑动浏览得拼图"，检测不到则退出（视为已完成）
   }
 }
@@ -701,7 +700,7 @@ function executeFriendCleanTask () {
 
   // 返回后即回到神奇海洋界面，直接进入奖励页面
   goBack()
-  sleep(1000)
+  sleep(2000)
   if (!enterRewardPage()) {
     taskLog('进入奖励页面失败')
   }
@@ -711,7 +710,7 @@ function executeFriendCleanTask () {
 function executeQuizTask () {
   taskLog('执行"答题学海洋知识"')
 
-  sleep(2000)
+  sleep(4000)
   handleTaskPopup()
 
   // 点击"题目来源.*" textview 上方的第一个 textview
@@ -747,7 +746,7 @@ function executeQuizTask () {
         if (targetNode) {
           taskLog('点击"题目来源"上方的textview')
           automator.clickCenter(targetNode)
-          sleep(1000)
+          sleep(2000)
         } else {
           taskLog('未找到"题目来源"上方的textview')
         }
@@ -760,10 +759,10 @@ function executeQuizTask () {
   }
 
   // 返回
-  sleep(1000)
+  sleep(2000)
   handleTaskPopup()
   goBack()
-  sleep(1000)
+  sleep(2000)
 }
 
 /**
@@ -771,7 +770,7 @@ function executeQuizTask () {
  */
 function executeClickTargetTask (specialTask) {
   taskLog('执行特殊任务: ' + specialTask.keyword)
-  sleep(2000)
+  sleep(4000)
 
   if (specialTask.action === 'clickTarget' && specialTask.clickTarget) {
     let found = false
@@ -781,7 +780,7 @@ function executeClickTargetTask (specialTask) {
     }
     // OCR兜底（复用clickByOcr，带重试）
     if (!found) {
-      if (clickByOcr(specialTask.clickTarget, 3000)) {
+      if (clickByOcr(specialTask.clickTarget, 10000)) {
         found = true
       }
     }
@@ -806,7 +805,7 @@ function executeGameTask (seconds) {
   let clicked = false
   for (let i = 0; i < 5; i++) {
     clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
-    if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 3000)
+    if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 10000)
     if (clicked) break
 
     taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')
@@ -816,7 +815,7 @@ function executeGameTask (seconds) {
     let endY = startY - h * (0.15 + Math.random() * 0.10)
     let duration = 100 + Math.random() * 300
     automator.gestureDown(Math.round(startY), Math.round(endY), duration)
-    sleep(1000)
+    sleep(2000)
   }
   if (!clicked) taskLog('下滑 5 次仍未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"')
 
@@ -826,9 +825,9 @@ function executeGameTask (seconds) {
 
   // 游戏任务结束：重启支付宝并重新进入奖励页面
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   killApps()
-  sleep(500)
+  sleep(1000)
   if (!openOcean() || !enterRewardPage()) {
     errorInfo('重新进入奖励页面失败，退出神奇海洋')
     exitScript()
@@ -846,7 +845,7 @@ function executeGameTask (seconds) {
  */
 function waitForTaskComplete () {
   taskLog('任务完成，退出页面')
-  sleep(2000)
+  sleep(4000)
 
   let pkg = config.package_name || 'com.eg.android.AlipayGphone'
 
@@ -861,7 +860,7 @@ function waitForTaskComplete () {
     if (!switched) {
       taskLog('切入支付宝失败，重新进入')
       commonFunction.minimize()
-      sleep(500)
+      sleep(1000)
       // 先打开神奇海洋，再进入奖励页面
       if (!openOcean()) {
         taskLog('重新打开神奇海洋失败')
@@ -869,7 +868,7 @@ function waitForTaskComplete () {
       }
       return enterRewardPage()
     }
-    sleep(2000)
+    sleep(4000)
   }
 
   // 2. 返回逻辑：先检测后back，循环直到回到奖励页面
@@ -888,7 +887,7 @@ function waitForTaskComplete () {
 
   taskLog('多次back后仍未回到奖励页面，重新进入')
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   // 先打开神奇海洋，再进入奖励页面
   if (!openOcean()) {
     taskLog('重新打开神奇海洋失败')
@@ -1083,7 +1082,7 @@ function main () {
       let errMsg = e && e.message ? e.message : e
       errorInfo('探索任务异常: ' + errMsg)
       commonFunction.minimize()
-      sleep(500)
+      sleep(1000)
       // 先打开神奇海洋，再进入奖励页面
       if (openOcean() && enterRewardPage()) {
         continue
@@ -1120,7 +1119,7 @@ function main () {
     let downDist = (0.15 + Math.random() * 0.05) * h
     let downDuration = 100 + Math.random() * 300
     automator.gestureDown(Math.round(downStart), Math.round(downStart - downDist), downDuration)
-    sleep(1000)
+    sleep(2000)
   }
 
   taskLog('神奇海洋任务完成，返回')

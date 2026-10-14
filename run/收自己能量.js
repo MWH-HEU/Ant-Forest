@@ -31,9 +31,9 @@ function killApps() {
 
 function exitScript() {
   commonFunction.minimize()
-  sleep(500)
+  sleep(1000)
   killApps()
-  sleep(500)
+  sleep(1000)
   runningQueueDispatcher.removeRunningTask()
   exit()
 }
@@ -82,7 +82,7 @@ function findAndClickByTextVisible(pattern) {
 function isOnAlipayHomePage() {
   let texts = ['扫一扫', '收付款', '出行', '卡包', '蚂蚁森林']
   for (let i = 0; i < texts.length; i++) {
-    let result = widgetUtils.widgetWaiting(texts[i], '支付宝首页', 5000)
+    let result = widgetUtils.widgetWaiting(texts[i], '支付宝首页', 10000)
     if (!result) {
       taskLog('未检测到"' + texts[i] + '"，不在支付宝首页')
       return false
@@ -96,12 +96,12 @@ function isOnAlipayHomePage() {
  * 判断是否在蚂蚁森林首页（需同时找到"蚂蚁森林"和"森林广场"）
  */
 function isOnAntForestPage() {
-  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 5000)
+  let result = widgetUtils.widgetWaiting('蚂蚁森林', '蚂蚁森林首页', 10000)
   if (!result) {
     taskLog('未检测到"蚂蚁森林"，不在蚂蚁森林界面')
     return false
   }
-  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 5000)
+  let squareResult = widgetUtils.widgetWaiting('森林广场', '蚂蚁森林首页', 10000)
   if (!squareResult) {
     taskLog('未检测到"森林广场"，不在蚂蚁森林界面')
     return false
@@ -124,19 +124,18 @@ function enterAntForest() {
     packageName: config.package_name
   })
 
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 1000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
 
-  commonFunction.readyForAlipayWidgets()
 
   let waitCount = 0
-  while (!widgetUtils.homePageWaiting() && waitCount++ < 6) {
-    sleep(1000)
+  while (!widgetUtils.homePageWaiting() && waitCount++ < 10) {
+    sleep(2000)
   }
 
-  // while 退出后，waitCount >= 6 说明超时未进入首页
+  // while 退出后，waitCount >= 10 说明超时未进入首页
   if (waitCount >= 6) {
     errorInfo('进入蚂蚁森林失败')
     return false
@@ -176,7 +175,7 @@ function main() {
   if (!enterAntForest()) {
     exitScript()
   }
-  sleep(2000)
+  sleep(4000)
 
   for (let i = 1; i <= 40; i++) {
     // 第6/11/16/21/26/31/36次：返回上一页 → 点击"蚂蚁森林"重新进入

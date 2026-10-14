@@ -455,7 +455,7 @@ function clickAndEnterFriendForest(marker) {
  * 查找并点击"帮TA复活能量"
  */
 function clickReviveEnergy() {
-  // OCR识别"帮TA复活能量"，模糊匹配"复活""能量""立得"，限制在屏幕上半部
+  // OCR识别"帮TA复活能量"，模糊匹配"复活""帮TA""立得"，限制在屏幕上半部
   if (localOcrUtil.enabled) {
     commonFunction.requestScreenCaptureOrRestart()
     sleep(500)
@@ -467,7 +467,7 @@ function clickReviveEnergy() {
         let halfH = config.device_height / 2
         for (let item of ocrResult) {
           let text = item.text || item.label || ''
-          if (/复活|能量|立得/.test(text)) {
+          if (/复活|帮TA|立得/.test(text)) {
             let bd = item.bounds
             let cy = Math.round((bd.top + bd.bottom) / 2)
             if (cy < halfH) {

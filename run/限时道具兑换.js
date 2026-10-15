@@ -804,12 +804,12 @@ function hasUsedItemToday (usedPattern) {
   }
   sleep(4000)
 
-  // 最多下滑3次，寻找"森林动态"和"去看全部"（完全匹配）；起始点85%~95%高度随机，滑动距离10%~15%随机，持续时间100~400ms随机
+  // 最多下滑3次，寻找"森林动态"和"去看全部"（完全匹配）；起始点85%~95%高度随机，滑动距离70%~75%随机，持续时间100~400ms随机
   let foundEntry = false
   let h = config.device_height
   for (let i = 0; i < 3; i++) {
-    // 滑动起始点85%~95%高度随机，滑动距离10%~15%随机，持续时间100~400ms随机
-    let dist = (0.10 + Math.random() * 0.05) * h
+    // 滑动起始点85%~95%高度随机，滑动距离70%~75%随机，持续时间100~400ms随机
+    let dist = (0.70 + Math.random() * 0.05) * h
     let startY = h * (0.85 + Math.random() * 0.10)
     automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
     sleep(2000)
@@ -893,8 +893,8 @@ function hasUsedItemToday (usedPattern) {
       return true
     }
 
-    // 都没找到，下滑继续搜索（起始点85%~95%高度随机，滑动距离10%~15%随机，持续时间100~400ms随机）
-    let dist = (0.10 + Math.random() * 0.05) * h
+    // 都没找到，下滑继续搜索（起始点85%~95%高度随机，滑动距离70%~75%随机，持续时间100~400ms随机）
+    let dist = (0.70 + Math.random() * 0.05) * h
     let startY = h * (0.85 + Math.random() * 0.10)
     automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
     sleep(2000)

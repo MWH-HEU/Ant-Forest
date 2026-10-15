@@ -493,17 +493,21 @@ function classifyFishTask (allNodes, centerY) {
   return { type: 'other' }
 }
 
-// 判断同行是否为特殊任务：匹配 "玩任意一款游戏\d+s"，提取秒数
-// 返回 { matched, seconds }
+// 判断同行是否为特殊任务：游戏类匹配 "玩任意一款游戏\d+s"，点赞类包含 "去点赞你的心动小鱼"
+// 返回 { matched, type, seconds }，type: 'game' | 'likeFish' | ''
 function classifySpecialTask (allNodes, centerY) {
   for (let node of allNodes) {
     let text = node.text
     if (!text) continue
     if (Math.abs(node.bounds.centerY() - centerY) >= 100) continue
     let m = text.match(/玩任意一款游戏(\d+)s/)
-    if (m) return { matched: true, seconds: parseInt(m[1]) }
+    if (m) return { matched: true, type: 'game', seconds: parseInt(m[1]) }
+    // 点赞心动小鱼：点击后随机点"1g 不喜欢"/"1g 喜欢"
+    if (text.indexOf('去点赞你的心动小鱼') >= 0) {
+      return { matched: true, type: 'likeFish', seconds: 0 }
+    }
   }
-  return { matched: false, seconds: 0 }
+  return { matched: false, type: '', seconds: 0 }
 }
 
 // 领取奖励：完全匹配"立即领取"，只选位于"奖励"上方的按钮，反复点击
@@ -552,8 +556,8 @@ function claimImmediateReward () {
 // 查找并执行摸鱼任务
 // 开头先领取奖励（立即领取）；遍历所有节点，匹配 FISH_BUTTONS 按钮；
 // 遍历所有"奖励"上方的节点：先做排除项判断（FISH_SKIP_KEYWORDS 正则，如 ".*2次摸鱼次数"）同行则跳过
-// 先执行特殊摸鱼任务（同行匹配 "玩任意一款游戏\d+s"，结束后重启支付宝并重进任务界面），后执行普通摸鱼任务（同行含"摸鱼次数"，秒数取不到按 0）
-// 点击后等秒数+2s（特殊任务+5s），再等待任务完成回到摸鱼界面；被跳过的按钮继续找下一个
+// 先执行特殊摸鱼任务（游戏类 / 点赞类），后执行普通摸鱼任务（同行含"摸鱼次数"，秒数取不到按 0）
+// 点击后等秒数+2s（游戏类特殊任务+5s），再等待任务完成回到摸鱼界面；被跳过的按钮继续找下一个
 // 注意：摸鱼弹窗（"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"）由 main 循环开头的 loopFishProcess 处理
 function findAndExecuteFishTask () {
   // 领取奖励（立即领取）
@@ -597,14 +601,42 @@ function findAndExecuteFishTask () {
       continue
     }
 
-    // 特殊任务判断：同行匹配 "玩任意一款游戏\d+s"，优先走特殊任务流程
+    // 特殊任务判断：游戏类（"玩任意一款游戏\d+s"）或点赞类（"去点赞你的心动小鱼"），优先走特殊任务流程
     let special = classifySpecialTask(allNodes, centerY)
     if (special.matched) {
-      taskLog('找到特殊任务按钮: "' + text + '" 点击: (' + bd.centerX() + ', ' + bd.centerY() + ')，任务时长 ' + special.seconds + 's')
+      taskLog('找到特殊任务按钮: "' + text + '" 点击: (' + bd.centerX() + ', ' + bd.centerY() + ')' + (special.type === 'game' ? '，任务时长 ' + special.seconds + 's' : ''))
       automator.click(bd.centerX(), bd.centerY())
       sleep(10000)
 
-      // 检查"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，控件优先、OCR兜底；没有则下滑一次再判断，最多 5 次
+      // 点赞类：随机点击"1g 不喜欢"/"1g 喜欢"，直到没有对应文本或点满 15 次
+      if (special.type === 'likeFish') {
+        let options = ['1g 不喜欢', '1g 喜欢']
+        let clicks = 0
+        while (clicks < 15) {
+          let candidates = []
+          for (let node of widgetInspector.detectAllNodesVisible().nodes) {
+            if (node.bounds && options.indexOf(node.text) >= 0) candidates.push(node)
+          }
+          if (candidates.length === 0) {
+            taskLog('未找到"1g 不喜欢"/"1g 喜欢"，停止点击')
+            break
+          }
+          let pick = candidates[Math.floor(Math.random() * candidates.length)]
+          taskLog('点击"' + pick.text + '"（第 ' + (clicks + 1) + ' 次）')
+          automator.click(pick.bounds.centerX(), pick.bounds.centerY())
+          clicks++
+          sleep(1000)
+        }
+        taskLog('点赞心动小鱼结束，共点击 ' + clicks + ' 次')
+
+        // 等待任务完成回到摸鱼界面
+        waitForTaskComplete()
+
+        taskLog('点赞心动小鱼执行完毕')
+        return true
+      }
+
+      // 游戏类：检查"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，控件优先、OCR兜底；没有则下滑一次再判断，最多 5 次
       let clicked = false
       for (let i = 0; i < 5; i++) {
         clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
@@ -626,7 +658,7 @@ function findAndExecuteFishTask () {
       sleep((special.seconds + 5) * 1000)
       waitForTaskComplete()
 
-      // 特殊任务结束：重启支付宝并重新进入摸鱼任务界面
+      // 游戏类结束：重启支付宝并重新进入摸鱼任务界面
       commonFunction.minimize()
       sleep(1000)
       killApps()

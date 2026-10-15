@@ -608,11 +608,11 @@ function findAndExecuteFishTask () {
       automator.click(bd.centerX(), bd.centerY())
       sleep(10000)
 
-      // 点赞类：随机点击"1g 不喜欢"/"1g 喜欢"，直到没有对应文本或点满 15 次
+      // 点赞类：随机点击"1g 不喜欢"/"1g 喜欢"，直到没有对应文本或点满 40 次
       if (special.type === 'likeFish') {
         let options = ['1g 不喜欢', '1g 喜欢']
         let clicks = 0
-        while (clicks < 15) {
+        while (clicks < 40) {
           let candidates = []
           for (let node of widgetInspector.detectAllNodesVisible().nodes) {
             if (node.bounds && options.indexOf(node.text) >= 0) candidates.push(node)

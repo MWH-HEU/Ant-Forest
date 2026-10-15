@@ -714,7 +714,7 @@ function clickUseNow () {
 
 // 判断当天是否已使用指定道具（通过森林动态时间线判断）：已使用返回true（退出主函数），未使用返回false
 // usedPattern: 匹配道具使用记录的正则对象，如保护罩/使用了.*保护罩/
-// 逻辑：进入森林动态后，只根据"动态"判断是否在森林动态界面；进入后若未找到"今天"则说明当天未使用，直接返回false；找到"今天"后下滑搜索，找到"昨天"则判断匹配项是否在昨天上方（在则已使用）；没找到"昨天"时当前页有匹配项即视为已使用；找到"昨天"即停止搜索；下滑超过10次未找到则保守处理视为未使用
+// 逻辑：进入森林动态后，只根据"动态"判断是否在森林动态界面；进入后若未找到"今天"则说明当天未使用，直接返回false；找到"今天"后下滑搜索，找到"昨天"则判断匹配项是否在昨天上方（在则已使用）；没找到"昨天"时当前页有匹配项即视为已使用；找到"昨天"即停止搜索；下滑超过30次未找到则保守处理视为未使用
 function hasUsedItemToday (usedPattern) {
   taskLog('=== 检查当天是否已使用道具: ' + usedPattern + ' ===')
 
@@ -729,12 +729,12 @@ function hasUsedItemToday (usedPattern) {
   }
   sleep(4000)
 
-  // 最多下滑3次，寻找"森林动态"和"去看全部"（完全匹配）；起始点85%~95%高度随机，滑动距离70%~75%随机，持续时间100~400ms随机
+  // 最多下滑3次，寻找"森林动态"和"去看全部"（完全匹配）；起始点85%~95%高度随机，滑动距离10%~15%随机，持续时间100~400ms随机
   let foundEntry = false
   let h = config.device_height
   for (let i = 0; i < 3; i++) {
-    // 滑动起始点85%~95%高度随机，滑动距离70%~75%随机，持续时间100~400ms随机
-    let dist = (0.70 + Math.random() * 0.05) * h
+    // 滑动起始点85%~95%高度随机，滑动距离10%~15%随机，持续时间100~400ms随机
+    let dist = (0.10 + Math.random() * 0.05) * h
     let startY = h * (0.85 + Math.random() * 0.10)
     automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
     sleep(2000)
@@ -777,12 +777,12 @@ function hasUsedItemToday (usedPattern) {
 
   // 循环下滑搜索：查找匹配项与"昨天"（找到"昨天"即停止，类似findAndUseCard的hasEnd退出）
   // 找到"昨天"则判断匹配项y是否在其上方；没找到"昨天"时，当前页有匹配项即视为已使用
-  // 每次循环i++，i大于10则保守处理（视为未使用）
+  // 每次循环i++，i大于30则保守处理（视为未使用）
   let i = 0
   while (true) {
     i++
-    if (i > 10) {
-      taskLog('下滑搜索超过10次未找到"昨天"，保守处理视为未使用')
+    if (i > 30) {
+      taskLog('下滑搜索超过30次未找到"昨天"，保守处理视为未使用')
       return false
     }
     let nodes = widgetInspector.detectAllNodesVisible().nodes
@@ -818,8 +818,8 @@ function hasUsedItemToday (usedPattern) {
       return true
     }
 
-    // 都没找到，下滑继续搜索（起始点85%~95%高度随机，滑动距离70%~75%随机，持续时间100~400ms随机）
-    let dist = (0.70 + Math.random() * 0.05) * h
+    // 都没找到，下滑继续搜索（起始点85%~95%高度随机，滑动距离20%~25%随机，持续时间100~400ms随机）
+    let dist = (0.20 + Math.random() * 0.05) * h
     let startY = h * (0.85 + Math.random() * 0.10)
     automator.gestureDown(Math.round(startY), Math.round(startY - dist), 100 + Math.round(Math.random() * 300))
     sleep(2000)

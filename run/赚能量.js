@@ -103,15 +103,15 @@ if (executeByTimeTask) {
       taskLog('点击赚能量')
       automator.clickCenter(earnEntry)
       sleep(1000)
-      // 找「拼手速」
-      taskLog('查找拼手速任务')
-      let speedRace = widgetUtils.widgetGetOne('.*拼手速.*', 10000)
+      // 找「开始」
+      taskLog('查找开始')
+      let speedRace = widgetUtils.widgetGetOne('.*开始.*', 10000)
       if (speedRace) {
-        taskLog('点击拼手速任务')
+        taskLog('点击开始')
         automator.clickCenter(speedRace)
         sleep(1000)
       } else {
-        warnInfo('未找到拼手速任务，请手动进入')
+        warnInfo('未找到开始，请手动进入')
       }
     } else {
       warnInfo('未找到赚能量入口，请手动进入拼手速页面')
@@ -388,14 +388,14 @@ function openSpeedRacePage () {
     taskLog('点击赚能量')
     automator.clickCenter(earnEntry)
     sleep(4000)
-    taskLog('查找拼手速任务')
-    let speedRace = widgetUtils.widgetGetOne('.*拼手速.*', 10000)
+    taskLog('查找开始')
+    let speedRace = widgetUtils.widgetGetOne('.*开始.*', 10000)
     if (speedRace) {
-      taskLog('点击拼手速任务')
+      taskLog('点击开始')
       automator.clickCenter(speedRace)
       sleep(2000)
     } else {
-      warnInfo('未找到拼手速任务')
+      warnInfo('未找到开始')
     }
   } else {
     warnInfo('未找到赚能量入口')

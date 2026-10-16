@@ -665,7 +665,7 @@ function getWaitTimeForSameRow (allNodes, centerY) {
 function executeMarketBrowse () {
   taskLog('开始自动滑动浏览')
   // while中等待"滑动浏览得拼图"，检测不到则视为任务已完成，退出循环
-  while (widgetUtils.widgetGetOne('滑动浏览得拼图', 10000)) {
+  while (widgetUtils.widgetGetOne('滑动浏览得拼图', 1000)) {
     // 滑动10轮
     for (let s = 10; s > 0; s--) {
       let start = new Date().getTime()
@@ -674,13 +674,13 @@ function executeMarketBrowse () {
       } else {
         automator.randomScrollUp()
       }
-      // 每次滑动后检查弹窗（用OCR识别"放弃奖励"，超时控制阻塞）
-      clickByOcr('放弃奖励', 10000)
+      // 每次滑动后检查弹窗（用OCR识别"放弃奖励"，短超时控制阻塞）
+      clickByOcr('放弃奖励', 1000)
       sleepIfNeeded(1000 - (new Date().getTime() - start))
     }
     // 滑动结束后再检查一次弹窗（用OCR识别"放弃奖励"）
     taskLog('检查是否有弹窗需要关闭')
-    clickByOcr('放弃奖励', 10000)
+    clickByOcr('放弃奖励', 2000)
     // 下一轮while会重新检测"滑动浏览得拼图"，检测不到则退出（视为已完成）
   }
 }
@@ -780,7 +780,7 @@ function executeClickTargetTask (specialTask) {
     }
     // OCR兜底（复用clickByOcr，带重试）
     if (!found) {
-      if (clickByOcr(specialTask.clickTarget, 10000)) {
+      if (clickByOcr(specialTask.clickTarget, 3000)) {
         found = true
       }
     }
@@ -805,7 +805,7 @@ function executeGameTask (seconds) {
   let clicked = false
   for (let i = 0; i < 5; i++) {
     clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
-    if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 10000)
+    if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 3000)
     if (clicked) break
 
     taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')

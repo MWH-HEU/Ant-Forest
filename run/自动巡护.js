@@ -90,7 +90,7 @@ function Patrol () {
       sleep(2000)
       alipayUnlocker.unlockAlipay()
     }
-    if (widgetUtils.widgetWaiting('.*保护地.*', null, 10000)) {
+    if (widgetUtils.widgetWaiting('.*保护地.*', null, 2000)) {
       return true
     }
     warnInfo(['无法校验 保护地 控件，可能没有正确打开'], true)
@@ -379,13 +379,13 @@ function prepareWalker () {
       WarningFloaty.clearAll()
       automator.back()
       let tryTime = 3
-      while (!widgetUtils.widgetWaiting('.*保护地.*', null, 10000) && --tryTime > 0) {
+      while (!widgetUtils.widgetWaiting('.*保护地.*', null, 2000) && --tryTime > 0) {
         automator.back()
       }
     } else {
       let tryTime = 3
       logFloaty.pushWarningLog('未找到观看视频按钮')
-      while (!widgetUtils.widgetWaiting('.*保护地.*', null, 10000) && --tryTime > 0) {
+      while (!widgetUtils.widgetWaiting('.*保护地.*', null, 2000) && --tryTime > 0) {
         automator.back()
       }
     }

@@ -640,7 +640,7 @@ function findAndExecuteFishTask () {
       let clicked = false
       for (let i = 0; i < 5; i++) {
         clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
-        if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 10000)
+        if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 3000)
         if (clicked) break
 
         taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')

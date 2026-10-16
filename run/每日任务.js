@@ -455,7 +455,7 @@ function executeSpecialTask (specialTask) {
     }
     // OCR兜底（复用clickByOcr，带重试）
     if (!found) {
-      if (clickByOcr(specialTask.clickTarget, 10000)) {
+      if (clickByOcr(specialTask.clickTarget, 3000)) {
         found = true
       }
     }

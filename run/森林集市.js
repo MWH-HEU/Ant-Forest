@@ -221,7 +221,7 @@ function checkAndClickIfTaskEnd () {
     findAndClickByTextVisible(/^可领取$/)
     sleep(5000)
     // 等待"奖励已发放.*蚂蚁森林收取"消失（领取完成、提示关闭）
-    while (widgetUtils.widgetWaiting('奖励已发放.*蚂蚁森林收取', '奖励已发放', 10000)) {
+    while (widgetUtils.widgetWaiting('奖励已发放.*蚂蚁森林收取', '奖励已发放', 1000)) {
       sleep(2000)
     }
     return true
@@ -234,9 +234,9 @@ function checkAndClickIfTaskEnd () {
  */
 function BrowserExecutor () {
   taskLog('找到了倒计时控件，开始浏览商品')
-  while (widgetUtils.widgetGetOne('浏览商品\\d+s得能量', 10000)) {
+  while (widgetUtils.widgetGetOne('浏览商品\\d+s得能量', 1000)) {
     // 只保持在 greenItem 中
-    let target = widgetUtils.widgetGetById('greenItem', 10000)
+    let target = widgetUtils.widgetGetById('greenItem', 1000)
     if (target) {
       target.click()
       sleep(2000)
@@ -266,13 +266,13 @@ function BrowserExecutor () {
  */
 function ClickExecutor () {
   taskLog('点击商品进行浏览')
-  while (widgetUtils.widgetGetOne('点击', 10000)) {
+  while (widgetUtils.widgetGetOne('点击', 1000)) {
     // 每轮点击3次商品
     let clickCount = 3
     while (clickCount-- > 0) {
       if (!clickGoodDetail()) {
         LogFloaty.pushWarningLog('点击商品失败，尝试切换到其他tab')
-        let greenfood = widgetUtils.widgetGetById('greenFood', 10000)
+        let greenfood = widgetUtils.widgetGetById('greenFood', 1000)
         if (greenfood) {
           greenfood.click()
           sleep(2000)
@@ -355,7 +355,7 @@ function findAndExecuteTasks () {
     findAndClickByTextVisible(/^可领取$/)
     sleep(5000)
     // 等待"奖励已发放.*蚂蚁森林收取"消失（领取完成、提示关闭）
-    while (widgetUtils.widgetWaiting('奖励已发放.*蚂蚁森林收取', '奖励已发放', 10000)) {
+    while (widgetUtils.widgetWaiting('奖励已发放.*蚂蚁森林收取', '奖励已发放', 1000)) {
       sleep(2000)
     }
     return true

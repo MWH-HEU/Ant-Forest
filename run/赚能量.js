@@ -387,7 +387,7 @@ function openSpeedRacePage () {
   if (earnEntry) {
     taskLog('点击赚能量')
     automator.clickCenter(earnEntry)
-    sleep(2000)
+    sleep(1000)
     taskLog('查找拼手速任务')
     let speedRace = widgetUtils.widgetGetOne('.*开始.*', 2000)
     if (speedRace) {

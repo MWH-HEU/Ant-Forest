@@ -129,7 +129,7 @@ let clickThread = threads.start(function () {
         taskLog('暴力点击完毕')
         clickRunning = false
         floatyBtnInstance.changeButtonText('changeStatus', '检查是否还有机会')
-        sleep(2000)
+        sleep(1000)
         checkAndStartCollect()
         changeButtonInfo()
       }
@@ -255,12 +255,12 @@ function checkAndSendChance () {
   }
   taskLog('正在校验是否存在 “更多好友”，请稍等')
   // 设置至少十秒的查找时间
-  let endDateForCheck = new Date().getTime() + 10000 + (config.timeout_rain_find_friend || 10000)
+  let endDateForCheck = new Date().getTime() + 10000 + (config.timeout_rain_find_friend || 3000)
   targetEndTime = endDateForCheck > targetEndTime ? endDateForCheck : targetEndTime
-  let showMoreFriend = widgetUtils.widgetGetById('J_moreGrant', 10000)
+  let showMoreFriend = widgetUtils.widgetGetById('J_moreGrant', 1000)
   if (showMoreFriend && targetSendName) {
     // 尝试获取目标好友
-    let targetFriend = widgetUtils.widgetGetOne(targetSendName, config.timeout_rain_find_friend || 10000)
+    let targetFriend = widgetUtils.widgetGetOne(targetSendName, config.timeout_rain_find_friend || 3000)
     if (targetFriend) {
       taskLog('快捷界面找到了目标好友')
       targetFriend.parent().child(1).click()
@@ -268,10 +268,10 @@ function checkAndSendChance () {
       taskLog('点击了送ta机会')
       let newEnd = new Date().getTime() + 25000
       targetEndTime = newEnd > targetEndTime ? newEnd : targetEndTime
-      sleep(2000)
+      sleep(1000)
       // 点击空白区域 触发关闭蒙层
       automator.click(violentClickPoints[0][0], violentClickPoints[0][1])
-      sleep(4000)
+      sleep(2000)
       checkAndStartCollect()
       return true
     }
@@ -279,9 +279,9 @@ function checkAndSendChance () {
     taskLog('点击了更多好友')
     taskLog('点击了更多好友，校验是否存在目标好友:' + targetSendName)
     setDisplayText('点击了更多好友，校验是否存在目标好友:' + targetSendName, showMoreFriend.bounds().centerX(), showMoreFriend.bounds().centerY())
-    sleep(4000)
+    sleep(2000)
     taskLog('查找目标好友中:' + targetSendName)
-    let targetFriends = widgetUtils.widgetGetAll(targetSendName, config.timeout_rain_find_friend || 10000, false, null, { algorithm: 'PDFS' })
+    let targetFriends = widgetUtils.widgetGetAll(targetSendName, config.timeout_rain_find_friend || 3000, false, null, { algorithm: 'PDFS' })
     if (targetFriends) {
       let matched = false
       // 从尾部开始 避开默认显示的值
@@ -302,10 +302,10 @@ function checkAndSendChance () {
           taskLog('点击了送ta机会')
           let newEnd = new Date().getTime() + 25000
           targetEndTime = newEnd > targetEndTime ? newEnd : targetEndTime
-          sleep(2000)
+          sleep(1000)
           // 点击空白区域 触发关闭蒙层
           automator.click(violentClickPoints[0][0], violentClickPoints[0][1])
-          sleep(4000)
+          sleep(2000)
           checkAndStartCollect()
           matched = true
         }
@@ -314,7 +314,7 @@ function checkAndSendChance () {
     } else {
       warnInfo(['未找到赠送对象'], true)
       LogFloaty.pushWarningLog('未找到赠送对象')
-      sleep(2000)
+      sleep(1000)
       if (autoStartCollect) {
         targetEndTime = new Date().getTime()
       }

@@ -331,9 +331,9 @@ function checkAndSendChance () {
 
 function checkAndStartCollect () {
   config._execute_finding = true
-  let startBtn = widgetUtils.widgetGetOne(config.rain_start_content || '开始拯救绿色能量|再来一次|立即开启|开始能量.*', 10000)
+  let startBtn = widgetUtils.widgetGetOne(config.rain_start_content || '开始拯救绿色能量|再来一次|立即开启|开始能量.*', 1000)
   if (startBtn) {
-    let ended = widgetUtils.widgetGetOne(config.rain_end_content || '.*去蚂蚁森林看看.*', 10000)
+    let ended = widgetUtils.widgetGetOne(config.rain_end_content || '.*去蚂蚁森林看看.*', 1000)
     if (ended) {
       warnInfo(['今日机会已用完或者需要好友助力'], true)
       checkAndSendChance()
@@ -347,7 +347,7 @@ function checkAndStartCollect () {
       ui.post(() => {
         clickButtonWindow.setPosition(-cvt(150), config.device_height * 0.65)
       })
-      sleep(1000)
+      sleep(250)
       automator.clickCenter(startBtn)
       startTimestamp = new Date().getTime()
       clickRunning = true
@@ -490,11 +490,11 @@ function openRainPage (reopen) {
     data: 'alipays://platformapi/startapp?appId=20000067&url=' + encodeURIComponent('https://68687791.h5app.alipay.com/www/index.html'),
     packageName: config.package_name
   })
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
-  if (!widgetUtils.widgetWaiting('.*(返回蚂蚁森林|本场机会由好友|本场机会由道具生成|去蚂蚁森林看看|立即开启|找更多能量).*', null, 10000) || !commonFunction.myCurrentPackage() == config.package_name) {
+  if (!widgetUtils.widgetWaiting('.*(返回蚂蚁森林|本场机会由好友|本场机会由道具生成|去蚂蚁森林看看|立即开启|找更多能量).*') || !commonFunction.myCurrentPackage() == config.package_name) {
     errorInfo(['打开能量雨界面失败'], true)
     LogFloaty.pushWarningLog('打开能量雨界面失败')
     if (reopen) {
@@ -506,9 +506,9 @@ function openRainPage (reopen) {
     }
     taskLog('关闭支付宝，再次打开能量雨界面')
     app.launch(config.package_name)
-    sleep(2000)
+    sleep(1000)
     commonFunction.killCurrentApp()
-    sleep(2000)
+    sleep(1000)
     starting = false
     return openRainPage(true)
   }
@@ -535,7 +535,7 @@ function setDisplayText (textContent, x, y) {
 }
 
 function checkHasValidation () {
-  let validationWidget = widgetUtils.widgetGetOne('.*请进行验证|服务器开小差了.*', 10000)
+  let validationWidget = widgetUtils.widgetGetOne('.*请进行验证|服务器开小差了.*', 1000)
   if (validationWidget || config._mock_verify) {
     LogFloaty.pushWarningLog('有验证，请手动执行')
     NotificationHelper.createNotification('能量雨执行异常', '存在人机验证，请手动执行')
@@ -564,7 +564,7 @@ function checkHasValidation () {
 // 关闭震动
 function checkAndCloseVibrate () {
   taskLog('准备检查并关闭震动')
-  let moreIcon = widgetUtils.widgetGetById('com.alipay.multiplatform.phone.xriver_integration:id/imageButton_rightButton1', 10000)
+  let moreIcon = widgetUtils.widgetGetById('com.alipay.multiplatform.phone.xriver_integration:id/imageButton_rightButton1', 1000)
   if (moreIcon) {
     moreIcon.click()
     let closedOrOpen = widgetUtils.alternativeWidget('关闭震动', '打开震动', 1000, true)

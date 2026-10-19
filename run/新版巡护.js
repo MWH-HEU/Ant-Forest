@@ -1,16 +1,15 @@
 /*
  * 新版巡护核心脚本
  * 架构（仿神奇海洋）：
- * 1. 进入新版巡护 → 判断是否在保护地，不在则报错退出
- * 2. 点击"新版巡护"进入新版巡护界面
- * 3. 判断是否在新版巡护界面，不在则报错退出
- * 4. 在新版巡护界面执行探索任务（EXPLORE_BUTTONS）
+ * 1. 进入巡护 → 根据文本判断版本（"切换旧版"=新版巡护，"新版巡护"=旧版巡护），
+ *    旧版先校验保护地再点击"新版巡护"，最终校验新版巡护界面，不在则报错退出
+ * 2. 在新版巡护界面执行探索任务（EXPLORE_BUTTONS）
  *    - 点击"更多步数"进入任务界面
  *    - 判断是否在任务界面（文本 ".*\d次巡护机会" "更多巡护步数"）
- *    - 无排除项；特殊任务：去兑换（点击立即兑换）；长等待关键词：让闲置循环起来
- * 5. 探索任务执行完 → 判断是否在任务界面，在则点击"关闭"（多个关闭取y最大）回到巡护界面
+ *    - 无排除项；特殊任务：去兑换（点击立即兑换）；长等待关键词：让闲置循环起来（当前被普通任务统一 25s 覆盖）
+ * 3. 探索任务执行完 → 判断是否在任务界面，在则点击"关闭"（多个关闭取y最大）回到巡护界面
  *    不在任务界面则重新进入
- * 6. 判断是否在新版巡护界面，在则执行巡护（doPatrol：点击"GO"等）
+ * 4. 判断是否在新版巡护界面，在则执行巡护（doPatrol：点击"GO"等）
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
@@ -61,7 +60,7 @@ function killApps () {
 }
 
 /**
- * 结束新版巡护：返回原页面并清理
+ * 结束新版巡护：最小化窗口并清理
  */
 function exitScript () {
   commonFunction.minimize()
@@ -147,9 +146,13 @@ function clickByOcr (keyword, timeout) {
   return false
 }
 
-// ============ 进入新版巡护 ============
+// ============ 进入巡护（判断版本并确保新版界面） ============
 
-// 打开进入巡护（保护地）的函数，逻辑与自动巡护一致
+// 打开巡护并确保最终处于新版巡护界面
+// 1. startActivity 进入页面
+// 2. 根据文本判断版本："切换旧版"→新版；"新版巡护"→旧版；都没有→默认新版
+// 3. 旧版：先校验旧版巡护界面（保护地），再点击"新版巡护"
+// 4. 最终统一用 isOnNewPatrolPage 校验
 function openPatrol () {
   taskLog('进入巡护')
 
@@ -167,30 +170,51 @@ function openPatrol () {
     automator.clickCenter(confirm)
   }
 
-
-  // 等待进入保护地页面
+  // 等待页面加载
   sleep(4000)
-  if (!isOnProtectedArea()) {
-    LogFloaty.pushErrorLog('不在保护地页面，退出脚本')
+
+  // 判断当前版本（完全匹配）
+  if (widgetUtils.widgetGetOne(/^切换旧版$/, 3000)) {
+    taskLog('检测到"切换旧版"，已在新版巡护')
+  } else if (widgetUtils.widgetGetOne(/^新版巡护$/, 3000)) {
+    taskLog('检测到"新版巡护"，当前在旧版巡护')
+    // 先确认在旧版巡护界面
+    if (!isOnProtectedArea()) {
+      LogFloaty.pushErrorLog('不在旧版巡护界面，退出脚本')
+      return false
+    }
+    // 点击进入新版巡护
+    if (!enterNewPatrol()) {
+      LogFloaty.pushErrorLog('点击"新版巡护"失败，退出脚本')
+      return false
+    }
+  } else {
+    taskLog('未检测到版本标识，默认在新版巡护')
+  }
+
+  // 统一校验新版巡护界面
+  if (!isOnNewPatrolPage()) {
+    LogFloaty.pushErrorLog('不在新版巡护界面，退出脚本')
     return false
   }
-  taskLog('进入保护地成功')
+
+  taskLog('进入新版巡护成功')
   return true
 }
 
-// 判断是否在保护地（逻辑与 isOnRewardPage 一致，全部文本都检测到才算成功）
+// 判断是否在旧版巡护界面（逻辑与 isOnRewardPage 一致，全部文本都检测到才算成功）
 // 匹配文本："路线" "图鉴"
 function isOnProtectedArea () {
   let texts = ['路线', '图鉴']
   for (let i = 0; i < texts.length; i++) {
     let result = widgetUtils.widgetWaiting(texts[i], texts[i], 10000)
     if (!result) {
-      taskLog('未检测到"' + texts[i] + '"，不在保护地')
+      taskLog('未检测到"' + texts[i] + '"，不在旧版巡护界面')
       return false
     }
     taskLog('检测到"' + texts[i] + '"')
   }
-  taskLog('全部文本检测到，确认在保护地')
+  taskLog('全部文本检测到，确认在旧版巡护界面')
   sleep(4000) // 等待界面加载完成
   return true
 }
@@ -336,7 +360,7 @@ function getWaitTimeForSameRow (allNodes, centerY) {
   return 2000
 }
 
-// 处理弹窗：检测"打开|支付宝想要打开xxx"系统弹窗
+// 处理弹窗：检测"打开"系统弹窗
 function handleTaskPopup () {
   taskLog('检查是否有弹窗')
   sleep(1000)
@@ -375,7 +399,7 @@ function waitForTaskComplete () {
       taskLog('切入支付宝失败，重新进入')
       commonFunction.minimize()
       sleep(1000)
-      if (!openPatrol() || !enterNewPatrol() || !enterTaskPage()) {
+      if (!openPatrol() || !enterTaskPage()) {
         taskLog('重新进入任务界面失败')
         return false
       }
@@ -399,7 +423,7 @@ function waitForTaskComplete () {
   taskLog('多次back后仍未回到任务界面，重新进入')
   commonFunction.minimize()
   sleep(1000)
-  if (!openPatrol() || !enterNewPatrol() || !enterTaskPage()) {
+  if (!openPatrol() || !enterTaskPage()) {
     taskLog('重新进入任务界面失败')
     return false
   }
@@ -467,7 +491,7 @@ function findAndExecuteExploreTask () {
         }
       }
     } else {
-      // 普通任务：同行匹配到 \d+s 则浏览 \d+2s，否则按同行关键词等待（长等待25s，默认2s）
+      // 普通任务：同行匹配到 \d+s 则浏览 \d+2s，否则等待25s（当前统一覆盖）
       let browseSeconds = findBrowseSecondsInSameRow(allNodes, centerY)
       if (browseSeconds > 0) {
         let waitTime = (browseSeconds + 2) * 1000
@@ -575,25 +599,13 @@ function main () {
     })
   })
 
-  // 1. 进入巡护，判断是否在保护地
+  // 1. 进入巡护，自动判断版本并确保处于新版巡护界面
   if (!openPatrol()) {
-    errorInfo('无法进入保护地，退出新版巡护')
-    exitScript()
-  }
-
-  // 2. 点击"新版巡护"进入新版巡护界面
-  if (!enterNewPatrol()) {
     errorInfo('无法进入新版巡护界面，退出新版巡护')
     exitScript()
   }
 
-  // 3. 判断是否在新版巡护界面
-  if (!isOnNewPatrolPage()) {
-    errorInfo('不在新版巡护界面，退出新版巡护')
-    exitScript()
-  }
-
-  // 4. 在新版巡护界面执行探索任务
+  // 2. 在新版巡护界面执行探索任务
   taskLog('=== 新版巡护 执行探索任务 ===')
 
   // 点击"更多步数"进入任务界面
@@ -661,20 +673,20 @@ function main () {
     sleep(2000)
   }
 
-  // 5. 探索任务执行完 → 判断是否在任务界面，在则点击"关闭"回到巡护界面，不在则重新进入
+  // 3. 探索任务执行完 → 判断是否在任务界面，在则点击"关闭"回到巡护界面，不在则重新进入
   if (isOnTaskPage()) {
     closeTaskPage()
   } else {
     taskLog('不在任务界面，重新进入')
     commonFunction.minimize()
     sleep(1000)
-    if (!openPatrol() || !enterNewPatrol()) {
+    if (!openPatrol()) {
       errorInfo('重新进入新版巡护失败，退出新版巡护')
       exitScript()
     }
   }
 
-  // 6. 判断是否在新版巡护界面，在则执行巡护
+  // 4. 判断是否在新版巡护界面，在则执行巡护
   if (!isOnNewPatrolPage()) {
     errorInfo('不在新版巡护界面，退出新版巡护')
     exitScript()

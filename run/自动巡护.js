@@ -71,7 +71,58 @@ commonFunctions.backHomeIfInVideoPackage()
 let patrol = new Patrol()
 patrol.exec()
 
+// 通过OCR识别并点击指定关键词
+// 在 timeout 时间内循环截屏识别，命中即点击返回 true
+function clickByOcr (keyword, timeout) {
+  if (!localOcrUtil.enabled) return false
+  let deadline = new Date().getTime() + (timeout || 10000)
+  while (new Date().getTime() < deadline) {
+    commonFunctions.requestScreenCaptureOrRestart()
+    sleep(1000)
+    let screen = commonFunctions.captureScreen()
+    if (screen) {
+      let results = localOcrUtil.recognizeWithBounds(screen, null, keyword)
+      screen.recycle()
+      if (results && results.length > 0) {
+        let match = results[0]
+        debugInfo(['OCR找到"' + keyword + '"，点击: (' + match.bounds.centerX() + ', ' + match.bounds.centerY() + ')'])
+        logFloaty.pushLog('OCR找到"' + keyword + '"，点击切换')
+        automator.click(match.bounds.centerX(), match.bounds.centerY())
+        sleep(1000)
+        return true
+      }
+    }
+    sleep(1000)
+  }
+  return false
+}
+
 function Patrol () {
+  // 确保最终处于旧版巡护界面（与新版巡护的 openPatrol 相反）
+  // 版本判断：
+  //   找到"切换旧版" → 当前在新版巡护 → 点击进入旧版
+  //   找到"新版巡护" → 当前在旧版巡护 → 不做额外处理
+  //   都没有         → 默认在新版巡护 → OCR兜底尝试切换
+  function switchToOldPatrol () {
+    logFloaty.pushLog('检查巡护版本')
+    let oldVersionBtn = widgetUtils.widgetGetOne(/^切换旧版$/, 3000)
+    if (oldVersionBtn) {
+      logFloaty.pushLog('当前在新版巡护，点击切换旧版')
+      automator.clickCenter(oldVersionBtn)
+      sleep(4000)
+      return true
+    }
+    if (widgetUtils.widgetGetOne(/^新版巡护$/, 3000)) {
+      logFloaty.pushLog('当前已在旧版巡护，无需切换')
+      return true
+    }
+    logFloaty.pushLog('未检测到版本标识，默认在新版巡护，尝试OCR切换')
+    if (clickByOcr('切换旧版', 8000)) {
+      sleep(4000)
+    }
+    return true
+  }
+
   function startApp (reopen) {
     app.startActivity({
       action: 'VIEW',
@@ -84,16 +135,17 @@ function Patrol () {
       automator.clickCenter(confirm)
     }
     if (openAlipayMultiLogin(reopen)) {
-      return
+      return true
     }
     if (config.is_alipay_locked) {
       sleep(2000)
       alipayUnlocker.unlockAlipay()
     }
-    if (widgetUtils.widgetWaiting('.*保护地.*', null, 2000)) {
+    switchToOldPatrol()
+    if (widgetUtils.widgetWaiting('.*保护地.*', null, 3000)) {
       return true
     }
-    warnInfo(['无法校验 保护地 控件，可能没有正确打开'], true)
+    warnInfo(['切换旧版失败或未进入旧版巡护，可能没有正确打开'], true)
     return false
   }
 
@@ -104,8 +156,7 @@ function Patrol () {
       if (entryBtn) {
         automator.clickCenter(entryBtn)
         sleep(2000)
-        startApp()
-        return true
+        return startApp(true)
       } else {
         debugInfo(['未找到 进入支付宝 按钮'])
       }
@@ -113,11 +164,15 @@ function Patrol () {
   }
 
   this.openForest = function () {
-    startApp()
+    return startApp()
   }
 
   this.exec = function () {
-    this.openForest()
+    if (!this.openForest()) {
+      warnInfo(['未能进入旧版巡护，退出执行'], true)
+      commonFunctions.minimize()
+      exit()
+    }
     debugInfo(['开始执行巡护'])
     PatrolWalker = prepareWalker()
     let walker = new PatrolWalker()

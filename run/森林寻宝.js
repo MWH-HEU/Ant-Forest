@@ -404,7 +404,7 @@ function waitForTaskComplete () {
 }
 
 // 探索任务按钮（完全匹配）
-const EXPLORE_BUTTONS = ['去逛逛', '马上玩', '去支持', '去报名', '逛一逛', '去完成']
+const EXPLORE_BUTTONS = ['去逛逛', '马上玩', '去支持', '去报名', '逛一逛', '去完成', '去领取']
 // 排除项：部分文本匹配，如"玩游戏得2次机会"
 const SKIP_KEYWORDS = ['玩游戏']
 

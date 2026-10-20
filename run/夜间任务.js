@@ -57,7 +57,7 @@ const FLOATY_Y_OFFSET = 80
 // ============================================================
 const NIGHT_TASK_LIST = [
   { name: '神奇海洋', count: 1, timeoutMinutes: 40 },
-  { name: '能量雨兑换', count: 1, timeoutMinutes: 4 },
+  { name: '能量雨兑换', count: 2, timeoutMinutes: 4 },
   { name: '新版巡护', count: 2, timeoutMinutes: 9 },
   { name: '森林寻宝', count: 2, timeoutMinutes: 9 },
   { name: '森林集市', count: 2, timeoutMinutes: 4 },

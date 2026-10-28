@@ -967,12 +967,28 @@ function switchToGroupVersion () {
   if (!enterAntForest()) { taskLog('版本还原：无法进入蚂蚁森林'); return false }
   if (!isOnAntForestPage()) { taskLog('版本还原：不在蚂蚁森林界面'); return false }
   taskLog('版本还原：切回组队版')
-  sleep(5000)   // 切换前等待 5s
-  if (!findAndClickByTextVisible(/^切换为个人版$/)) { taskLog('版本还原：点击"切换为个人版"失败'); return false }
-  sleep(4000)
-  findAndClickByTextVisible(/^确定返回$/)   // 可能无弹窗，失败即忽略
-  sleep(4000)
-  return true
+  sleep(2000)   // 切换前等待 2s
+
+  let maxAttempts = 3
+  for (let i = 0; i < maxAttempts; i++) {
+    if (!findAndClickByTextVisible(/^切换为个人版$/)) {
+      taskLog('版本还原：点击"切换为个人版"失败')
+      return false
+    }
+    sleep(2000)                              // 点击切换后等待 2s
+    findAndClickByTextVisible(/^确定返回$/)   // 弹窗可能不存在，失败即忽略
+    sleep(2000)                              // 等切换生效 2s
+
+    // 正向判断：出现"切换为组队版"才表示已成功切到组队版
+    if (existsVisibleText(/^切换为组队版$/)) {
+      taskLog('版本还原：已成功切换为组队版')
+      return true
+    }
+    taskLog('版本还原：未检测到"切换为组队版"，继续循环（第' + (i + 1) + '次）')
+  }
+
+  taskLog('版本还原：重试 ' + maxAttempts + ' 次后仍未切换成功')
+  return false
 }
 
 // 主流程

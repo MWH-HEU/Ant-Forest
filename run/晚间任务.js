@@ -56,13 +56,13 @@ const FLOATY_Y_OFFSET = 80
 // 顺序即为执行顺序。窗口为 21:00 - 23:59（00:00 后的任务不纳入）。
 // ============================================================
 const EVENING_TASK_LIST = [
-  { name: '限时道具兑换', count: 1, timeoutMinutes: 4 },
-  { name: '能量雨', count: 1, timeoutMinutes: 4 },
-  { name: '神奇物种', count: 1, timeoutMinutes: 4 },
-  { name: '新版巡护', count: 1, timeoutMinutes: 9 },
+  { name: '限时道具兑换', count: 1, timeoutMinutes: 10 },
+  { name: '能量雨', count: 1, timeoutMinutes: 5 },
+  { name: '神奇物种', count: 1, timeoutMinutes: 5 },
+  { name: '新版巡护', count: 1, timeoutMinutes: 10 },
   { name: 'AI摸鱼', count: 1, timeoutMinutes: 40 },
   { name: '神奇海洋', count: 1, timeoutMinutes: 40 },
-  { name: '自动巡护', count: 1, timeoutMinutes: 9 }
+  { name: '自动巡护', count: 1, timeoutMinutes: 15 }
 ]
 
 config.not_lingering_float_window = true

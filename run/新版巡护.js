@@ -2,14 +2,16 @@
  * 新版巡护核心脚本
  * 架构（仿神奇海洋）：
  * 1. 进入巡护 → 根据文本判断版本（"切换旧版"=新版巡护，"新版巡护"=旧版巡护），
- *    旧版先校验保护地再点击"新版巡护"，最终校验新版巡护界面，不在则报错退出
- * 2. 在新版巡护界面执行探索任务（EXPLORE_BUTTONS）
+ *    旧版先校验保护地再点击"新版巡护"，最终校验新版巡护界面，失败返回 false（由调用方处理）
+ * 2. 获取所有已开启的巡护地：切换地图 → 校验当前巡护地页面 → 切换保护地
+ *    → 校验巡护地选取页面 → 收集文本匹配 ".*已开启" 的可点击 Button → back 返回
+ * 3. 遍历每个巡护地：进入保护地 → 校验新版巡护界面（失败则 back 一次，仍失败则完整重进）
+ * 4. 在每个巡护地执行完整任务（executePatrolTasks）：
  *    - 点击"更多步数"进入任务界面
- *    - 判断是否在任务界面（文本 ".*\d次巡护机会" "更多巡护步数"）
- *    - 无排除项；特殊任务：去兑换（点击立即兑换）；长等待关键词：让闲置循环起来（当前被普通任务统一 25s 覆盖）
- * 3. 探索任务执行完 → 判断是否在任务界面，在则点击"关闭"（多个关闭取y最大）回到巡护界面
- *    不在任务界面则重新进入
- * 4. 判断是否在新版巡护界面，在则执行巡护（doPatrol：点击"GO"等）
+ *    - 循环领取奖励 + 执行探索任务（EXPLORE_BUTTONS），支持滑动查找
+ *    - 关闭任务页回到巡护界面（不在任务界面则重新进入）
+ *    - 执行巡护（doPatrol：点击"GO"等）
+ * 单个巡护地失败只记录并跳过，继续下一个
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
@@ -277,6 +279,157 @@ function enterTaskPage () {
   return false
 }
 
+// ============ 巡护地遍历 ============
+
+// 判断是否在当前巡护地页面（全部文本都检测到才算成功）
+// 匹配文本："切换保护地" "巡护地图" "巡护进度"
+function isOnCurrentMapPage () {
+  let texts = ['切换保护地', '巡护地图', '巡护进度']
+  for (let i = 0; i < texts.length; i++) {
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
+    if (!result) {
+      taskLog('未检测到"' + texts[i] + '"，不在当前巡护地页面')
+      return false
+    }
+    taskLog('检测到"' + texts[i] + '"')
+  }
+  taskLog('全部文本检测到，确认在当前巡护地页面')
+  sleep(4000) // 等待界面加载完成
+  return true
+}
+
+// 判断是否在巡护地选取页面（全部文本都检测到才算成功）
+// 匹配文本："回到当前地图" "保护地列表"
+function isOnAreaSelectPage () {
+  let texts = ['回到当前地图', '保护地列表']
+  for (let i = 0; i < texts.length; i++) {
+    let result = widgetUtils.widgetWaiting(texts[i], texts[i], 5000)
+    if (!result) {
+      taskLog('未检测到"' + texts[i] + '"，不在巡护地选取页面')
+      return false
+    }
+    taskLog('检测到"' + texts[i] + '"')
+  }
+  taskLog('全部文本检测到，确认在巡护地选取页面')
+  sleep(4000) // 等待界面加载完成
+  return true
+}
+
+// 获取所有已开启的巡护地文本（去重），失败返回 null
+function getAllPatrolAreas () {
+  taskLog('开始获取所有巡护地')
+
+  // 进入当前巡护地页面
+  if (!findAndClickByTextVisible(/切换地图/)) {
+    taskLog('未找到"切换地图"')
+    return null
+  }
+  sleep(4000)
+  if (!isOnCurrentMapPage()) return null
+
+  // 进入巡护地选取页面
+  if (!findAndClickByTextVisible(/切换保护地/)) {
+    taskLog('未找到"切换保护地"')
+    return null
+  }
+  sleep(4000)
+  if (!isOnAreaSelectPage()) return null
+
+  // 收集可点击 Button 中文本匹配 .*已开启 的巡护地
+  let areas = []
+  try {
+    let buttons = className('android.widget.Button').clickable().find()
+    for (let i = 0; i < buttons.size(); i++) {
+      let btn = buttons.get(i)
+      let text = btn.text()
+      if (text && /.*已开启/.test(text)) {
+        if (areas.indexOf(text) < 0) {
+          areas.push(text)
+          taskLog('发现巡护地: ' + text)
+        }
+      }
+    }
+  } catch (e) {
+    taskLog('获取巡护地异常: ' + e)
+  }
+  taskLog('共获取到 ' + areas.length + ' 个巡护地')
+
+  // 返回一次，回到新版巡护界面
+  back()
+  sleep(4000)
+  if (!isOnNewPatrolPage()) {
+    taskLog('back后不在新版巡护界面，重新进入')
+    if (!openPatrol()) {
+      taskLog('重新进入新版巡护失败')
+      return null
+    }
+  }
+
+  return areas
+}
+
+// 点击指定文本的巡护地按钮
+function clickAreaButton (areaText) {
+  try {
+    let buttons = className('android.widget.Button').clickable().find()
+    for (let i = 0; i < buttons.size(); i++) {
+      let btn = buttons.get(i)
+      let text = btn.text()
+      if (text && text === areaText) {
+        taskLog('点击巡护地: ' + text)
+        automator.clickCenter(btn)
+        sleep(4000)
+        return true
+      }
+    }
+  } catch (e) {
+    taskLog('点击巡护地异常: ' + e)
+  }
+  taskLog('未找到巡护地: ' + areaText)
+  return false
+}
+
+// 进入指定巡护地并校验新版巡护界面
+// 点击后若不在新版巡护界面，back 一次重试；仍不在则完整重进
+function enterPatrolArea (areaText) {
+  taskLog('进入巡护地: ' + areaText)
+
+  // 进入当前巡护地页面
+  if (!findAndClickByTextVisible(/切换地图/)) {
+    taskLog('未找到"切换地图"')
+    return false
+  }
+  sleep(4000)
+  if (!isOnCurrentMapPage()) return false
+
+  // 进入巡护地选取页面
+  if (!findAndClickByTextVisible(/切换保护地/)) {
+    taskLog('未找到"切换保护地"')
+    return false
+  }
+  sleep(4000)
+  if (!isOnAreaSelectPage()) return false
+
+  // 点击目标保护地
+  if (!clickAreaButton(areaText)) return false
+
+  // 校验新版巡护界面
+  if (isOnNewPatrolPage()) return true
+
+  // 兜底：back 一次，重新判断
+  taskLog('back后重新校验是否在新版巡护界面')
+  back()
+  sleep(4000)
+  if (isOnNewPatrolPage()) {
+    taskLog('back后已回到新版巡护界面')
+    return true
+  }
+
+  // 仍不在：完整重进
+  taskLog('back后仍不在新版巡护界面，完整重进')
+  return openPatrol()
+}
+
 // ============ 任务常量 ============
 
 // 特殊任务：匹配到则走对应分支（去兑换：点击后弹窗点击"立即兑换"）
@@ -378,7 +531,7 @@ function handleTaskPopup () {
 /**
  * 等待任务完成并回到任务界面
  * 1. 先检测当前包是否在支付宝，不在则先切入支付宝
- * 2. 走返回逻辑：先检测是否在任务界面，不在则back，循环直到回到任务界面
+ * 2. 走返回逻辑：先检测是否在任务界面，不在则 back，最多 3 次，仍不在则重新进入
  * @returns {boolean} 是否成功回到任务界面
  */
 function waitForTaskComplete () {
@@ -557,7 +710,7 @@ function handleCollectPopup () {
 }
 
 // 巡护：执行一个3次的循环
-// 点击"GO" → 等待6s → handleCollectPopup → 判断是否在任务界面，在则跳出循环
+// 点击"GO" → 等待6s → handleCollectPopup → 判断是否在任务界面，在则先关闭任务页再跳出循环
 function doPatrol () {
   taskLog('=== 新版巡护 开始巡护 ===')
   for (let i = 0; i < 3; i++) {
@@ -575,49 +728,30 @@ function doPatrol () {
     // 处理弹窗（跳过 | 追寻踪迹 | 暂不设置 | 继续巡护）
     handleCollectPopup()
 
-    // 判断是否在任务界面，在就跳出循环
+    // 判断是否在任务界面，在则先关闭任务页再跳出循环
     if (isOnTaskPage()) {
-      taskLog('已进入任务界面，跳出巡护循环')
+      taskLog('已进入任务界面，先关闭任务页再跳出巡护循环')
+      closeTaskPage()
       break
     }
   }
 }
 
-// ============ 主流程 ============
-
-function main () {
-  infoLog('运行中可按音量上键关闭', true)
-  threads.start(function () {
-    events.observeKey()
-    events.on("key_down", function (keyCode, event) {
-      if (keyCode === 24) {
-        toastLog('用户按音量上键，退出脚本')
-        killApps()
-        runningQueueDispatcher.removeRunningTask()
-        exit()
-      }
-    })
-  })
-
-  // 1. 进入巡护，自动判断版本并确保处于新版巡护界面
-  if (!openPatrol()) {
-    errorInfo('无法进入新版巡护界面，退出新版巡护')
-    exitScript()
-  }
-
-  // 2. 在新版巡护界面执行探索任务
-  taskLog('=== 新版巡护 执行探索任务 ===')
+// 在当前巡护地执行完整任务：探索任务 → 关闭任务页（不在任务界面则重进）→ 巡护
+// 失败返回 false，由主循环记录并跳过、继续下一个巡护地
+function executePatrolTasks () {
+  taskLog('=== 执行探索任务 ===')
 
   // 点击"更多步数"进入任务界面
   if (!enterTaskPage()) {
-    errorInfo('无法进入任务界面，退出新版巡护')
-    exitScript()
+    errorInfo('无法进入任务界面')
+    return false
   }
 
   // 判断是否在任务界面
   if (!isOnTaskPage()) {
-    errorInfo('不在任务界面，退出新版巡护')
-    exitScript()
+    errorInfo('不在任务界面')
+    return false
   }
 
   // 循环执行探索任务，直到没有可执行任务为止
@@ -673,7 +807,7 @@ function main () {
     sleep(2000)
   }
 
-  // 3. 探索任务执行完 → 判断是否在任务界面，在则点击"关闭"回到巡护界面，不在则重新进入
+  // 探索任务执行完 → 判断是否在任务界面，在则点击"关闭"回到巡护界面，不在则重新进入
   if (isOnTaskPage()) {
     closeTaskPage()
   } else {
@@ -681,19 +815,77 @@ function main () {
     commonFunction.minimize()
     sleep(1000)
     if (!openPatrol()) {
-      errorInfo('重新进入新版巡护失败，退出新版巡护')
-      exitScript()
+      errorInfo('重新进入新版巡护失败')
+      return false
     }
   }
 
-  // 4. 判断是否在新版巡护界面，在则执行巡护
+  // 判断是否在新版巡护界面
   if (!isOnNewPatrolPage()) {
-    errorInfo('不在新版巡护界面，退出新版巡护')
+    errorInfo('不在新版巡护界面')
+    return false
+  }
+
+  // 执行巡护（找不到 GO 表示次数用完，不算失败）
+  doPatrol()
+  return true
+}
+
+// ============ 主流程 ============
+
+function main () {
+  infoLog('运行中可按音量上键关闭', true)
+  threads.start(function () {
+    events.observeKey()
+    events.on("key_down", function (keyCode, event) {
+      if (keyCode === 24) {
+        toastLog('用户按音量上键，退出脚本')
+        killApps()
+        runningQueueDispatcher.removeRunningTask()
+        exit()
+      }
+    })
+  })
+
+  // 1. 进入巡护，自动判断版本并确保处于新版巡护界面
+  if (!openPatrol()) {
+    errorInfo('无法进入新版巡护界面，退出新版巡护')
     exitScript()
   }
 
-  // 执行巡护
-  doPatrol()
+  // 2. 获取所有已开启的巡护地
+  let areas = getAllPatrolAreas()
+  if (!areas || areas.length === 0) {
+    taskLog('未获取到巡护地，仅执行当前巡护地')
+    areas = [null]
+    // 确保回到新版巡护界面
+    if (!isOnNewPatrolPage()) {
+      if (!openPatrol()) {
+        errorInfo('无法回到新版巡护界面，退出新版巡护')
+        exitScript()
+      }
+    }
+  }
+
+  // 3. 遍历所有巡护地，单个失败只记录并跳过
+  for (let i = 0; i < areas.length; i++) {
+    let label = areas[i] || '当前巡护地'
+    taskLog('=== 巡护地 ' + (i + 1) + '/' + areas.length + ': ' + label + ' ===')
+
+    // 进入保护地失败：记录后跳过，继续下一个
+    if (areas[i] && !enterPatrolArea(areas[i])) {
+      taskLog('进入巡护地失败，跳过: ' + label)
+      openPatrol()
+      continue
+    }
+
+    // 任务执行失败：记录后跳过，继续下一个
+    if (!executePatrolTasks()) {
+      taskLog('巡护任务执行失败，跳过: ' + label)
+      openPatrol()
+      continue
+    }
+  }
 
   taskLog('新版巡护任务完成，返回')
   exitScript()

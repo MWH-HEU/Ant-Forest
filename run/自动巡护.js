@@ -98,13 +98,13 @@ function clickByOcr (keyword, timeout) {
 }
 
 function Patrol () {
-  sleep(4000)
   // 确保最终处于旧版巡护界面（与新版巡护的 openPatrol 相反）
   // 版本判断：
   //   找到"切换旧版" → 当前在新版巡护 → 点击进入旧版
   //   找到"新版巡护" → 当前在旧版巡护 → 不做额外处理
   //   都没有         → 默认在新版巡护 → OCR兜底尝试切换
   function switchToOldPatrol () {
+    sleep(4000)
     logFloaty.pushLog('检查巡护版本')
     let oldVersionBtn = widgetUtils.widgetGetOne(/^切换旧版$/, 3000)
     if (oldVersionBtn) {

@@ -98,6 +98,7 @@ function clickByOcr (keyword, timeout) {
 }
 
 function Patrol () {
+  sleep(4000)
   // 确保最终处于旧版巡护界面（与新版巡护的 openPatrol 相反）
   // 版本判断：
   //   找到"切换旧版" → 当前在新版巡护 → 点击进入旧版

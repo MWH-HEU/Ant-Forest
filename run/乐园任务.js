@@ -309,7 +309,7 @@ function isOnAntForestPage () {
 }
 
 /**
- * 判断是否在乐园页面（检测"每日领取上限"或"开宝箱...绿色能量"）
+ * 判断是否在乐园页面（检测"每日领取上限"或"开宝箱...绿色能量"或"今日已开绿洲宝箱"）
  * 限时福利是浮层，打开时乐园控件仍存在，需先排除限时福利浮层
  * @returns {boolean}
  */
@@ -317,7 +317,7 @@ function isOnParkPage () {
   // 限时福利浮层打开时，乐园控件仍存在，先排除
   if (isOnLimitedBenefitPage()) return false
   // textMatches为全文匹配，需用.*通配匹配包含关键字的完整文本
-  let result = widgetUtils.widgetWaiting('.*每日领取上限.*|.*开宝箱.*绿色能量.*', '乐园页面', 10000)
+  let result = widgetUtils.widgetWaiting('.*每日领取上限.*|.*开宝箱.*绿色能量.*|.*今日已开绿洲宝箱.*', '乐园页面', 10000)
   if (!result) {
     taskLog('未检测到乐园页面特征控件，不在乐园页面')
     return false

@@ -15,7 +15,8 @@
  *      · forceStop() 同样是异步的，强杀后会 waitDestroyed() 轮询等待引擎销毁（最多 10 秒），
  *        避免上一个未死透时下一个就启动。
  *   2. 本脚本不注册运行队列（RunningQueueDispatcher），避免与子脚本互相阻塞。
- *   3. 每个子脚本执行结束后：等待 10s → killApps() → 等待 2s；等待期间悬浮窗持续显示当前子脚本并倒计时。
+ *   3. 除最后一次外，每个子脚本执行结束后：等待 10s → killApps() → 等待 2s；等待期间悬浮窗持续显示当前子脚本并倒计时。
+ *      最后一次直接进入收尾，省掉这 12 秒（进程清理由 exitScript() 负责）。
  *   4. 保持亮屏：开头 device.keepScreenOn()，结束时 device.cancelKeepingAwake()。
  *      wake lock 绑定当前引擎，本引擎整夜存活，可覆盖子脚本之间的空档期。
  *   5. 本脚本不弹倒计时弹窗、也不锁屏（与其它子脚本一致），弹窗和锁屏都由父脚本 夜间任务自动启动.js 统一负责。
@@ -312,11 +313,17 @@ function main () {
         aborted = true
         break
       }
-      // 子脚本结束后：等待 10s → killApps → 等待 2s（悬浮窗显示倒计时，明确仍在运行）
-      waitWithFloaty(AFTER_SCRIPT_WAIT / 1000, '夜间任务' + taskLabel + ' 已完成')
-      showFloaty('夜间任务' + taskLabel + ' 清理进程中')
-      killApps()
-      waitWithFloaty(AFTER_KILL_WAIT / 1000, '夜间任务' + taskLabel + ' 清理进程')
+      // 非最后一次执行：等待 10s → killApps → 等待 2s，为下一个任务准备环境
+      // 最后一次直接进收尾，省掉这 12 秒（进程清理由 exitScript() 负责）
+      let isLastRun = (i === NIGHT_TASK_LIST.length - 1) && (r === count)
+      if (!isLastRun) {
+        waitWithFloaty(AFTER_SCRIPT_WAIT / 1000, '夜间任务' + taskLabel + ' 已完成')
+        showFloaty('夜间任务' + taskLabel + ' 清理进程中')
+        killApps()
+        waitWithFloaty(AFTER_KILL_WAIT / 1000, '夜间任务' + taskLabel + ' 清理进程')
+      } else {
+        showFloaty('夜间任务：全部完成，准备退出')
+      }
     }
 
     // 统计

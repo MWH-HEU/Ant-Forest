@@ -3,8 +3,7 @@
  * 架构：
  * 1. 进入神奇海洋 → 判断是否在神奇海洋界面，不在则报错退出
  * 2. 在则收集自己的垃圾
- * 3. 收集完进入奖励页面，执行任务
- * 4. 主循环：每5轮重进领奖励页面 → 确认在奖励页面（不在则重进）→ 领取奖励（立即领取）+ 探索任务（EXPLORE_BUTTONS）
+ * 3. 主循环：每5轮或不在奖励页面时重进领奖励页面 → 领取奖励（立即领取）+ 探索任务（EXPLORE_BUTTONS）
  *    - 排除项 SKIP_KEYWORDS 同行则跳过
  *    - 游戏任务：同行匹配 "玩任意游戏\d+s" 走游戏任务流程（优先）
  *    - 特殊任务 SPECIAL_TASKS 走对应分支
@@ -1021,51 +1020,32 @@ function main () {
     exitScript()
   }
 
-  // 3. 进入奖励页面
-  taskLog('进入奖励页面')
-  if (!enterRewardPage()) {
-    errorInfo('无法进入奖励页面，退出神奇海洋')
-    exitScript()
-  }
-
-  // 4. 主循环：每5轮重进领奖励页面 → 确认在奖励页面（不在则重进）→ 领取奖励 + 执行任务
+  // 3. 主循环：每5轮或不在奖励页面时重进领奖励页面 → 领取奖励 + 执行任务
   //    无任务可执行时滑动继续查找，直到检测到"更多任务，敬请期待"或完全匹配"已完成"（y小于总高度），或滑动达上限（maxScrolls）退出
   let maxScrolls = 15   // 滑动上限，防止死循环
   let scrollCount = 0
   let round = 0
   while (true) {
+    taskLog('=== 神奇海洋 第 ' + (round + 1) + ' 轮 ===')
+
+    // 每5轮 或 不在奖励页面时，重进领奖励页面（首次round为0也会命中，替代原进入奖励页面步骤）
+    if (round % 5 === 0 || !isOnRewardPage()) {
+      taskLog('重进领奖励页面')
+      // 已在神奇海洋界面则不重复深链跳转
+      if (!isOnOceanPage()) {
+        if (!openOcean()) {
+          errorInfo('重新打开神奇海洋失败，退出神奇海洋')
+          exitScript()
+        }
+      }
+      // 进入奖励页面
+      if (!enterRewardPage()) {
+        errorInfo('重新进入奖励页面失败，退出神奇海洋')
+        exitScript()
+      }
+    }
+
     round++
-    taskLog('=== 神奇海洋 第 ' + round + ' 轮 ===')
-
-    // 每5轮重进一次领奖励页面（round能被5整除时，在领取奖励前先重进）
-    if (round % 5 === 0) {
-      taskLog('第' + round + '轮，每5轮重进领奖励页面')
-      // 重进神奇海洋
-      if (!openOcean()) {
-        errorInfo('重新打开神奇海洋失败，退出神奇海洋')
-        exitScript()
-      }
-      // 再进入奖励页面
-      if (!enterRewardPage()) {
-        errorInfo('重新进入奖励页面失败，退出神奇海洋')
-        exitScript()
-      }
-    }
-
-    // 判断是否在奖励页面，不在则重进神奇海洋再进入奖励页面
-    if (!isOnRewardPage()) {
-      taskLog('不在奖励页面，重新打开神奇海洋进入奖励页面')
-      // 重进神奇海洋
-      if (!openOcean()) {
-        errorInfo('重新打开神奇海洋失败，退出神奇海洋')
-        exitScript()
-      }
-      // 再进入奖励页面
-      if (!enterRewardPage()) {
-        errorInfo('重新进入奖励页面失败，退出神奇海洋')
-        exitScript()
-      }
-    }
 
     // 领取所有奖励（确保已在奖励页面后领取）
     claimAllRewards()

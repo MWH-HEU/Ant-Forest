@@ -705,7 +705,9 @@ function doDraw () {
 
 // 循环下滑，直到检测到"每日24点更新任务列表，未领取的机会会消失哦"停止（参考限时道具脚本）
 function scrollUntilEnd () {
-  while (true) {
+  let maxScrolls = 10
+  let scrollCount = 0
+  while (scrollCount < maxScrolls) {
     let allNodes = widgetInspector.detectAllNodesVisible().nodes
     if (!allNodes || allNodes.length === 0) {
       taskLog('未检测到任何控件，停止滑动')
@@ -713,10 +715,10 @@ function scrollUntilEnd () {
     }
     // 检测到结束文案则停止滑动
     let hasEnd = allNodes.some(function (n) {
-      return n.text && n.text.indexOf('每日24点更新任务列表') >= 0
+      return n.text && n.text.indexOf('每日24点更新任务') >= 0
     })
     if (hasEnd) {
-      taskLog('检测到"每日24点更新任务列表，未领取的机会会消失哦"，停止滑动')
+      taskLog('检测到"每日24点更新任务"结束文案，停止滑动')
       break
     }
     // 起始点80%~90%随机，滑动距离15%~20%随机，延时100+随机%300
@@ -725,6 +727,7 @@ function scrollUntilEnd () {
     let dist = (0.15 + Math.random() * 0.05) * h
     let duration = 100 + Math.random() * 1000 % 300
     automator.gestureDown(Math.round(startY), Math.round(startY - dist), duration)
+    scrollCount++
     sleep(2000)
   }
 }

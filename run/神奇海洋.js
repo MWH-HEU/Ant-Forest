@@ -455,16 +455,26 @@ function doFindTrashs (screen) {
   }
 }
 
-/**
- * 收集自己的垃圾
- */
-function collectSelfTrash () {
-  taskLog('开始收集自己的垃圾')
-  FloatyInstance.setFloatyInfo({ x: config.device_width / 2, y: config.device_height / 2 }, '找垃圾球中...')
-  sleep(4000)
+// 自己的垃圾最多收集次数
+const MAX_SELF_TRASH_COLLECT = 8
 
-  // 先收自己的能量球（在截图前调用，避免其内部回收截图导致后续使用报错）
-  collectOwnEnergy()
+/**
+ * 收集自己的垃圾（count为已收集次数，最多 MAX_SELF_TRASH_COLLECT 次）
+ */
+function collectSelfTrash (count) {
+  count = count || 0
+  if (count >= MAX_SELF_TRASH_COLLECT) {
+    taskLog('已收集垃圾 ' + count + ' 次，达到上限，停止收集')
+    return
+  }
+  taskLog('开始收集自己的垃圾（第 ' + (count + 1) + ' 次）')
+  FloatyInstance.setFloatyInfo({ x: config.device_width / 2, y: config.device_height / 2 }, '找垃圾球中...')
+  sleep(2000)
+
+  // 先收自己的能量球（仅首次执行；递归时跳过，避免重复收能量球。在截图前调用，避免其内部回收截图导致后续使用报错）
+  if (count === 0) {
+    collectOwnEnergy()
+  }
 
   let screen = commonFunction.checkCaptureScreenPermission()
   if (!screen) {
@@ -491,7 +501,7 @@ function collectSelfTrash () {
     if (!YoloDetectionUtil.enabled) {
       let clickPos = { x: ball.x - ball.radius * 1.5, y: ball.y + ball.radius * 1.5 }
       FloatyInstance.setFloatyInfo(clickPos, '点击位置')
-      sleep(4000)
+      sleep(2000)
       clickPoint(clickPos.x, clickPos.y)
     } else {
       FloatyInstance.setFloatyInfo({ x: ball.centerX, y: ball.centerY }, '点击位置')
@@ -504,16 +514,16 @@ function collectSelfTrash () {
     if (welcome) {
       taskLog('检测到"欢迎伙伴回家"或"迎回海洋伙伴"弹窗')
       clickPoint(welcome.bounds().centerX(), welcome.bounds().centerY())
-      sleep(4000)
+      sleep(2000)
     }
 
     // 处理弹窗：收下|返回|回到我的海洋|清理
     let collect = widgetUtils.widgetGetOne('.*(收下|返回|回到我的海洋|清理|.*不.*了.*).*', 10000)
     if (collect) {
       clickPoint(collect.bounds().centerX(), collect.bounds().centerY())
-      // 递归继续找
+      // 递归继续找，计数+1（最多 MAX_SELF_TRASH_COLLECT 次）
       sleep(2000)
-      collectSelfTrash()
+      collectSelfTrash(count + 1)
     }
   } else {
     FloatyInstance.setFloatyText('未找到垃圾球')

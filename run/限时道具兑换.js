@@ -524,7 +524,7 @@ function findAndUseBestProtectorCard () {
   // 阶段3：让列表回到顶部（阶段1的反向操作）
   // 已在背包界面：上滑回顶，最多上滑10次；检测到"活力值积分商店"（说明已到顶部）后再补3次上滑，然后停止
   // （上滑参数与 enterVitalityShopByScrollUp 的上滑部分一致）
-  // 不在背包界面：走原兜底流程（关闭背包→进入蚂蚁森林→重进背包）
+  // 不在背包界面：重新进入蚂蚁森林→重进背包（不再关闭背包再打开）
   if (isOnBackpackPage()) {
     taskLog('阶段3：已在背包界面，上滑回到列表顶部')
     let h = config.device_height
@@ -550,15 +550,14 @@ function findAndUseBestProtectorCard () {
       }
     }
   } else {
-    if (!closeBackpack()) {
-      LogFloaty.pushErrorLog('保护罩：重新进入背包前关闭背包失败')
+    // 不在背包界面：重新进入蚂蚁森林，再重进背包（不再关闭背包再打开）
+    if (!enterAntForest()) {
+      LogFloaty.pushErrorLog('保护罩：兜底时无法进入蚂蚁森林')
       return false
     }
     if (!isOnAntForestPage()) {
-      if (!enterAntForest()) {
-        LogFloaty.pushErrorLog('保护罩：重新进入背包时无法进入蚂蚁森林')
-        return false
-      }
+      LogFloaty.pushErrorLog('保护罩：兜底时未在蚂蚁森林界面')
+      return false
     }
     sleep(4000)
     if (!enterBackpack()) {

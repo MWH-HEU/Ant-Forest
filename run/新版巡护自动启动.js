@@ -31,8 +31,8 @@ for (let i = 0; i < all.length; i++) {
   if ((all[i].getSource() + '') === childScriptPath) {
     let waitStart = new Date().getTime()
     while (!all[i].isDestroyed()) {
-      if (new Date().getTime() - waitStart > 9 * 60 * 1000) {
-        debugInfo('子脚本执行超时9分钟，强制退出')
+      if (new Date().getTime() - waitStart > 20 * 60 * 1000) {
+        debugInfo('子脚本执行超时20分钟，强制退出')
         all[i].forceStop()
         break
       }

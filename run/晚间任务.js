@@ -60,7 +60,7 @@ const EVENING_TASK_LIST = [
   { name: '限时道具兑换', count: 1, timeoutMinutes: 10 },
   { name: '能量雨', count: 1, timeoutMinutes: 5 },
   { name: '神奇物种', count: 1, timeoutMinutes: 5 },
-  { name: '新版巡护', count: 1, timeoutMinutes: 10 },
+  { name: '新版巡护', count: 1, timeoutMinutes: 20 },
   { name: 'AI摸鱼', count: 1, timeoutMinutes: 40 },
   { name: '神奇海洋', count: 1, timeoutMinutes: 40 },
   { name: '自动巡护', count: 1, timeoutMinutes: 15 }

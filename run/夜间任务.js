@@ -61,7 +61,7 @@ const NIGHT_TASK_LIST = [
   { name: '能量雨', count: 1, timeoutMinutes: 5 },
   { name: '赚能量', count: 1, timeoutMinutes: 5 },
   { name: '森林集市', count: 2, timeoutMinutes: 5 },
-  { name: '新版巡护', count: 1, timeoutMinutes: 10 },
+  { name: '新版巡护', count: 1, timeoutMinutes: 20 },
   { name: '森林寻宝', count: 2, timeoutMinutes: 10 },
   { name: '神奇海洋', count: 2, timeoutMinutes: 40 },
   { name: 'AI摸鱼', count: 1, timeoutMinutes: 40 },

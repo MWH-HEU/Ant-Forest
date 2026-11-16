@@ -1048,6 +1048,12 @@ function main () {
           exitScript()
         }
       }
+      // 判断收集是否已完成（存在"完成海域解锁还需0种海洋生物"），完成则无需再执行任务
+      if (isCollectionComplete()) {
+        taskLog('收集已完成，无需再执行任务，退出神奇海洋')
+        exitScript()
+      }
+
       // 进入奖励页面
       if (!enterRewardPage()) {
         errorInfo('重新进入奖励页面失败，退出神奇海洋')

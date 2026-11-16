@@ -456,7 +456,7 @@ function loopFishProcess () {
 const FISH_BUTTONS = ['去看看', '去完成']
 
 // 排除项关键词（正则匹配：按钮同行包含任一正则则跳过）
-const FISH_SKIP_KEYWORDS = ['.*2次摸鱼次数']
+const FISH_SKIP_KEYWORDS = ['.*2次摸鱼次数', '.*2次摸鱼机会']
 
 // 判断按钮同行是否包含排除项关键词（用正则匹配）
 // 返回命中的关键词，未命中返回 null
@@ -477,17 +477,17 @@ function findSkipKeywordInSameRow (allNodes, centerY) {
   return null
 }
 
-// 判断同行任务类型：含"摸鱼次数"即为摸鱼任务，秒数取不到按 0
+// 判断同行任务类型：含"摸鱼次数"或"摸鱼机会"即为摸鱼任务，秒数取不到按 0
 // 返回 { type: 'fish', seconds } 或 { type: 'other' }
 function classifyFishTask (allNodes, centerY) {
   for (let node of allNodes) {
     let text = node.text
     if (!text) continue
     if (Math.abs(node.bounds.centerY() - centerY) >= 100) continue
-    // 同行不含"摸鱼次数"则不是摸鱼任务
-    if (text.indexOf('摸鱼次数') === -1) continue
+    // 同行不含"摸鱼次数"/"摸鱼机会"则不是摸鱼任务
+    if (text.indexOf('摸鱼次数') === -1 && text.indexOf('摸鱼机会') === -1) continue
     // 非贪婪 .*? 保证 \d+ 取完整秒数（"看15s视频"取15而非5）
-    let m = text.match(/.*?(\d+)s.*摸鱼次数/)
+    let m = text.match(/.*?(\d+)s.*摸鱼/)
     return { type: 'fish', seconds: m ? parseInt(m[1]) : 0 }
   }
   return { type: 'other' }
@@ -556,7 +556,7 @@ function claimImmediateReward () {
 // 查找并执行摸鱼任务
 // 开头先领取奖励（立即领取）；遍历所有节点，匹配 FISH_BUTTONS 按钮；
 // 遍历所有"奖励"上方的节点：先做排除项判断（FISH_SKIP_KEYWORDS 正则，如 ".*2次摸鱼次数"）同行则跳过
-// 先执行特殊摸鱼任务（游戏类 / 点赞类），后执行普通摸鱼任务（同行含"摸鱼次数"，秒数取不到按 0）
+// 先执行特殊摸鱼任务（游戏类 / 点赞类），后执行普通摸鱼任务（同行含"摸鱼次数"/"摸鱼机会"，秒数取不到按 0）
 // 点击后等秒数+2s（游戏类特殊任务+5s），再等待任务完成回到摸鱼界面；被跳过的按钮继续找下一个
 // 注意：摸鱼弹窗（"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"）由 main 循环开头的 loopFishProcess 处理
 function findAndExecuteFishTask () {
@@ -672,10 +672,10 @@ function findAndExecuteFishTask () {
       return true
     }
 
-    // 同行判断：含"摸鱼次数"即为摸鱼任务
+    // 同行判断：含"摸鱼次数"/"摸鱼机会"即为摸鱼任务
     let cmd = classifyFishTask(allNodes, centerY)
     if (cmd.type !== 'fish') {
-      taskLog('按钮"' + text + '"同行未匹配到"摸鱼次数"任务，跳过')
+      taskLog('按钮"' + text + '"同行未匹配到"摸鱼次数"/"摸鱼机会"任务，跳过')
       continue
     }
 

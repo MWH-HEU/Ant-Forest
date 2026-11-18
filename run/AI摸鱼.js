@@ -502,7 +502,7 @@ function classifySpecialTask (allNodes, centerY) {
     if (Math.abs(node.bounds.centerY() - centerY) >= 100) continue
     let m = text.match(/玩任意一款游戏(\d+)s/)
     if (m) return { matched: true, type: 'game', seconds: parseInt(m[1]) }
-    // 点赞心动小鱼：点击后随机点"1g 不喜欢"/"1g 喜欢"
+    // 点赞心动小鱼：点击后随机点"1g 好有趣"/"1g 好喜欢"
     if (text.indexOf('去点赞你的心动小鱼') >= 0) {
       return { matched: true, type: 'likeFish', seconds: 0 }
     }
@@ -608,9 +608,9 @@ function findAndExecuteFishTask () {
       automator.click(bd.centerX(), bd.centerY())
       sleep(10000)
 
-      // 点赞类：随机点击"1g 不喜欢"/"1g 喜欢"，直到没有对应文本或点满 40 次
+      // 点赞类：随机点击"1g 好有趣"/"1g 好喜欢"，直到没有对应文本或点满 40 次
       if (special.type === 'likeFish') {
-        let options = ['1g 不喜欢', '1g 喜欢']
+        let options = ['1g 好有趣', '1g 好喜欢']
         let clicks = 0
         while (clicks < 40) {
           let candidates = []
@@ -618,7 +618,7 @@ function findAndExecuteFishTask () {
             if (node.bounds && options.indexOf(node.text) >= 0) candidates.push(node)
           }
           if (candidates.length === 0) {
-            taskLog('未找到"1g 不喜欢"/"1g 喜欢"，停止点击')
+            taskLog('未找到"1g 好有趣"/"1g 好喜欢"，停止点击')
             break
           }
           let pick = candidates[Math.floor(Math.random() * candidates.length)]

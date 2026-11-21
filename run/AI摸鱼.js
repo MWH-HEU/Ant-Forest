@@ -810,6 +810,22 @@ function useAllFishTimes () {
   return true
 }
 
+// 关闭"被赞反馈"：存在完全匹配且可点击的"关闭被赞反馈"则点击，返回是否点击
+function closeLikeFeedback () {
+  let nodes = widgetInspector.detectAllNodesVisible().nodes
+  for (let node of nodes) {
+    if (node.text !== '关闭被赞反馈') continue
+    if (!node.clickable || !node.bounds) continue
+    let bd = node.bounds
+    taskLog('找到可点击的"关闭被赞反馈"，点击: (' + bd.centerX() + ', ' + bd.centerY() + ')')
+    automator.click(bd.centerX(), bd.centerY())
+    sleep(2000)
+    return true
+  }
+  taskLog('未找到可点击的"关闭被赞反馈"')
+  return false
+}
+
 // 处理每天第一次进入摸鱼界面赠送两次摸鱼机会且自动摸鱼的情况：
 // 先等待8s，然后进入摸鱼循环处理"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"4种分支
 function handleFirstEnterAutoFish () {
@@ -907,6 +923,9 @@ function main () {
     LogFloaty.pushErrorLog('无法进入AI摸鱼界面')
     exitScript()
   }
+
+  // 关闭可能存在的"被赞反馈"（完全匹配且可点击才点）
+  closeLikeFeedback()
 
   // 处理每天第一次进入摸鱼界面赠送两次机会且自动摸鱼的情况
   handleFirstEnterAutoFish()

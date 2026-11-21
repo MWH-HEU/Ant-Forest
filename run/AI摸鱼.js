@@ -173,9 +173,39 @@ function isOnOceanPage () {
   return true
 }
 
+// 两个模板都失败时的兜底：OCR 识别"点赞"并点击；识别不到则点击固定坐标
+// 固定坐标：x = 完全匹配"更多"的 x（找不到用屏幕 95% 处），y = 屏幕 70% 处
+function clickLikeByOcrOrFixedPoint () {
+  taskLog('两个模板都未匹配到，OCR识别"点赞"')
+  if (clickByOcr('点赞', 3000)) {
+    taskLog('已点击"点赞"')
+    sleep(4000)
+    return true
+  }
+
+  // 没识别到"点赞"：x 取完全匹配"更多"的 x
+  let clickX = -1
+  let nodes = widgetInspector.detectAllNodesVisible().nodes
+  for (let node of nodes) {
+    if (node.text === '更多' && node.bounds) {
+      clickX = Math.round(node.bounds.centerX())
+      break
+    }
+  }
+  if (clickX < 0) {
+    clickX = Math.round(config.device_width * 0.95)
+    taskLog('未找到"更多"，x 改用屏幕 95% 处')
+  }
+  let clickY = Math.round(config.device_height * 0.7)
+  taskLog('点击固定坐标(x=' + clickX + ', y=' + clickY + ')')
+  automator.click(clickX, clickY)
+  sleep(4000)
+  return true
+}
+
 // 进入AI摸鱼（形如 enterFishPage）
 // 调用 openOcean 进入神奇海洋 → 判断是否在界面 → 先模板匹配 ai_fish_icon "去摸鱼"，OCR兜底；
-// 未匹配到再模板匹配 rescue_fish "解救鱼"，OCR兜底；都没匹配到则失败。
+// 未匹配到再模板匹配 rescue_fish "解救鱼"，OCR兜底；两个都失败则 OCR 识别"点赞"，仍没有则点固定坐标。
 // 注意：这里不判断是否在摸鱼界面，因为进入摸鱼界面后有可能需要出现弹窗，需要特殊处理。
 function enterFishPage () {
   taskLog('进入AI摸鱼')
@@ -198,8 +228,8 @@ function enterFishPage () {
     return true
   }
 
-  LogFloaty.pushErrorLog('未找到"去摸鱼"或"解救鱼"入口，进入AI摸鱼失败')
-  return false
+  // 两个模板都失败：OCR 识别"点赞"，识别不到则点固定坐标
+  return clickLikeByOcrOrFixedPoint()
 }
 
 // 判断是否在AI摸鱼界面（任一文本检测到即算在界面，支持通配符；完全匹配用 ^xxx$）
@@ -733,8 +763,8 @@ function reenterFishPage () {
     if (!clickByTemplateOrOcr('ai_fish_icon', '去摸鱼')) {
       // 模板匹配"去摸鱼"失败，再尝试"解救鱼"
       if (!clickByTemplateOrOcr('rescue_fish', '解救鱼')) {
-        LogFloaty.pushErrorLog('模板匹配进入摸鱼界面失败')
-        return false
+        // 两个模板都失败：OCR 识别"点赞"，识别不到则点固定坐标
+        return clickLikeByOcrOrFixedPoint()
       }
     }
   } else {

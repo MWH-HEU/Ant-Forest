@@ -107,7 +107,8 @@ function killApps () {
       { pkg: 'com.taobao.live', name: '点淘' },
       { pkg: 'com.baidu.searchbox.lite', name: '百度极速版' },
       { pkg: 'com.jifen.qukan', name: '趣头条' },
-      { pkg: 'com.shuqi.controller', name: '书旗小说' }
+      { pkg: 'com.shuqi.controller', name: '书旗小说' },
+      { pkg: 'com.antgroup.leopard.android', name: '灵光' }
     ], function (name, success) {
       debugInfo('[晚间任务] ' + name + ' → ' + (success ? '✓ 已杀掉' : '✗ 失败'))
     })

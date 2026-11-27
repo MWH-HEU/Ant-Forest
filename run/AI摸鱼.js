@@ -988,7 +988,7 @@ function main () {
     }
 
     // 处理摸鱼弹窗（"继续摸鱼"/"收下并涂鸦"/"仅追回"/"仅解救"分支）
-    loopFishProcess()
+    // loopFishProcess()
 
     if (findAndExecuteFishTask()) {
       taskLog('摸鱼任务执行完毕，继续下一轮')

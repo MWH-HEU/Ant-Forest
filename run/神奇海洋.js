@@ -129,7 +129,7 @@ function findAndClickByTextVisible (pattern) {
 // 在 timeout 时间内循环截屏识别，命中即点击返回 true
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 10000)
+  let deadline = new Date().getTime() + (timeout || 5000)
   while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
     sleep(1000)
@@ -185,7 +185,7 @@ function clickByTemplateOrOcr (templateKey, ocrText) {
 
   // 方案2：OCR识别（兜底，直接调用 clickByOcr，带重试机制）
   taskLog('通过OCR识别"' + ocrText + '"')
-  return clickByOcr(ocrText, 10000)
+  return clickByOcr(ocrText, 5000)
 }
 
 // 打开进入神奇海洋的函数
@@ -201,7 +201,7 @@ function openOcean () {
   })
 
   // 处理"打开"确认弹窗
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
@@ -282,15 +282,24 @@ function isCollectionComplete () {
 }
 
 /**
- * 处理弹窗：检测"收下|欢迎伙伴回家/迎回海洋伙伴|返回|回到我的海洋"（收集垃圾/领取奖励用，不检查系统"打开"弹窗）
+ * 处理弹窗：先循环点击"查看下个奖励"直到不再出现，再检测"收下|欢迎伙伴回家/迎回海洋伙伴|返回|回到我的海洋"（收集垃圾/领取奖励用，不检查系统"打开"弹窗）
  * 欢迎伙伴回家/迎回海洋伙伴内部：点击后再检查一次"返回"和"回到我的海洋"，检查到直接返回
  */
 function handleCollectPopup () {
   taskLog('检查是否有弹窗')
   sleep(1000)
 
+  // 循环查找"查看下个奖励"，找到就点击，直到不再出现
+  while (true) {
+    let nextRewardBtn = widgetUtils.widgetGetOne(/^查看下个奖励$/, 3000)
+    if (!nextRewardBtn) break
+    taskLog('检测到"查看下个奖励"，点击')
+    automator.clickCenter(nextRewardBtn)
+    sleep(2000)
+  }
+
   // 查找"收下"按钮
-  let btn = widgetUtils.widgetGetOne(/^收下$/, 10000)
+  let btn = widgetUtils.widgetGetOne(/^收下$/, 3000)
   if (btn) {
     taskLog('检测到"收下"弹窗')
     automator.clickCenter(btn)
@@ -299,14 +308,14 @@ function handleCollectPopup () {
   }
 
   // 查找"欢迎伙伴回家"或"迎回海洋伙伴"按钮
-  btn = widgetUtils.widgetGetOne(/^(欢迎伙伴回家|迎回海洋伙伴)$/, 10000)
+  btn = widgetUtils.widgetGetOne(/^(欢迎伙伴回家|迎回海洋伙伴)$/, 3000)
   if (btn) {
     taskLog('检测到"欢迎伙伴回家"或"迎回海洋伙伴"弹窗')
     automator.clickCenter(btn)
     sleep(4000)
 
     // 欢迎伙伴回家内部：再检查一次"返回"，检查到直接返回
-    btn = widgetUtils.widgetGetOne(/^返回$/, 10000)
+    btn = widgetUtils.widgetGetOne(/^返回$/, 3000)
     if (btn) {
       taskLog('检测到"返回"弹窗')
       automator.clickCenter(btn)
@@ -315,7 +324,7 @@ function handleCollectPopup () {
     }
 
     // 欢迎伙伴回家内部：再检查一次"回到我的海洋"，检查到直接返回
-    btn = widgetUtils.widgetGetOne(/^回到我的海洋$/, 10000)
+    btn = widgetUtils.widgetGetOne(/^回到我的海洋$/, 3000)
     if (btn) {
       taskLog('检测到"回到我的海洋"弹窗')
       automator.clickCenter(btn)
@@ -327,7 +336,7 @@ function handleCollectPopup () {
   }
 
   // 查找"返回"按钮
-  btn = widgetUtils.widgetGetOne(/^返回$/, 10000)
+  btn = widgetUtils.widgetGetOne(/^返回$/, 3000)
   if (btn) {
     taskLog('检测到"返回"弹窗')
     automator.clickCenter(btn)
@@ -336,7 +345,7 @@ function handleCollectPopup () {
   }
 
   // 查找"回到我的海洋"按钮
-  btn = widgetUtils.widgetGetOne(/^回到我的海洋$/, 10000)
+  btn = widgetUtils.widgetGetOne(/^回到我的海洋$/, 3000)
   if (btn) {
     taskLog('检测到"回到我的海洋"弹窗')
     automator.clickCenter(btn)
@@ -354,7 +363,7 @@ function handleCollectPopup () {
 function handleTaskPopup () {
   taskLog('检查是否有弹窗')
   sleep(1000)
-  let openBtn = widgetUtils.widgetGetOne(/^打开$/, 10000)
+  let openBtn = widgetUtils.widgetGetOne(/^打开$/, 3000)
   if (openBtn) {
     taskLog('检测到系统弹窗，点击"打开"')
     automator.clickCenter(openBtn)
@@ -510,7 +519,7 @@ function collectSelfTrash (count) {
     sleep(2000)
 
     // 先清理一次"欢迎伙伴回家"或"迎回海洋伙伴"弹窗
-    let welcome = widgetUtils.widgetGetOne(/^(欢迎伙伴回家|迎回海洋伙伴)$/, 10000)
+    let welcome = widgetUtils.widgetGetOne(/^(欢迎伙伴回家|迎回海洋伙伴)$/, 3000)
     if (welcome) {
       taskLog('检测到"欢迎伙伴回家"或"迎回海洋伙伴"弹窗')
       clickPoint(welcome.bounds().centerX(), welcome.bounds().centerY())
@@ -518,7 +527,7 @@ function collectSelfTrash (count) {
     }
 
     // 处理弹窗：收下|返回|回到我的海洋|清理
-    let collect = widgetUtils.widgetGetOne('.*(收下|返回|回到我的海洋|清理|.*不.*了.*).*', 10000)
+    let collect = widgetUtils.widgetGetOne('.*(收下|返回|回到我的海洋|清理|.*不.*了.*).*', 3000)
     if (collect) {
       clickPoint(collect.bounds().centerX(), collect.bounds().centerY())
       // 递归继续找，计数+1（最多 MAX_SELF_TRASH_COLLECT 次）
@@ -559,7 +568,7 @@ function collectFriendTrashOnce () {
     sleep(2000)
 
     // 处理弹窗：收下|回到我的海洋|清理掉
-    let collect = widgetUtils.widgetGetOne('.*(收下|回到我的海洋|清理掉|.*不.*了.*).*', 10000)
+    let collect = widgetUtils.widgetGetOne('.*(收下|回到我的海洋|清理掉|.*不.*了.*).*', 3000)
     if (collect) {
       clickPoint(collect.bounds().centerX(), collect.bounds().centerY())
       sleep(2000)
@@ -789,7 +798,7 @@ function executeClickTargetTask (specialTask) {
     }
     // OCR兜底（复用clickByOcr，带重试）
     if (!found) {
-      if (clickByOcr(specialTask.clickTarget, 3000)) {
+      if (clickByOcr(specialTask.clickTarget, 5000)) {
         found = true
       }
     }
@@ -814,7 +823,7 @@ function executeGameTask (seconds) {
   let clicked = false
   for (let i = 0; i < 5; i++) {
     clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
-    if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 3000)
+    if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 5000)
     if (clicked) break
 
     taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')

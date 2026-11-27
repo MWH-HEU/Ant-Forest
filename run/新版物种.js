@@ -13,6 +13,7 @@ let localOcrUtil = require('../lib/LocalOcrUtil.js')
 let OpenCvUtil = require('../lib/OpenCvUtil.js')
 let killProcessUtil = require('../lib/KillProcessUtil.js')
 let widgetInspector = require('../lib/WidgetInspector.js')(runtime, global)
+let SwitchToApp = require('../lib/SwitchToApp.js')(runtime, global)
 
 // 神奇物种 appId：68687886（与 unit/神奇物种万能卡.js 一致）
 
@@ -195,42 +196,34 @@ function isOnFriendCardPage () {
 // ============ OCR 识别辅助（新版页面多为图片/无文本控件） ============
 
 // 截屏并OCR识别全部文本，返回 [{label, bounds}]
-// 传入 pattern 时按 clickByOcr 的方式限时重试，直到识别到匹配文本（或超时）
+// 传入 pattern 时限时重试，直到识别到匹配文本（或超时）
 function ocrScanAll (pattern, timeout) {
   if (!localOcrUtil.enabled) {
     taskLog('OCR未启用，无法识别')
     return []
   }
-  // OCR 前隐藏日志悬浮窗，避免日志文字被识别或遮挡页面
-  LogFloaty.hide()
-  sleep(300)
-  try {
-    let deadline = new Date().getTime() + (timeout || 0)
-    while (true) {
-      commonFunction.requestScreenCaptureOrRestart()
-      sleep(1000)
-      let results = []
-      let screen = commonFunction.captureScreen()
-      if (screen) {
-        results = localOcrUtil.recognizeWithBounds(screen, null) || []
-        screen.recycle()
-      } else {
-        taskLog('截屏失败')
-      }
-
-      if (!pattern) return results
-      for (let i = 0; i < results.length; i++) {
-        if (pattern.test(results[i].label || '')) return results
-      }
-      if (new Date().getTime() >= deadline) {
-        taskLog('OCR重试超时，未识别到目标文本')
-        return results
-      }
-      sleep(1000)
+  let deadline = new Date().getTime() + (timeout || 0)
+  while (true) {
+    commonFunction.requestScreenCaptureOrRestart()
+    sleep(1000)
+    let results = []
+    let screen = commonFunction.captureScreen()
+    if (screen) {
+      results = localOcrUtil.recognizeWithBounds(screen, null) || []
+      screen.recycle()
+    } else {
+      taskLog('截屏失败')
     }
-  } finally {
-    // 识别结束恢复日志悬浮窗
-    LogFloaty.show()
+
+    if (!pattern) return results
+    for (let i = 0; i < results.length; i++) {
+      if (pattern.test(results[i].label || '')) return results
+    }
+    if (new Date().getTime() >= deadline) {
+      taskLog('OCR重试超时，未识别到目标文本')
+      return results
+    }
+    sleep(1000)
   }
 }
 
@@ -310,7 +303,7 @@ function clickOcrBelowAnchor (keywordRegexes, anchorRegex) {
 
 // ============ 空文本 Button 辅助（新版交换页按钮无文本） ============
 
-// OCR 识别文本并点击其中心（空按钮兜底用）
+// OCR 识别文本并点击其中心（可选点击/空按钮兜底用）
 function clickOcrText (keywordRegex, timeout) {
   let results = ocrScanAll(keywordRegex, timeout)
   if (!results.length) {
@@ -414,17 +407,17 @@ function findAndClickAny (patterns) {
   return false
 }
 
-// 方案一：点击屏幕宽度20%、高度65%处（用于选择交换卡片）
+// 点击屏幕宽度20%、高度65%处（仅用于送好友卡片时的兜底选择）
 function clickExchangeCardByPosition () {
   let x = parseInt(config.device_width * 0.2)
   let y = parseInt(config.device_height * 0.65)
-  taskLog('方案一：点击屏幕(' + x + ', ' + y + ')')
+  taskLog('送好友卡片兜底：点击屏幕(' + x + ', ' + y + ')')
   automator.click(x, y)
   sleep(4000)
   return true
 }
 
-// 方案二：全屏识别纯数字控件，点击最大的数字（新版无"点击选择你要交换的卡片"锚点）
+// 全屏识别纯数字控件，点击最大的数字（必须大于1）
 function clickExchangeCardByMaxNumber () {
   let result = widgetInspector.detectAllNodesVisible()
 
@@ -443,14 +436,14 @@ function clickExchangeCardByMaxNumber () {
     }
   }
 
-  if (maxNode) {
-    taskLog('方案二：点击最大数字 ' + maxNum + '，位置：(' + maxNode.bounds.centerX() + ', ' + maxNode.bounds.centerY() + ')')
+  if (maxNode && maxNum > 1) {
+    taskLog('点击最大数字 ' + maxNum + '，位置：(' + maxNode.bounds.centerX() + ', ' + maxNode.bounds.centerY() + ')')
     automator.click(maxNode.bounds.centerX(), maxNode.bounds.centerY())
     sleep(4000)
     return true
   }
 
-  LogFloaty.pushErrorLog('未找到纯数字控件')
+  taskLog('未找到大于1的数字卡片')
   return false
 }
 
@@ -472,13 +465,11 @@ function doExchangeFlow () {
   }
   sleep(4000)
 
-  // 选择交换卡片（优先方案二：点击最大数字；失败则用方案一：点击屏幕固定位置）
+  // 选择交换卡片：必须存在大于1的卡片，否则跳过本次交换
   if (!clickExchangeCardByMaxNumber()) {
-    taskLog('方案二失败，改用方案一兜底')
-    if (!clickExchangeCardByPosition()) {
-      LogFloaty.pushErrorLog('方案一兜底点击交换卡片失败')
-      return false
-    }
+    taskLog('无大于1的卡，跳过本次交换')
+    goBack()
+    return true
   }
 
   // 点击"交换"（两个空按钮中 x 大的）
@@ -606,9 +597,8 @@ function synthesizeMedal () {
   sleep(4000)
 
   if (!findAndClickByTextVisible(/^点击合成勋章$/)) {
-    LogFloaty.pushErrorLog('未找到"点击合成勋章"，异常退出')
-    exitScript()
-    return false
+    taskLog('未找到"点击合成勋章"，说明已合成，正常返回')
+    return true
   }
 
   // 等待2s后点击"确认"（可能已勾选"下次不提示确认"，弹窗未出现则跳过）
@@ -630,7 +620,7 @@ function synthesizeMedal () {
   return true
 }
 
-// 判断是否已集齐卡片：在"抽好友卡片"的右侧及下方匹配"数字/数字"，两数相等则已集齐；已集齐后合成勋章并刮卡
+// 判断是否已集齐卡片：在"抽好友卡片"的右侧及下方匹配"数字/数字"，两数相等则已集齐；已集齐后合成勋章
 function checkCardCollected () {
   let result = widgetInspector.detectAllNodesVisible()
   let anchor = null // "抽好友卡片" 节点
@@ -666,8 +656,6 @@ function checkCardCollected () {
         taskLog('已集齐卡片（' + a + '/' + b + '），任务完成')
         // 集齐后合成勋章
         synthesizeMedal()
-        // 合成后刮卡
-        doScratchCards()
         return true
       }
     }
@@ -677,7 +665,7 @@ function checkCardCollected () {
   return false
 }
 
-// 刮卡得能量：交换完成后重新进入首页，循环刮卡
+// 刮卡得能量：抽卡流程后重新进入首页，循环刮卡
 function doScratchCards () {
   taskLog('=== 检查并刮卡得能量 ===')
 
@@ -729,32 +717,372 @@ function doScratchCards () {
   return true
 }
 
-// 主流程
-function main () {
-  taskLog('========== 神奇物种 开始 ==========')
+// ============ 任务流程 ============
 
-  // 进入神奇物种
+const TASK_BUTTONS = ['去完成', '去逛逛', '去送卡']
+const TASK_SPECIALS = ['送好友卡片', '帮好友抽卡']
+const TASK_SKIP_KEYWORDS = [] // 无排除项
+const ROW_TOLERANCE = 100
+
+// 判断是否在任务页面：需匹配"任务奖励"和"我的道具"，且存在"去完成/去逛逛/去送卡/已完成"任一
+function isOnTaskPage () {
+  if (!widgetUtils.widgetWaiting('^任务奖励$', '任务奖励', 4000)) {
+    taskLog('未检测到"任务奖励"，不在任务页面')
+    return false
+  }
+  if (!widgetUtils.widgetWaiting('^我的道具$', '我的道具', 4000)) {
+    taskLog('未检测到"我的道具"，不在任务页面')
+    return false
+  }
+  let result = widgetInspector.detectAllNodesVisible()
+  for (let n of result.nodes) {
+    if (n.text && /^(去完成|去逛逛|去送卡|已完成)$/.test(n.text)) {
+      taskLog('检测到"' + n.text + '"，确认在任务页面')
+      return true
+    }
+  }
+  taskLog('未检测到"去完成/去逛逛/去送卡/已完成"，不在任务页面')
+  return false
+}
+
+// 进入任务页面：重新进入神奇物种后点击"领抽卡机会"
+function openTaskPage () {
+  taskLog('进入任务页面')
+  if (!openMagicSpecies()) {
+    LogFloaty.pushErrorLog('进入神奇物种失败')
+    return false
+  }
+  if (!findAndClickByTextVisible(/^领抽卡机会$/)) {
+    LogFloaty.pushErrorLog('未找到"领抽卡机会"')
+    return false
+  }
+  sleep(4000)
+  if (!isOnTaskPage()) {
+    LogFloaty.pushErrorLog('未进入任务页面')
+    return false
+  }
+  return true
+}
+
+// 领取当前页面所有奖励：循环点击"立即领取"直到没有
+function claimAllRewards () {
+  let count = 0
+  while (count < 20 && findAndClickByTextVisible(/^立即领取$/)) {
+    count++
+    taskLog('领取奖励，第' + count + '次')
+    sleep(2000)
+  }
+  if (count > 0) taskLog('共领取奖励 ' + count + ' 次')
+}
+
+// 在指定行（±100px）查找关键词
+function findKeywordInSameRow (allNodes, centerY, keywords, matchMode) {
+  matchMode = matchMode || 'indexOf'
+  for (let node of allNodes) {
+    let text = node.text
+    if (!text || !node.bounds) continue
+    for (let kw of keywords) {
+      let matched = (matchMode === 'exact') ? (text === kw) : (text.indexOf(kw) >= 0)
+      if (matched && Math.abs(node.bounds.centerY() - centerY) <= ROW_TOLERANCE) {
+        return kw
+      }
+    }
+  }
+  return null
+}
+
+// 获取同行任务耗时秒数，无则返回 0
+function getTaskSecondsInSameRow (allNodes, centerY) {
+  for (let node of allNodes) {
+    let text = node.text
+    if (!text || !node.bounds) continue
+    if (Math.abs(node.bounds.centerY() - centerY) > ROW_TOLERANCE) continue
+    let m = text.match(/(\d+)s/)
+    if (m) {
+      return parseInt(m[1], 10)
+    }
+  }
+  return 0
+}
+
+// 任务页下滑（沿用 enterVitalityShopByScrollUp 的手势，距离20%~30%，起点取屏幕中段）
+function scrollDownForTask () {
+  let h = config.device_height
+  let dist = (0.20 + Math.random() * 0.10) * h
+  let startY = Math.round(h * (0.40 + Math.random() * 0.20))
+  let endY = Math.round(startY + dist)
+  automator.gestureUp(startY, endY, 100 + Math.round(Math.random() * 300))
+  sleep(2000)
+}
+
+// 特殊任务：送好友卡片
+function doGiftCardTask () {
+  taskLog('=== 送好友卡片 ===')
+  sleep(4000)
+
+  // 判断是否在"我的图鉴"页面：三个文本都要匹配
+  if (!widgetUtils.widgetWaiting('^全部图鉴$', '全部图鉴', 4000) ||
+      !widgetUtils.widgetWaiting('^发现物种$', '发现物种', 4000) ||
+      !widgetUtils.widgetWaiting('^我的勋章$', '我的勋章', 4000)) {
+    LogFloaty.pushErrorLog('未进入"我的图鉴"页面')
+    return false
+  }
+  taskLog('已进入我的图鉴页面')
+
+  // 选择卡片：优先点击大于1的最大数字，最多下滑10次
+  let clicked = false
+  for (let i = 0; i < 10; i++) {
+    if (clickExchangeCardByMaxNumber()) {
+      clicked = true
+      break
+    }
+    taskLog('未找到大于1的数字，下滑第' + (i + 1) + '次')
+    scrollDownForTask()
+  }
+  if (!clicked) {
+    taskLog('下滑10次仍未找到大于1的数字，点击固定点')
+    clickExchangeCardByPosition()
+  }
+
+  // 判断卡片页面：赠送、保存都要匹配
+  if (!widgetUtils.widgetWaiting('^赠送$', '赠送', 4000) ||
+      !widgetUtils.widgetWaiting('^保存$', '保存', 4000)) {
+    LogFloaty.pushErrorLog('未进入卡片页面（赠送/保存）')
+    return false
+  }
+
+  if (!findAndClickByTextVisible(/^赠送$/)) {
+    LogFloaty.pushErrorLog('未找到"赠送"')
+    return false
+  }
+  sleep(2000)
+  taskLog('送好友卡片完成')
+  return true
+}
+
+// 特殊任务：帮好友抽卡（执行一次抽卡，无论是否交换）
+function doHelpFriendDrawTask () {
+  taskLog('=== 帮好友抽卡 ===')
+  sleep(4000)
+  if (!isOnFriendCardPage()) {
+    LogFloaty.pushErrorLog('未进入好友的卡页面')
+    return false
+  }
+
+  if (!findAndClickByTextVisible(/^点击抽卡$/)) {
+    LogFloaty.pushErrorLog('未找到"点击抽卡"')
+    return false
+  }
+  sleep(6000)
+
+  let cardResult = getCardResultType()
+  if (cardResult === 'notOwned') {
+    if (!doExchangeFlow()) {
+      taskLog('交换流程失败，帮抽任务视为完成')
+    }
+  } else if (cardResult === 'owned') {
+    if (!doGiveUpFlow()) {
+      taskLog('放弃流程失败，帮抽任务视为完成')
+    }
+  } else {
+    taskLog('未检测到抽卡结果，帮抽任务结束')
+  }
+  taskLog('帮好友抽卡完成')
+  return true
+}
+
+// 任务完成后返回任务页面（最多 back 5 次）
+function waitForTaskComplete () {
+  taskLog('任务完成，返回任务页面')
+  sleep(2000)
+
+  let pkg = config.package_name || 'com.eg.android.AlipayGphone'
+  if (currentPackage() !== pkg) {
+    taskLog('当前不在支付宝，切入支付宝')
+    let switched = SwitchToApp.switchToApp({
+      pkg: pkg,
+      cardText: '支付宝',
+      onLog: taskLog
+    })
+    if (!switched) {
+      taskLog('切入支付宝失败，重新进入任务页面')
+      commonFunction.minimize()
+      sleep(1000)
+      return openTaskPage()
+    }
+    sleep(4000)
+  }
+
+  for (let i = 0; i < 5; i++) {
+    if (isOnTaskPage()) {
+      taskLog('已回到任务页面')
+      return true
+    }
+    taskLog('第' + (i + 1) + '次back')
+    goBack()
+    sleep(2000)
+  }
+
+  taskLog('back 5 次仍未回到任务页面，重新进入')
+  commonFunction.minimize()
+  sleep(1000)
+  return openTaskPage()
+}
+
+// 执行一个任务，成功执行返回 true
+function executeOneTask () {
+  let allNodes = widgetInspector.detectAllNodesVisible().nodes
+  for (let node of allNodes) {
+    let text = node.text
+    if (!text || !node.bounds) continue
+    if (TASK_BUTTONS.indexOf(text) < 0) continue
+
+    let centerY = node.bounds.centerY()
+
+    // 排除项（当前无）
+    if (findKeywordInSameRow(allNodes, centerY, TASK_SKIP_KEYWORDS)) {
+      continue
+    }
+
+    // 特殊任务
+    let special = findKeywordInSameRow(allNodes, centerY, TASK_SPECIALS)
+    if (special) {
+      taskLog('发现特殊任务: ' + special)
+      automator.click(node.bounds.centerX(), node.bounds.centerY())
+      sleep(2000)
+      let ok = false
+      if (special === '送好友卡片') {
+        ok = doGiftCardTask()
+      } else if (special === '帮好友抽卡') {
+        ok = doHelpFriendDrawTask()
+      }
+      if (!ok) {
+        taskLog('特殊任务执行失败: ' + special)
+      }
+      waitForTaskComplete()
+      return true
+    }
+
+    // 普通任务：只执行匹配到 \d+s 的任务
+    let sec = getTaskSecondsInSameRow(allNodes, centerY)
+    if (sec <= 0) {
+      taskLog('同行未识别到耗时，跳过按钮: ' + text)
+      continue
+    }
+
+    taskLog('执行普通任务: ' + text + '，等待 ' + (sec + 5) + 's')
+    automator.click(node.bounds.centerX(), node.bounds.centerY())
+    sleep((sec + 5) * 1000)
+    waitForTaskComplete()
+    return true
+  }
+  taskLog('未找到可执行的任务')
+  return false
+}
+
+// 使用道具：点击"我的道具"，循环使用直到没有"使用"
+function useAllItems () {
+  taskLog('=== 使用道具 ===')
+
+  if (!findAndClickByTextVisible(/^我的道具$/)) {
+    taskLog('未找到"我的道具"，跳过道具使用')
+    return false
+  }
+  sleep(4000)
+
+  if (!hasTextVisible(/^使用$/)) {
+    taskLog('没有可使用的道具，结束')
+    return true
+  }
+
+  let maxRounds = 20
+  while (maxRounds-- > 0) {
+    if (!findAndClickByTextVisible(/^使用$/)) {
+      taskLog('没有"使用"按钮，道具使用结束')
+      break
+    }
+    sleep(2000)
+
+    // 下次不再提醒
+    if (findAndClickByTextVisible(/^下次不再提醒$/)) {
+      sleep(1000)
+    }
+
+    // 点击与"再想想"同行且 x 小于屏幕宽度75%的"使用"
+    let nodes = widgetInspector.detectAllNodesVisible().nodes
+    let thinkAgainY = null
+    for (let n of nodes) {
+      if (n.text && /^再想想$/.test(n.text) && n.bounds) {
+        thinkAgainY = n.bounds.centerY()
+        break
+      }
+    }
+    if (thinkAgainY !== null) {
+      for (let n of nodes) {
+        if (n.text && /^使用$/.test(n.text) && n.bounds &&
+            n.bounds.centerX() < config.device_width * 0.75 &&
+            Math.abs(n.bounds.centerY() - thinkAgainY) <= ROW_TOLERANCE) {
+          taskLog('点击确认弹窗中的"使用"')
+          automator.click(n.bounds.centerX(), n.bounds.centerY())
+          sleep(4000)
+          break
+        }
+      }
+    }
+
+    // OCR 识别"收下"（可选）
+    clickOcrText(/^收下$/, 2000)
+  }
+  taskLog('=== 道具使用结束 ===')
+  return true
+}
+
+// 任务流程：每轮先领奖，再执行一个任务，直到没有任务；最后使用道具
+function doTaskPage () {
+  taskLog('=== 任务流程开始 ===')
+
+  if (!openTaskPage()) {
+    LogFloaty.pushErrorLog('进入任务页面失败')
+    return false
+  }
+
+  let maxRounds = 30 // 防御死循环
+  while (maxRounds-- > 0) {
+    // 每轮开头先领取所有奖励
+    claimAllRewards()
+
+    if (!executeOneTask()) {
+      taskLog('没有可执行的任务，任务流程结束')
+      break
+    }
+  }
+
+  // 所有任务结束后使用道具
+  useAllItems()
+
+  taskLog('=== 任务流程结束 ===')
+  return true
+}
+
+// ============ 抽卡流程 ============
+
+// 抽卡：进入好友的卡页面，循环抽卡直到今日次数用完
+function doDrawCards () {
+  taskLog('=== 抽卡流程开始 ===')
+
+  // 每次执行前重新进入神奇物种
   if (!openMagicSpecies()) {
     LogFloaty.pushErrorLog('无法进入神奇物种')
     return false
   }
 
-  // 判断是否已集齐卡片；已集齐则合成勋章并刮卡，然后退出
-  if (checkCardCollected()) {
-    taskLog('已集齐卡片，任务完成')
-    exitScript()
-  }
-
-  // 第一次进入：点击"抽好友卡片"进入好友的卡页面（openMagicSpecies 内部已确认在神奇物种页面）
   if (!findAndClickByTextVisible(/^抽好友卡片$/)) {
     LogFloaty.pushErrorLog('未找到"抽好友卡片"')
     return false
   }
   sleep(4000)
 
-  // 循环抽卡，直到今日次数为0（每轮处理完结果后都会回到好友的卡页面）
   while (true) {
-    // 判断是否在好友的卡页面，不在则返回重进
     if (!isOnFriendCardPage()) {
       taskLog('不在好友的卡页面，返回重进')
       goBack()
@@ -776,35 +1104,29 @@ function main () {
       }
     }
 
-    // 进入好友的卡页面后，判断今日次数是否为0（"今日次数"文本在此页面出现），是则退出循环
     if (isTodayCountZero()) {
       taskLog('今日次数已用完，退出循环')
       break
     }
 
-    // 点击"点击抽卡"
     if (!findAndClickByTextVisible(/^点击抽卡$/)) {
       LogFloaty.pushErrorLog('未找到"点击抽卡"')
       return false
     }
     sleep(6000)
 
-    // 检查抽卡结果（新版文本改用OCR识别）
     let cardResult = getCardResultType()
     if (cardResult === 'notOwned') {
-      // 未拥有：执行交换流程
       if (!doExchangeFlow()) {
         LogFloaty.pushErrorLog('交换流程失败')
         return false
       }
     } else if (cardResult === 'owned') {
-      // 已拥有：执行放弃流程
       if (!doGiveUpFlow()) {
         LogFloaty.pushErrorLog('放弃流程失败')
         return false
       }
     } else {
-      // 未检测到抽卡结果：返回首页，重新点击"抽好友卡片"继续；次数用完会由 isTodayCountZero 退出循环
       taskLog('未检测到抽卡结果，返回首页重进')
       goBack()
       if (!isOnMagicSpeciesPage()) {
@@ -822,12 +1144,37 @@ function main () {
       continue
     }
 
-    // 循环继续（处理完结果后已回到好友的卡页面）
     taskLog('=== 继续下一轮抽卡 ===')
     sleep(2000)
   }
 
-  // 交换完成后：刮卡得能量
+  taskLog('=== 抽卡流程结束 ===')
+  return true
+}
+
+// 主流程
+function main () {
+  taskLog('========== 神奇物种 开始 ==========')
+
+  // 进入神奇物种，判断是否已集齐（集齐则合成勋章）
+  if (!openMagicSpecies()) {
+    LogFloaty.pushErrorLog('无法进入神奇物种')
+    return false
+  }
+  let collected = checkCardCollected()
+  if (collected) {
+    taskLog('已集齐卡片，跳过抽卡')
+  }
+
+  // 任务流程（内部会重新进入神奇物种）
+  doTaskPage()
+
+  // 抽卡流程（未集齐才执行，内部会重新进入）
+  if (!collected) {
+    doDrawCards()
+  }
+
+  // 刮卡流程（必定执行，内部会重新进入）
   doScratchCards()
 
   taskLog('========== 神奇物种 完成 ==========')

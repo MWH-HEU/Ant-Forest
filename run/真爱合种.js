@@ -493,48 +493,52 @@ function doWatering () {
 
 // ============ 主流程 ============
 
-taskLog('真爱合种任务开始')
+function main () {
+  taskLog('真爱合种任务开始')
 
-// 音量上键退出脚本（在独立线程中监听）
-infoLog('运行中可按音量上键关闭', true)
-threads.start(function () {
-  events.observeKey()
-  events.on('key_down', function (keyCode, event) {
-    if (keyCode === 24) {
-      toastLog('用户按音量上键，退出脚本')
-      killApps()
-      runningQueueDispatcher.removeRunningTask()
-      exit()
-    }
+  // 音量上键退出脚本（在独立线程中监听）
+  infoLog('运行中可按音量上键关闭', true)
+  threads.start(function () {
+    events.observeKey()
+    events.on('key_down', function (keyCode, event) {
+      if (keyCode === 24) {
+        toastLog('用户按音量上键，退出脚本')
+        killApps()
+        runningQueueDispatcher.removeRunningTask()
+        exit()
+      }
+    })
   })
-})
 
-if (!enterLoveCoPlantPage()) {
-  errorInfo('进入真爱合种页面失败，退出脚本')
+  if (!enterLoveCoPlantPage()) {
+    errorInfo('进入真爱合种页面失败，退出脚本')
+    exitScript()
+  }
+
+  if (!enterEnergyDetailPage()) {
+    errorInfo('进入攒能量明细页面失败，退出脚本')
+    exitScript()
+  }
+
+  if (checkWateredToday()) {
+    taskLog('今天已经浇过水，跳过今天的浇水')
+    sleep(3000)
+    exitScript()
+  }
+
+  taskLog('今日尚未浇水，返回真爱合种页面准备浇水')
+  if (!returnToLoveCoPlantPage()) {
+    errorInfo('返回真爱合种页面失败，退出脚本')
+    exitScript()
+  }
+
+  if (!doWatering()) {
+    errorInfo('真爱合种浇水失败，退出脚本')
+    exitScript()
+  }
+
+  taskLog('真爱合种浇水完成')
   exitScript()
 }
 
-if (!enterEnergyDetailPage()) {
-  errorInfo('进入攒能量明细页面失败，退出脚本')
-  exitScript()
-}
-
-if (checkWateredToday()) {
-  taskLog('今天已经浇过水，跳过今天的浇水')
-  sleep(3000)
-  exitScript()
-}
-
-taskLog('今日尚未浇水，返回真爱合种页面准备浇水')
-if (!returnToLoveCoPlantPage()) {
-  errorInfo('返回真爱合种页面失败，退出脚本')
-  exitScript()
-}
-
-if (!doWatering()) {
-  errorInfo('真爱合种浇水失败，退出脚本')
-  exitScript()
-}
-
-taskLog('真爱合种浇水完成')
-exitScript()
+main()

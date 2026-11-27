@@ -151,9 +151,9 @@ function openMagicSpecies () {
   return true
 }
 
-// 判断是否在神奇物种的函数（参考 isOnBackpackPage，任一文本匹配即视为成功："奖励 当前图鉴 抽好友卡片"）
+// 判断是否在神奇物种的函数（参考 isOnBackpackPage，任一文本匹配即视为成功："奖励 当前图鉴"）
 function isOnMagicSpeciesPage () {
-  let texts = ['奖励', '当前图鉴', '抽好友卡片']
+  let texts = ['奖励', '当前图鉴']
   for (let i = 0; i < texts.length; i++) {
     let result = widgetUtils.widgetWaiting('^' + texts[i] + '$', texts[i], 10000)
     if (result) {
@@ -162,7 +162,7 @@ function isOnMagicSpeciesPage () {
       return true
     }
   }
-  taskLog('未检测到"奖励 当前图鉴 抽好友卡片"任一文本，不在神奇物种界面')
+  taskLog('未检测到"奖励 当前图鉴"任一文本，不在神奇物种界面')
   return false
 }
 

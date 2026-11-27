@@ -89,7 +89,7 @@ function openAntForest () {
     packageName: config.package_name
   })
 
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
@@ -134,7 +134,7 @@ function clickImmediateLottery () {
   taskLog('查找"立即抽奖"按钮')
   sleep(4000)
   // OCR优先识别（复用clickByOcr，带重试）
-  if (clickByOcr('立即抽奖', 10000)) {
+  if (clickByOcr('立即抽奖', 5000)) {
     sleep(4000)
     return true
   }
@@ -152,7 +152,7 @@ function clickCollectReward () {
   taskLog('查找"收下奖励"按钮')
   sleep(2000)
   // OCR优先识别（复用clickByOcr，带重试）
-  if (clickByOcr('收下奖励', 10000)) {
+  if (clickByOcr('收下奖励', 5000)) {
     sleep(4000)
     return true
   }
@@ -260,7 +260,7 @@ function enterRewardPage () {
  */
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 10000)
+  let deadline = new Date().getTime() + (timeout || 5000)
   while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
     sleep(1000)
@@ -317,7 +317,7 @@ function clickSignReward () {
 
   // 方案2：OCR识别（兜底）
   taskLog('通过OCR识别"领奖励"')
-  if (clickByOcr('领奖励', 10000)) {
+  if (clickByOcr('领奖励', 5000)) {
     return true
   }
 
@@ -328,7 +328,7 @@ function clickSignReward () {
 function handlePopupDialog () {
   taskLog('检查是否有弹窗')
   sleep(1000)
-  let openBtn = widgetUtils.widgetGetOne(/^打开$/, 10000)
+  let openBtn = widgetUtils.widgetGetOne(/^打开$/, 3000)
   if (openBtn) {
     taskLog('检测到系统弹窗，点击"打开"')
     automator.clickCenter(openBtn)
@@ -373,10 +373,10 @@ function handlePopupDialog () {
 
 const SPECIAL_TASKS = [
   { keyword: '逛一逛点淘得红包', waitTime: 15000, action: 'clickTarget', clickTarget: '打开APP' },
-  { keyword: '每日浇水领真绿植', waitTime: 0, action: 'specialScroll', scrollTimes: 18 },
-  { keyword: '每日浇水免费拿绿植', waitTime: 0, action: 'specialScroll', scrollTimes: 18 },
-  { keyword: '逛惊喜市集领红包', waitTime: 15000, action: 'scroll', scrollTimes: 16 },
-  { keyword: '逛一逛芝麻树兑绿植', waitTime: 15000, action: 'scroll', scrollTimes: 16 },
+  { keyword: '每日浇水领真绿植', waitTime: 0, action: 'specialScroll', scrollTimes: 16 },
+  { keyword: '每日浇水免费拿绿植', waitTime: 0, action: 'specialScroll', scrollTimes: 16 },
+  { keyword: '逛惊喜市集领红包', waitTime: 15000, action: 'scroll', scrollTimes: 10 },
+  { keyword: '逛一逛芝麻树兑绿植', waitTime: 15000, action: 'scroll', scrollTimes: 10 },
   { keyword: '给随机好友一键浇水', waitTime: 0, action: 'clickTarget', clickTarget: '送给TA' },
   { keyword: '浇水得十周年惊喜好礼', waitTime: 0, action: 'clickTarget', clickTarget: '开始浇水' },
   { keyword: '去书旗看书追剧', waitTime: 15000, action: 'clickTarget', clickTarget: '书旗|APP' }
@@ -384,7 +384,7 @@ const SPECIAL_TASKS = [
 
 const SKIP_KEYWORDS = ['玩一场能量雨', '添加1份看病保障', '去蚂蚁阿福健康问答', '添加小荷包能量插件', '添加600万医疗保障', '去逛中国移动', '到店支付']
 
-const EXPLORE_BUTTONS = ['逛一逛', '去看看', '去参与', '去领取', '去守护', '去完成', '去逛逛', '一键浇水', '去浇水', '去参加', '去购买']
+const EXPLORE_BUTTONS = ['逛一逛', '去看看', '去参与', '去领取', '去守护', '去完成', '去逛逛', '一键浇水', '去浇水', '去参加', '去支持']
 
 const LONG_WAIT_KEYWORDS = ['玩一玩', '获取更多森林资讯', '看15s直播得能量', '逛一逛飞猪']
 
@@ -456,7 +456,7 @@ function executeSpecialTask (specialTask) {
     }
     // OCR兜底（复用clickByOcr，带重试）
     if (!found) {
-      if (clickByOcr(specialTask.clickTarget, 3000)) {
+      if (clickByOcr(specialTask.clickTarget, 5000)) {
         found = true
       }
     }

@@ -57,6 +57,7 @@ const FLOATY_Y_OFFSET = 80
 // 顺序即为执行顺序。窗口为 01:00 - 06:55（07:00 后的任务不纳入）。
 // ============================================================
 const NIGHT_TASK_LIST = [
+  { name: '真爱合种', count: 1, timeoutMinutes: 5 },
   { name: '能量雨兑换', count: 2, timeoutMinutes: 5 },
   { name: '能量雨', count: 1, timeoutMinutes: 5 },
   { name: '赚能量', count: 1, timeoutMinutes: 5 },
@@ -67,7 +68,8 @@ const NIGHT_TASK_LIST = [
   { name: 'AI摸鱼', count: 1, timeoutMinutes: 40 },
   { name: '乐园任务', count: 2, timeoutMinutes: 40 },
   { name: '每日任务', count: 2, timeoutMinutes: 40 },
-  { name: '能量雨', count: 1, timeoutMinutes: 5 }
+  { name: '能量雨', count: 1, timeoutMinutes: 5 },
+  { name: '真爱合种', count: 1, timeoutMinutes: 5 }
 ]
 
 config.not_lingering_float_window = true

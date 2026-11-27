@@ -142,7 +142,7 @@ function openMagicSpecies () {
   })
 
   // 处理"打开"确认弹窗
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
   if (confirm) {
     automator.clickCenter(confirm)
   }

@@ -120,7 +120,7 @@ function clickByTemplateOrOcr (templateKey, ocrText) {
 
   // 方案2：OCR识别（兜底，直接调用 clickByOcr，带重试机制）
   taskLog('通过OCR识别"' + ocrText + '"')
-  return clickByOcr(ocrText, 10000)
+  return clickByOcr(ocrText, 5000)
 }
 
 // 打开进入神奇海洋的函数（形如 openAntForest）
@@ -140,7 +140,7 @@ function openOcean () {
   })
 
   // 处理"打开"确认弹窗
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
@@ -177,7 +177,7 @@ function isOnOceanPage () {
 // 固定坐标：x = 完全匹配"更多"的 x（找不到用屏幕 95% 处），y = 屏幕 70% 处
 function clickLikeByOcrOrFixedPoint () {
   taskLog('两个模板都未匹配到，OCR识别"点赞"')
-  if (clickByOcr('点赞', 3000)) {
+  if (clickByOcr('点赞', 5000)) {
     taskLog('已点击"点赞"')
     sleep(4000)
     return true
@@ -357,7 +357,7 @@ function enterTaskPage () {
 
   // 方案2：OCR识别"奖励"（第二）
   taskLog('通过OCR识别"奖励"')
-  if (clickByOcr('奖励', 10000)) {
+  if (clickByOcr('奖励', 5000)) {
     taskLog('OCR点击"奖励"成功')
     sleep(4000)
     return true
@@ -379,7 +379,7 @@ function enterTaskPage () {
 // 在 timeout 时间内循环截屏识别，命中即点击返回 true
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 10000)
+  let deadline = new Date().getTime() + (timeout || 5000)
   while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
     sleep(1000)
@@ -409,14 +409,14 @@ function loopFishProcess () {
     taskLog('摸鱼循环 第 ' + (round + 1) + ' 轮')
 
     // 分支1：检查"继续摸鱼"（完全匹配 ^继续摸鱼$），有则点击并等待
-    if (clickByOcr('^继续摸鱼$', 10000)) {
+    if (clickByOcr('^继续摸鱼$', 5000)) {
       taskLog('已点击"继续摸鱼"，等待8s')
       sleep(8000)
       continue
     }
 
     // 分支2：检查OCR点击"收下并涂鸦"（完全匹配 ^收下并涂鸦$），有则处理"提交并继续摸鱼"/"确认涂鸦"分支
-    if (clickByOcr('^收下并涂鸦$', 10000)) {
+    if (clickByOcr('^收下并涂鸦$', 5000)) {
       // 判断"提交并继续摸鱼"/"确认涂鸦"分支：这两个按钮任何一个都表示提交涂鸦，存在则处理
       let submitNode = null
       let allNodes = widgetInspector.detectAllNodesVisible().nodes
@@ -450,7 +450,7 @@ function loopFishProcess () {
       taskLog('检测到"仅解救"，点击"仅解救"')
       sleep(2000)
       // 点击"继续摸鱼"，自动使用当前所有摸鱼次数
-      if (!clickByOcr('^继续摸鱼$', 10000)) {
+      if (!clickByOcr('^继续摸鱼$', 5000)) {
         taskLog('点击"仅解救"后未识别到"继续摸鱼"，退出循环')
         break
       }
@@ -464,7 +464,7 @@ function loopFishProcess () {
     if (findAndClickByTextVisible(/^仅追回$/)) {
       taskLog('检测到"仅追回"，点击"仅追回"')
       rescued = true
-    } else if (clickByOcr('^仅追回$', 10000)) {
+    } else if (clickByOcr('^仅追回$', 5000)) {
       taskLog('OCR点击"仅追回"')
       rescued = true
     }
@@ -670,7 +670,7 @@ function findAndExecuteFishTask () {
       let clicked = false
       for (let i = 0; i < 5; i++) {
         clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
-        if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 3000)
+        if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 5000)
         if (clicked) break
 
         taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')

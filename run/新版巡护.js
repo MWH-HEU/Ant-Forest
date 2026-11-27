@@ -127,7 +127,7 @@ function findAndClickByTextVisible (pattern) {
 // 在 timeout 时间内循环截屏识别，命中即点击返回 true
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 10000)
+  let deadline = new Date().getTime() + (timeout || 5000)
   while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
     sleep(1000)
@@ -167,7 +167,7 @@ function openPatrol () {
   })
 
   // 处理"打开"确认弹窗
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
   if (confirm) {
     automator.clickCenter(confirm)
   }

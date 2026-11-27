@@ -693,12 +693,12 @@ function executeMarketBrowse () {
         automator.randomScrollUp()
       }
       // 每次滑动后检查弹窗（用OCR识别"放弃奖励"，短超时控制阻塞）
-      clickByOcr('放弃奖励', 1000)
+      clickByOcr('放弃奖励', 5000)
       sleepIfNeeded(1000 - (new Date().getTime() - start))
     }
     // 滑动结束后再检查一次弹窗（用OCR识别"放弃奖励"）
     taskLog('检查是否有弹窗需要关闭')
-    clickByOcr('放弃奖励', 2000)
+    clickByOcr('放弃奖励', 5000)
     // 下一轮while会重新检测"滑动浏览得拼图"，检测不到则退出（视为已完成）
   }
 }

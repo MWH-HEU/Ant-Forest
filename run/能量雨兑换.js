@@ -129,7 +129,7 @@ function goBack () {
 // OCR查找并点击指定文字（在指定超时内循环截图识别，找到即点击）
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 10000)
+  let deadline = new Date().getTime() + (timeout || 5000)
   while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
     sleep(1000)
@@ -162,7 +162,7 @@ function enterAntForest () {
     packageName: config.package_name
   })
 
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
@@ -214,7 +214,7 @@ function enterBackpack () {
   }
 
   // 方案2：OCR识别（兜底）
-  if (!clickByOcr('背包', 10000)) {
+  if (!clickByOcr('背包', 5000)) {
     LogFloaty.pushErrorLog('OCR未找到背包入口')
     return false
   }

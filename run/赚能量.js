@@ -87,7 +87,7 @@ if (executeByTimeTask) {
       data: 'alipays://platformapi/startapp?appId=60000002',
       packageName: config.package_name
     })
-    let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
+    let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
     if (confirm) {
       automator.clickCenter(confirm)
     }
@@ -375,7 +375,7 @@ function openSpeedRacePage () {
     data: 'alipays://platformapi/startapp?appId=60000002',
     packageName: config.package_name
   })
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
   if (confirm) {
     automator.clickCenter(confirm)
   }

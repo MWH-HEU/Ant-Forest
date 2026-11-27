@@ -66,7 +66,7 @@ function openAntForest () {
     packageName: config.package_name
   })
 
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
@@ -92,7 +92,7 @@ function openAntForest () {
  */
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 10000)
+  let deadline = new Date().getTime() + (timeout || 5000)
   while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
     sleep(1000)
@@ -148,7 +148,7 @@ function clickByTemplateFirst (keyword, templateKey) {
   }
 
   // 方案2：OCR识别（兜底，只执行一次）
-  if (clickByOcr(keyword, 10000)) return true
+  if (clickByOcr(keyword, 5000)) return true
   return false
 }
 
@@ -257,7 +257,7 @@ function findAndExecuteSpecialTask () {
     let clicked = false
     for (let i = 0; i < 5; i++) {
       clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
-      if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 4000)
+      if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 5000)
       if (clicked) break
 
       taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')

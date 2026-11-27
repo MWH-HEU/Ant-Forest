@@ -191,7 +191,7 @@ function openFishPoolByIntent () {
     data: "https://pages.goofish.com/sharexy?url=https%3A%2F%2Fssr.m.goofish.com%2Fwow%2Fmoyu%2Fmoyu-project%2Ffish-pool%2Fpages%2Fhome%3Fx-ssr%3Dtrue%26_from__%3Dmain%26x-cur%3DCNY%26x-lang%3Dzh-CN%26x-tz%3DAsia%252FShanghai%26x-cs%3DCN",
       packageName: "com.taobao.idlefish"
   })
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
   if (confirm) {
     automator.clickCenter(confirm)
   }

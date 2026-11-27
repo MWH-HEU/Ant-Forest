@@ -80,7 +80,7 @@ function openAntForest () {
     packageName: config.package_name
   })
 
-  let confirm = widgetUtils.widgetGetOne(/^打开$/, 10000)
+  let confirm = widgetUtils.widgetGetOne(/^打开$/, 3000)
   if (confirm) {
     automator.clickCenter(confirm)
   }
@@ -155,7 +155,7 @@ function isOnAntForestPage () {
  */
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 10000)
+  let deadline = new Date().getTime() + (timeout || 5000)
   while (new Date().getTime() < deadline) {
     commonFunction.requestScreenCaptureOrRestart()
     sleep(1000)
@@ -212,7 +212,7 @@ function clickSignReward () {
 
   // 方案2：OCR识别（兜底）
   taskLog('通过OCR识别"领奖励"')
-  if (clickByOcr('领奖励', 10000)) {
+  if (clickByOcr('领奖励', 5000)) {
     return true
   }
 
@@ -467,12 +467,12 @@ function executeMarketBrowse () {
         automator.randomScrollUp()
       }
       // 每次滑动后检查弹窗（用OCR识别"放弃奖励"，短超时控制阻塞）
-      clickByOcr('放弃奖励', 1000)
+      clickByOcr('放弃奖励', 5000)
       sleepIfNeeded(1000 - (new Date().getTime() - start))
     }
     // 滑动结束后再检查一次弹窗（用OCR识别"放弃奖励"）
     taskLog('检查是否有弹窗需要关闭')
-    clickByOcr('放弃奖励', 2000)
+    clickByOcr('放弃奖励', 5000)
     // 下一轮while会重新检测"滑动浏览得抽奖机会"，检测不到则退出（视为已完成）
   }
 }
@@ -492,7 +492,7 @@ function executeSpecialTask (seconds) {
   let clicked = false
   for (let i = 0; i < 5; i++) {
     clicked = findAndClickByTextVisible(/玩游戏得骰子|去游戏领取礼品/)
-    if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 3000)
+    if (!clicked) clicked = clickByOcr('秒玩|玩游戏得骰子|去游戏领取礼品', 5000)
     if (clicked) break
 
     taskLog('未找到"秒玩"/"玩游戏得骰子"/"去游戏领取礼品"，下滑一次（第 ' + (i + 1) + ' 次）')
@@ -685,13 +685,13 @@ function doDraw () {
     sleep(3000)
 
     // 点击后通过OCR识别点击弹窗按钮："继续抽" | "做任务继续抽" | "开心收下"
-    if (clickByOcr('继续抽', 3000)) {
+    if (clickByOcr('继续抽', 5000)) {
       taskLog('点击"继续抽"关闭弹窗')
       sleep(2000)
-    } else if (clickByOcr('做任务继续抽', 3000)) {
+    } else if (clickByOcr('做任务继续抽', 5000)) {
       taskLog('点击"做任务继续抽"')
       sleep(2000)
-    } else if (clickByOcr('开心收下', 3000)) {
+    } else if (clickByOcr('开心收下', 5000)) {
       taskLog('点击"开心收下"')
       sleep(2000)
     }

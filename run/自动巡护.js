@@ -75,7 +75,7 @@ patrol.exec()
 // 在 timeout 时间内循环截屏识别，命中即点击返回 true
 function clickByOcr (keyword, timeout) {
   if (!localOcrUtil.enabled) return false
-  let deadline = new Date().getTime() + (timeout || 10000)
+  let deadline = new Date().getTime() + (timeout || 5000)
   while (new Date().getTime() < deadline) {
     commonFunctions.requestScreenCaptureOrRestart()
     sleep(1000)
@@ -118,7 +118,7 @@ function Patrol () {
       return true
     }
     logFloaty.pushLog('未检测到版本标识，默认在新版巡护，尝试OCR切换')
-    if (clickByOcr('切换旧版', 8000)) {
+    if (clickByOcr('切换旧版', 5000)) {
       sleep(4000)
     }
     return true

@@ -6,7 +6,7 @@
  * 流程：
  *   1. 打开蚂蚁森林并确认在首页，等待3s后查找并点击"真爱合种"入口进入真爱合种页面；
  *      未找到入口则报错并退出。
- *   2. 进入后等待4s，尝试点击"我知道啦"领取道具；若存在说明今日任务已完成，
+ *   2. 进入后等待4s，用OCR识别"我知道啦"并点击领取道具；若识别到说明今日任务已完成，
  *      等待3s后直接 exitScript 退出。
  *   3. 判断是否在真爱合种页面（"真爱合种""累计一起攒能量""证书""去种树"均存在）。
  *   4. 按坐标点击进入攒能量明细：x 取"去种树"控件中心x，y 取"累计一起攒能量"控件中心y；
@@ -17,7 +17,8 @@
  *      否则返回真爱合种页面执行浇水。
  *   7. 浇水：获取"真爱.*装扮"控件，点击 (屏幕宽度0.5, 控件centerY + 2*控件高度)；
  *      未获取到时点击 (屏幕宽度0.5, 屏幕高度0.5)。确认页需存在 Button 类型
- *      "攒能量"和"关闭"，否则报错退出；点击"攒能量"后等待3s完成退出。
+ *      "攒能量"和"关闭"，否则报错退出；点击"攒能量"后等待5s，OCR识别到"我知道啦"则点击。
+ *   8. 运行中可按音量上键（keyCode 24）退出：杀支付宝、移除运行任务后退出。
  */
 let { config, storage_name: _storage_name } = require('../config.js')(runtime, global)
 let args = config.parseExecArgv()
@@ -222,8 +223,8 @@ function isOnLoveCoPlantPage () {
 /**
  * 进入真爱合种页面：
  * 进入蚂蚁森林首页并确认 → 等待3s → 查找并点击"真爱合种"入口
- * （可见控件点击失败时直接点击入口控件）→ 等待4s → 处理"我知道啦"领取道具弹窗
- * 若出现"我知道啦"，说明今天任务已完成，等待3s后退出脚本
+ * （可见控件点击失败时直接点击入口控件）→ 等待4s → OCR识别并点击"我知道啦"领取道具弹窗
+ * 若识别到"我知道啦"，说明今天任务已完成，等待3s后退出脚本
  * @returns {boolean} 是否成功进入真爱合种页面
  */
 function enterLoveCoPlantPage () {
@@ -249,10 +250,10 @@ function enterLoveCoPlantPage () {
     automator.clickCenter(entry)
   }
 
-  // 等待页面加载并处理领取道具弹窗
+  // 等待页面加载并处理领取道具弹窗（"我知道啦"非控件文本，使用OCR识别）
   sleep(4000)
-  if (findAndClickByTextVisible(/我知道啦/)) {
-    taskLog('检测到"我知道啦"领取道具弹窗，今日任务已完成')
+  if (clickByOcr('我知道啦', 5000)) {
+    taskLog('OCR识别到"我知道啦"领取道具弹窗，今日任务已完成')
     sleep(3000)
     exitScript()
   }
@@ -448,7 +449,7 @@ function findConfirmButtons (timeout) {
  *    未获取到时 y 取屏幕高度0.5；点击后等待3s。
  * 2. 轮询等待确认页面出现 Button 类型的"攒能量"和"关闭"（最长10s），
  *    不存在则报错返回 false。
- * 3. 点击 Button 类型的"攒能量"，等待3s。
+ * 3. 点击 Button 类型的"攒能量"，等待5s；OCR识别到"我知道啦"并点击。
  * @returns {boolean} 浇水是否成功
  */
 function doWatering () {
@@ -483,13 +484,30 @@ function doWatering () {
   }
   taskLog('确认页面正常，点击Button类型"攒能量"')
   automator.click(buttons.energyButton.bounds.centerX(), buttons.energyButton.bounds.centerY())
-  sleep(3000)
+  sleep(5000)
+  if (clickByOcr('我知道啦', 5000)) {
+    taskLog('浇水后OCR识别到"我知道啦"，已点击')
+  }
   return true
 }
 
 // ============ 主流程 ============
 
 taskLog('真爱合种任务开始')
+
+// 音量上键退出脚本（在独立线程中监听）
+infoLog('运行中可按音量上键关闭', true)
+threads.start(function () {
+  events.observeKey()
+  events.on('key_down', function (keyCode, event) {
+    if (keyCode === 24) {
+      toastLog('用户按音量上键，退出脚本')
+      killApps()
+      runningQueueDispatcher.removeRunningTask()
+      exit()
+    }
+  })
+})
 
 if (!enterLoveCoPlantPage()) {
   errorInfo('进入真爱合种页面失败，退出脚本')

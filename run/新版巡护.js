@@ -517,7 +517,7 @@ function getWaitTimeForSameRow (allNodes, centerY) {
 function handleTaskPopup () {
   taskLog('检查是否有弹窗')
   sleep(1000)
-  let openBtn = widgetUtils.widgetGetOne(/^打开$/, 10000)
+  let openBtn = widgetUtils.widgetGetOne(/^打开$/, 3000)
   if (openBtn) {
     taskLog('检测到系统弹窗，点击"打开"')
     automator.clickCenter(openBtn)
